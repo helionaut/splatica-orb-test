@@ -26,20 +26,25 @@ Render the committed monocular settings files directly with:
   --output configs/orbslam3/insta360_x3_lens10_monocular.yaml
 ```
 
-For the `HEL-51` monocular baseline, the private calibration contract is:
+For the `HEL-51`/`HEL-52` monocular baseline, the private calibration contract is:
 
-- local path: `datasets/user/insta360_x3_lens10/monocular_calibration.json`
-- camera model: `KannalaBrandt8`
+- local path: `datasets/user/insta360_x3_one_lens_baseline/lenses/10/monocular_calibration.json`
+- camera model: `KannalaBrandt8` or the raw source `kannalabrandt4` export
 - required camera keys: `label`, `model`, `image_width`, `image_height`,
   `fps`, `color_order`
 - required nested keys: `intrinsics.{fx,fy,cx,cy}` and
   `distortion.{k1,k2,k3,k4}`
 - optional override blocks: `orb` and `viewer`
 
+The canonical way to create that JSON now is the HEL-52 import helper, which
+copies the raw `00.mp4`/`10.mp4` videos plus the raw `kb4` calibration exports
+into `datasets/user/insta360_x3_one_lens_baseline/` and derives the lens-ready
+JSON automatically.
+
 Render that JSON into a runnable ORB-SLAM3 settings file with:
 
 ```bash
 ./scripts/render_monocular_settings.py \
-  --calibration datasets/user/insta360_x3_lens10/monocular_calibration.json \
+  --calibration datasets/user/insta360_x3_one_lens_baseline/lenses/10/monocular_calibration.json \
   --output build/insta360_x3_lens10/monocular/TUM-VI-insta360-x3-lens10.yaml
 ```

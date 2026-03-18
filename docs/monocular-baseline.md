@@ -29,12 +29,39 @@ one fisheye lens, offline replay, and no inertial dependence.
 
 ## Private Input Contract
 
-The repo does not commit the user's calibration or recordings. The local-only
-input contract is:
+The repo does not commit the user's calibration or recordings. `HEL-52`
+organizes the local-only bundle under:
 
-- `datasets/user/insta360_x3_lens10/monocular_calibration.json`
-- `datasets/user/insta360_x3_lens10/frame_index.csv`
-- PNG source frames referenced by `frame_index.csv`
+```text
+datasets/user/insta360_x3_one_lens_baseline/
+  raw/
+    video/{00.mp4,10.mp4}
+    calibration/
+      insta360_x3_kb4_00_calib.txt
+      insta360_x3_kb4_10_calib.txt
+      insta360_x3_extr_rigs_calib.json
+  lenses/
+    00/
+      source_png/*.png
+      frame_index.csv
+      timestamps.txt
+      monocular_calibration.json
+      import_manifest.json
+    10/
+      source_png/*.png
+      frame_index.csv
+      timestamps.txt
+      monocular_calibration.json
+      import_manifest.json
+  reports/
+    ingest_report.md
+```
+
+The lens-10 baseline manifest consumes:
+
+- `datasets/user/insta360_x3_one_lens_baseline/lenses/10/monocular_calibration.json`
+- `datasets/user/insta360_x3_one_lens_baseline/lenses/10/frame_index.csv`
+- PNG source frames referenced by that `frame_index.csv`
 
 `monocular_calibration.json` must provide:
 
@@ -95,11 +122,34 @@ That command writes `reports/out/insta360_x3_lens10_monocular_prereqs.md` and
 returns non-zero until the private calibration, frame index, native build
 packages, extracted vocabulary, and built `mono_tum_vi` binary all exist.
 
+Import the provided mp4 and raw calibration assets into the deterministic local
+bundle:
+
+```bash
+make bootstrap-local-ffmpeg
+./scripts/import_monocular_video_inputs.py \
+  --video-00 /path/to/00.mp4 \
+  --video-10 /path/to/10.mp4 \
+  --calibration-00 /path/to/insta360_x3_kb4_00_calib.txt \
+  --calibration-10 /path/to/insta360_x3_kb4_10_calib.txt \
+  --extrinsics /path/to/insta360_x3_extr_rigs_calib.json
+```
+
+The importer copies the raw assets into `datasets/user/insta360_x3_one_lens_baseline/`,
+extracts source PNGs for both lenses with `ffmpeg`, uses `ffprobe` timestamps
+to generate `frame_index.csv` and `timestamps.txt`, derives
+`monocular_calibration.json` for each lens from the raw `kb4` export plus the
+probed mp4 metadata, and writes one `import_manifest.json` per lens plus a
+bundle-level `reports/ingest_report.md`.
+
+The importer defaults `camera.color_order` to `BGR` because ORB-SLAM3 reads the
+extracted PNG files through OpenCV's default BGR image loader path.
+
 Generate the settings YAML directly:
 
 ```bash
 ./scripts/render_monocular_settings.py \
-  --calibration datasets/user/insta360_x3_lens10/monocular_calibration.json \
+  --calibration datasets/user/insta360_x3_one_lens_baseline/lenses/10/monocular_calibration.json \
   --output build/insta360_x3_lens10/monocular/TUM-VI-insta360-x3-lens10.yaml
 ```
 
@@ -107,7 +157,7 @@ Normalize the frame list directly:
 
 ```bash
 ./scripts/prepare_monocular_sequence.py \
-  --frame-index datasets/user/insta360_x3_lens10/frame_index.csv \
+  --frame-index datasets/user/insta360_x3_one_lens_baseline/lenses/10/frame_index.csv \
   --image-dir build/insta360_x3_lens10/monocular/images \
   --timestamps-path build/insta360_x3_lens10/monocular/timestamps.txt
 ```
@@ -140,10 +190,10 @@ The monocular baseline writes:
 
 ## Current Limitation
 
-This ticket adds the runnable contract and automation, but not the private
-lens-10 calibration JSON or frame index CSV themselves. Until those local-only
-inputs are present, the repo can validate only the generation and preparation
-path, not a full user-data run.
+This ticket now organizes and derives the local one-lens input bundle from the
+provided raw mp4 and calibration files, but the resulting data stays local-only
+under `datasets/user/`. The repo can validate the import, preparation, and
+run-contract paths without publishing the user recordings themselves.
 
 See `docs/candidate-baseline-evaluation.md` for the HEL-48 candidate comparison
 and the explicit rationale for keeping upstream as the selected baseline.
