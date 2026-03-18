@@ -21,6 +21,19 @@ make check
 - [Execution plan](docs/execution-plan.md)
 - [Development guide](docs/DEVELOPMENT.md)
 - [Production verification](docs/PRODUCTION_VERIFICATION.md)
+- [Publication decision](docs/publication-decision.md)
+
+## Publication Status
+
+`splatica-orb-test` does not currently publish a live artifact or site.
+`HEL-45` records the explicit no-deploy decision in
+[docs/publication-decision.md](docs/publication-decision.md). The current
+harness only produces local dry-run plans, logs, and reports. When a real
+validation bundle or report exists, prefer a downloadable results bundle,
+verify its published URL with
+`make verify-production ARTIFACT_URL=https://<published-artifact-url>`, and
+record that final location in both the PR summary and the Linear handoff or
+completion comment.
 
 ## Current Focus
 
