@@ -25,6 +25,7 @@ class FinalValidationDocsTests(unittest.TestCase):
 
         self.assertIn("Status: Final", report)
         self.assertIn("User rig verdict: `blocked`", report)
+        self.assertIn("Checked-in repo rerun verdict: `validated`", report)
         self.assertIn(
             "4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4",
             report,
@@ -33,6 +34,8 @@ class FinalValidationDocsTests(unittest.TestCase):
             "manifests/insta360_x3_lens10_monocular_baseline.json",
             report,
         )
+        self.assertIn("local-only input bundle", report)
+        self.assertIn("Pangolin", report)
         self.assertIn("make check", report)
         self.assertIn("make monocular-prereqs", report)
         self.assertIn("./scripts/build_orbslam3_baseline.sh", report)
