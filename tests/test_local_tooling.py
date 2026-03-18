@@ -6,13 +6,19 @@ import unittest
 from unittest import mock
 
 from splatica_orb_test.local_tooling import (
+    resolve_boost_prefix,
     resolve_cmake_tool,
     resolve_eigen3_prefix,
     resolve_ffmpeg_tool,
     resolve_ffprobe_tool,
+    resolve_opencv_prefix,
+    resolve_pangolin_prefix,
+    resolve_repo_local_boost_paths,
     resolve_repo_local_cmake_paths,
     resolve_repo_local_eigen3_paths,
     resolve_repo_local_ffmpeg_paths,
+    resolve_repo_local_opencv_paths,
+    resolve_repo_local_pangolin_paths,
 )
 
 
@@ -173,5 +179,82 @@ class LocalToolingTests(unittest.TestCase):
             repo_root = Path(tmpdir)
 
             resolved = resolve_eigen3_prefix(repo_root)
+
+        self.assertIsNone(resolved)
+
+    def test_detects_repo_local_opencv_prefix(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+            config_path, pkgconfig_path, _library_path = resolve_repo_local_opencv_paths(
+                repo_root
+            )
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            config_path.write_text("config", encoding="utf-8")
+            pkgconfig_path.parent.mkdir(parents=True, exist_ok=True)
+            pkgconfig_path.write_text("pc", encoding="utf-8")
+
+            resolved = resolve_opencv_prefix(repo_root)
+
+        self.assertIsNotNone(resolved)
+        assert resolved is not None
+        self.assertEqual(resolved.prefix, repo_root / "build/local-tools/opencv-root/usr")
+
+    def test_returns_none_when_repo_local_opencv_prefix_is_absent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+
+            resolved = resolve_opencv_prefix(repo_root)
+
+        self.assertIsNone(resolved)
+
+    def test_detects_repo_local_boost_prefix(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+            header_path, library_path = resolve_repo_local_boost_paths(repo_root)
+            header_path.parent.mkdir(parents=True, exist_ok=True)
+            header_path.write_text("header", encoding="utf-8")
+            library_path.mkdir(parents=True, exist_ok=True)
+            (library_path / "libboost_serialization.so").write_text(
+                "library",
+                encoding="utf-8",
+            )
+
+            resolved = resolve_boost_prefix(repo_root)
+
+        self.assertIsNotNone(resolved)
+        assert resolved is not None
+        self.assertEqual(resolved.prefix, repo_root / "build/local-tools/boost-root/usr")
+
+    def test_returns_none_when_repo_local_boost_prefix_is_absent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+
+            resolved = resolve_boost_prefix(repo_root)
+
+        self.assertIsNone(resolved)
+
+    def test_detects_repo_local_pangolin_prefix(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+            config_path, pkgconfig_path = resolve_repo_local_pangolin_paths(repo_root)
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            config_path.write_text("config", encoding="utf-8")
+            pkgconfig_path.parent.mkdir(parents=True, exist_ok=True)
+            pkgconfig_path.write_text("pc", encoding="utf-8")
+
+            resolved = resolve_pangolin_prefix(repo_root)
+
+        self.assertIsNotNone(resolved)
+        assert resolved is not None
+        self.assertEqual(
+            resolved.prefix,
+            repo_root / "build/local-tools/pangolin-root/usr/local",
+        )
+
+    def test_returns_none_when_repo_local_pangolin_prefix_is_absent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+
+            resolved = resolve_pangolin_prefix(repo_root)
 
         self.assertIsNone(resolved)

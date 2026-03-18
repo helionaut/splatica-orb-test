@@ -67,6 +67,67 @@ def resolve_eigen3_prefix(repo_root: Path) -> ResolvedPrefix | None:
     return None
 
 
+def resolve_repo_local_opencv_paths(repo_root: Path) -> tuple[Path, Path, Path]:
+    prefix = repo_root / "build/local-tools/opencv-root/usr"
+    return (
+        prefix / "lib/x86_64-linux-gnu/cmake/opencv4/OpenCVConfig.cmake",
+        prefix / "lib/x86_64-linux-gnu/pkgconfig/opencv4.pc",
+        prefix / "lib/x86_64-linux-gnu",
+    )
+
+
+def resolve_opencv_prefix(repo_root: Path) -> ResolvedPrefix | None:
+    config_path, pkgconfig_path, _library_path = resolve_repo_local_opencv_paths(repo_root)
+    if config_path.exists() or pkgconfig_path.exists():
+        prefix = repo_root / "build/local-tools/opencv-root/usr"
+        return ResolvedPrefix(
+            prefix=prefix,
+            detail=f"{prefix} (repo-local bootstrap)",
+        )
+
+    return None
+
+
+def resolve_repo_local_boost_paths(repo_root: Path) -> tuple[Path, Path]:
+    prefix = repo_root / "build/local-tools/boost-root/usr"
+    return (
+        prefix / "include/boost/serialization/serialization.hpp",
+        prefix / "lib/x86_64-linux-gnu",
+    )
+
+
+def resolve_boost_prefix(repo_root: Path) -> ResolvedPrefix | None:
+    header_path, library_path = resolve_repo_local_boost_paths(repo_root)
+    if header_path.exists() and any(library_path.glob("libboost_serialization.so*")):
+        prefix = repo_root / "build/local-tools/boost-root/usr"
+        return ResolvedPrefix(
+            prefix=prefix,
+            detail=f"{prefix} (repo-local bootstrap)",
+        )
+
+    return None
+
+
+def resolve_repo_local_pangolin_paths(repo_root: Path) -> tuple[Path, Path]:
+    prefix = repo_root / "build/local-tools/pangolin-root/usr/local"
+    return (
+        prefix / "lib/cmake/Pangolin/PangolinConfig.cmake",
+        prefix / "lib/pkgconfig/pangolin.pc",
+    )
+
+
+def resolve_pangolin_prefix(repo_root: Path) -> ResolvedPrefix | None:
+    config_path, pkgconfig_path = resolve_repo_local_pangolin_paths(repo_root)
+    if config_path.exists() or pkgconfig_path.exists():
+        prefix = repo_root / "build/local-tools/pangolin-root/usr/local"
+        return ResolvedPrefix(
+            prefix=prefix,
+            detail=f"{prefix} (repo-local install)",
+        )
+
+    return None
+
+
 def resolve_repo_local_ffmpeg_paths(repo_root: Path) -> tuple[Path, Path]:
     tool_root = repo_root / "build/local-tools/ffmpeg-root"
     return (

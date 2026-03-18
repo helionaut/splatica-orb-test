@@ -46,9 +46,11 @@ completion comment.
 
 The current repo-level conclusion is captured in
 [docs/final-validation-report.md](docs/final-validation-report.md). The
-checked-in rerun path is validated through `make check`, while the actual
-user-rig monocular lane remains blocked until the private lens-10 inputs exist
-on a host that can build ORB-SLAM3 with OpenCV and Pangolin.
+checked-in rerun path is validated through `make check`. On the current
+HEL-54 host, the private lens-10 bundle can be rebuilt locally and the native
+stack can be bootstrapped through repo-local `cmake`, `Eigen3`, OpenCV, and
+Boost serialization, but the actual monocular lane still remains blocked on
+Pangolin provisioning.
 
 ## Stereo + IMU Normalization Lane
 
@@ -109,28 +111,36 @@ The baseline flow is:
    `make bootstrap-local-cmake`.
 3. If the host does not provide `Eigen3`, bootstrap a repo-local prefix with
    `make bootstrap-local-eigen`.
-4. If the host does not provide `ffmpeg`/`ffprobe`, bootstrap the pinned
+4. If the host does not provide OpenCV 4, bootstrap a repo-local prefix with
+   `make bootstrap-local-opencv`.
+5. If the host does not provide Boost serialization, bootstrap a repo-local
+   prefix with `make bootstrap-local-boost`.
+6. If the host does not provide `ffmpeg`/`ffprobe`, bootstrap the pinned
    repo-local media bundle with `make bootstrap-local-ffmpeg`.
-5. Build the upstream checkout with `./scripts/build_orbslam3_baseline.sh`.
+7. If the host does not provide Pangolin, install it system-wide or into
+   `build/local-tools/pangolin-root/usr/local` so CMake can resolve
+   `PangolinConfig.cmake`. Ubuntu `noble` does not currently ship a
+   `libpangolin-dev` package.
+8. Build the upstream checkout with `./scripts/build_orbslam3_baseline.sh`.
    That wrapper reproduces the upstream native build steps but disables the
    optional `Thirdparty/Sophus` tests/examples, which are not required for
    `mono_tum_vi` and otherwise fail on newer GCC toolchains because upstream
    enables `-Werror`.
-6. Run `make monocular-prereqs` to confirm that the private lens-10 inputs,
+9. Run `make monocular-prereqs` to confirm that the private lens-10 inputs,
    native build toolchain, and baseline assets are all ready. That command
    writes a saved report to
    `reports/out/insta360_x3_lens10_monocular_prereqs.md` and returns non-zero
    until the lane is actually runnable.
-7. Import the provided one-lens raw assets into
+10. Import the provided one-lens raw assets into
    `datasets/user/insta360_x3_one_lens_baseline/` with:
    `./scripts/import_monocular_video_inputs.py --video-00 /path/to/00.mp4 --video-10 /path/to/10.mp4 --calibration-00 /path/to/insta360_x3_kb4_00_calib.txt --calibration-10 /path/to/insta360_x3_kb4_10_calib.txt --extrinsics /path/to/insta360_x3_extr_rigs_calib.json`.
    That helper copies the raw files into a deterministic repo-local layout,
    extracts source PNGs, and generates the per-lens `monocular_calibration.json`,
    `frame_index.csv`, `timestamps.txt`, and `import_manifest.json` files needed
    for the baseline lane.
-8. Generate settings plus the timestamp-named image folder with
+11. Generate settings plus the timestamp-named image folder with
    `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json --prepare-only`.
-9. Execute the actual upstream `mono_tum_vi` runner with
+12. Execute the actual upstream `mono_tum_vi` runner with
    `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json`.
 
 The repo still does not include the private calibration or user sequence
