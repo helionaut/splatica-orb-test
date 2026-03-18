@@ -1,5 +1,9 @@
 # Development
 
+For the current operator entrypoint, rerun order, and final repo or user-rig
+verdict, start with [final-validation-report.md](final-validation-report.md).
+This file remains the command reference.
+
 ## Golden path
 
 1. Read the current project scope in `README.md`, `docs/execution-plan.md`, and `docs/PRD.md` when product requirements change.

@@ -4,6 +4,9 @@ Status: Draft
 Issue: HEL-51
 Last Updated: 2026-03-18
 
+For the final rerun order and the current blocked or validated conclusion for
+this lane, see [final-validation-report.md](final-validation-report.md).
+
 ## Goal
 
 Run the first real ORB-SLAM3 lane against a single Insta360 X3 lens without
