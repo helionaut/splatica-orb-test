@@ -1,0 +1,99 @@
+name: Intake Checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  intake-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate intake artifacts
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import subprocess
+          import sys
+
+          required_files = [
+              Path("README.md"),
+              Path("docs/execution-plan.md"),
+          ]
+          required_sections = [
+              "## Mission",
+              "## Required Inputs From The User",
+              "## Downstream Issue Pack",
+              "## First Next Actions For Symphony",
+          ]
+          link_pattern = re.compile(r"(?<!\!)\[[^\]]+\]\(([^)]+)\)")
+
+          missing_files = [str(path) for path in required_files if not path.exists()]
+          if missing_files:
+              raise SystemExit(
+                  "Missing required intake files:\n- " + "\n- ".join(missing_files)
+              )
+
+          execution_plan = Path("docs/execution-plan.md").read_text(encoding="utf-8")
+          missing_sections = [
+              heading for heading in required_sections if heading not in execution_plan
+          ]
+          if missing_sections:
+              raise SystemExit(
+                  "Execution plan is missing required sections:\n- "
+                  + "\n- ".join(missing_sections)
+              )
+
+          readme = Path("README.md").read_text(encoding="utf-8")
+          if "[Execution plan](docs/execution-plan.md)" not in readme:
+              raise SystemExit(
+                  "README.md must link to docs/execution-plan.md for the intake handoff."
+              )
+
+          markdown_files = [
+              Path(line)
+              for line in subprocess.check_output(
+                  ["git", "ls-files", "*.md"], text=True
+              ).splitlines()
+              if line
+          ]
+
+          broken_links = []
+          for markdown_file in markdown_files:
+              text = markdown_file.read_text(encoding="utf-8")
+              for match in link_pattern.finditer(text):
+                  target = match.group(1).strip()
+                  if (
+                      not target
+                      or "://" in target
+                      or target.startswith("#")
+                      or target.startswith("mailto:")
+                  ):
+                      continue
+                  relative_target = target.split("#", 1)[0]
+                  resolved = (markdown_file.parent / relative_target).resolve()
+                  if not resolved.exists():
+                      broken_links.append(f"{markdown_file}: {target}")
+
+          if broken_links:
+              raise SystemExit(
+                  "Broken local markdown links:\n- " + "\n- ".join(broken_links)
+              )
+
+          print(
+              f"Validated intake files and local markdown links across {len(markdown_files)} markdown files."
+          )
+          PY
