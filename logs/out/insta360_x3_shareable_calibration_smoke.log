@@ -1,0 +1,14 @@
+Calibration config smoke: configs/calibration/insta360_x3_shareable_rig.json
+Generated outputs: 2
+- lens 10: configs/orbslam3/insta360_x3_lens10_monocular.yaml (fps=30.0, color_order=RGB)
+- lens 00: configs/orbslam3/insta360_x3_lens00_monocular.yaml (fps=30.0, color_order=RGB)
+Blockers:
+- rig.layout is not overlapping_stereo, so the first pass should not emit a standard ORB-SLAM3 stereo pair settings bundle.
+- Missing camera_to_imu needed for IMU.T_b_c1.
+- Missing imu.noise_gyro needed for IMU.NoiseGyro.
+- Missing imu.noise_acc needed for IMU.NoiseAcc.
+- Missing imu.gyro_walk needed for IMU.GyroWalk.
+- Missing imu.acc_walk needed for IMU.AccWalk.
+- Missing imu.frequency_hz needed for IMU.Frequency.
+- Missing source.source_file_names for provenance; the current repo only has the values quoted in HEL-47 comments.
+Notes: Harness-integrated config smoke for the shareable Insta360 X3 calibration subset. It writes two monocular YAMLs, validates the required scalar ORB-SLAM3 fields, and records the remaining blockers for any future stereo+IMU settings bundle.

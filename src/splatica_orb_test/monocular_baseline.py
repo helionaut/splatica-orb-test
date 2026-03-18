@@ -8,6 +8,10 @@ import shutil
 
 
 ORB_SLAM3_V1_0_RELEASE = "0df83dde1c85c7ab91a0d47de7a29685d046f637"
+SUPPORTED_SOURCE_CAMERA_MODELS = {
+    "KANNALABRANDT4",
+    "KANNALABRANDT8",
+}
 
 
 @dataclass(frozen=True)
@@ -182,11 +186,17 @@ def load_monocular_calibration(path: Path) -> MonocularCalibration:
     except TypeError as error:
         raise ValueError(f"Invalid calibration section: {error.args[0]}") from error
 
-    camera_model = str(camera["model"])
-    if camera_model != "KannalaBrandt8":
+    source_camera_model = str(camera["model"]).strip()
+    if source_camera_model.upper() not in SUPPORTED_SOURCE_CAMERA_MODELS:
         raise ValueError(
-            "Monocular baseline only supports the ORB-SLAM3 KannalaBrandt8 model."
+            "Monocular baseline only supports Kannala-Brandt 4/8 source models."
         )
+    color_order = camera.get("color_order")
+    if color_order is None:
+        raise ValueError("Missing calibration field: camera.color_order")
+    normalized_color_order = str(color_order).upper()
+    if normalized_color_order not in {"RGB", "BGR"}:
+        raise ValueError("camera.color_order must be either RGB or BGR.")
 
     orb_raw = raw.get("orb", {})
     viewer_raw = raw.get("viewer", {})
@@ -198,8 +208,8 @@ def load_monocular_calibration(path: Path) -> MonocularCalibration:
 
     return MonocularCalibration(
         camera_label=str(camera["label"]),
-        camera_model=camera_model,
-        color_order=str(camera.get("color_order", "RGB")).upper(),
+        camera_model="KannalaBrandt8",
+        color_order=normalized_color_order,
         fps=camera["fps"],
         fx=float(intrinsics["fx"]),
         fy=float(intrinsics["fy"]),

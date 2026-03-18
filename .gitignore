@@ -4,7 +4,9 @@ datasets/user/*
 !datasets/user/README.md
 logs/out/*
 !logs/out/.gitkeep
+!logs/out/insta360_x3_shareable_calibration_smoke.log
 node_modules/
 reports/out/*
 !reports/out/.gitkeep
+!reports/out/insta360_x3_shareable_calibration_smoke.md
 third_party/orbslam3/upstream/

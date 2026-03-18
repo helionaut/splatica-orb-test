@@ -1,0 +1,62 @@
+{
+  "rig": {
+    "label": "insta360_x3_back_to_back",
+    "layout": "back_to_back",
+    "image_width": 2880,
+    "image_height": 2880,
+    "source_model": "kannalabrandt4",
+    "reference_camera": "10",
+    "cameras": {
+      "10": {
+        "label": "insta360_x3_lens10",
+        "intrinsics": {
+          "fx": 781.5982329802617,
+          "fy": 781.5740400214813,
+          "cx": 1434.2724594568516,
+          "cy": 1450.8528374988705
+        },
+        "distortion": {
+          "k1": 0.08422896345536275,
+          "k2": -0.02915539854098567,
+          "k3": 0.008995285524657697,
+          "k4": -0.002161607489144358
+        }
+      },
+      "00": {
+        "label": "insta360_x3_lens00",
+        "intrinsics": {
+          "fx": 782.6222275422286,
+          "fy": 782.6995036687587,
+          "cx": 1443.4529086264077,
+          "cy": 1445.6502233688803
+        },
+        "distortion": {
+          "k1": 0.08095672876187384,
+          "k2": -0.028270291026529054,
+          "k3": 0.00869092448524706,
+          "k4": -0.002055498185775806
+        }
+      }
+    },
+    "extrinsics": {
+      "reference_camera": "10",
+      "relative_camera": "00",
+      "translation_m": [
+        0.000397764928582,
+        0.0013309520708354,
+        -0.0180757563058398
+      ],
+      "quaternion_xyzw": [
+        0.0005638487906206125,
+        -0.0035558060950914524,
+        0.9999931401001314,
+        0.0008706722886403689
+      ]
+    }
+  },
+  "source": {
+    "reference": "HEL-47 CEO update comment 2026-03-18T11:54:18Z",
+    "source_file_names": []
+  },
+  "notes": "Shareable subset of the calibration values currently visible in HEL-47. Camera-to-IMU extrinsics, IMU noise terms, IMU frequency, and source file names were not present in the issue comments, so the full stereo+IMU ORB-SLAM3 settings path remains intentionally blocked."
+}

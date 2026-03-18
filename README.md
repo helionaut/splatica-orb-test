@@ -9,17 +9,20 @@ verifying it on the user's dataset.
 ```bash
 make build
 make smoke
+make calibration-smoke
 make check
 ```
 
 - `make build` generates the current dry-run smoke plan in `build/smoke-plan.md`.
 - `make smoke` exercises the canonical dry-run launcher path and writes outputs to `logs/out/` and `reports/out/`.
-- `make check` runs tests, build, and smoke as one aggregate validation command.
+- `make calibration-smoke` generates and validates the checked-in shareable calibration settings bundles for the first monocular baseline.
+- `make check` runs tests, build, smoke, calibration-smoke, and normalization as one aggregate validation command.
 
 ## Current Project Docs
 
 - [Execution plan](docs/execution-plan.md)
 - [Dataset normalization](docs/dataset-normalization.md)
+- [Calibration translation](docs/calibration-translation.md)
 - [Monocular baseline](docs/monocular-baseline.md)
 - [Future rig plan](docs/future-rig-plan.md)
 - [Development guide](docs/DEVELOPMENT.md)
@@ -43,8 +46,11 @@ completion comment.
 The repository is moving from intake into a reproducible engineering lane.
 `HEL-41` captures the execution plan, `HEL-43` establishes the harness,
 `HEL-46` defines the canonical stereo+IMU normalization lane, and `HEL-51`
-adds the first real monocular baseline. Later issues will fill in the pinned
-ORB-SLAM3 baseline, user-data validation, and any publication/deployment path.
+adds the first real monocular baseline. `HEL-47` now checks in the shareable
+calibration subset plus deterministic monocular settings artifacts for both
+lenses, while leaving full stereo+IMU support explicitly blocked on missing
+camera-to-IMU and IMU inputs. Later issues will fill in the remaining
+user-data validation and any publication/deployment path.
 
 ## Stereo + IMU Normalization Lane
 
@@ -61,6 +67,29 @@ make normalize-fixture
 That command normalizes the checked-in raw fixture into
 `build/fixtures/stereo_imu_fixture/normalized/` and writes a saved report to
 `reports/out/stereo_imu_fixture_normalization.md`.
+
+## Shareable Calibration Translation Lane
+
+`HEL-47` adds a checked-in calibration bundle at
+`configs/calibration/insta360_x3_shareable_rig.json`, committed monocular YAMLs
+for lens `10/` and lens `00/`, and a harness-integrated config smoke path at
+`manifests/insta360_x3_shareable_calibration_smoke.json`.
+
+Validate that lane from a clean checkout with:
+
+```bash
+make calibration-smoke
+```
+
+That command regenerates:
+
+- `configs/orbslam3/insta360_x3_lens10_monocular.yaml`
+- `configs/orbslam3/insta360_x3_lens00_monocular.yaml`
+- `logs/out/insta360_x3_shareable_calibration_smoke.log`
+- `reports/out/insta360_x3_shareable_calibration_smoke.md`
+
+The saved report also records the unresolved blockers for any future
+stereo+IMU ORB-SLAM3 bundle.
 
 ## Monocular Fisheye Lane
 

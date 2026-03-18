@@ -19,17 +19,22 @@ from splatica_orb_test.monocular_baseline import (
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
-def write_calibration(path: Path) -> None:
+def write_calibration(
+    path: Path,
+    *,
+    color_order: str = "RGB",
+    model: str = "KannalaBrandt8",
+) -> None:
     path.write_text(
         json.dumps(
             {
                 "camera": {
                     "label": "insta360_x3_lens10",
-                    "model": "KannalaBrandt8",
+                    "model": model,
                     "image_width": 1920,
                     "image_height": 1920,
                     "fps": 30,
-                    "color_order": "RGB",
+                    "color_order": color_order,
                     "intrinsics": {
                         "fx": 812.5,
                         "fy": 811.75,
@@ -98,6 +103,28 @@ class MonocularCalibrationRenderingTests(unittest.TestCase):
         self.assertIn("Camera1.k4: -0.000031", settings)
         self.assertIn("ORBextractor.nFeatures: 1800", settings)
         self.assertIn("Viewer.ViewpointF: 500.0", settings)
+
+    def test_accepts_kannala_brandt4_source_models(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            calibration_path = Path(tmpdir) / "calibration.json"
+            write_calibration(calibration_path, model="kannalabrandt4")
+
+            calibration = load_monocular_calibration(calibration_path)
+
+        self.assertEqual(calibration.camera_model, "KannalaBrandt8")
+
+    def test_requires_explicit_color_order(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            calibration_path = Path(tmpdir) / "calibration.json"
+            write_calibration(calibration_path)
+            raw = json.loads(calibration_path.read_text(encoding="utf-8"))
+            raw["camera"].pop("color_order")
+            calibration_path.write_text(json.dumps(raw), encoding="utf-8")
+
+            with self.assertRaisesRegex(
+                ValueError, "Missing calibration field: camera.color_order"
+            ):
+                load_monocular_calibration(calibration_path)
 
 
 class MonocularSequencePreparationTests(unittest.TestCase):
