@@ -1,177 +1,242 @@
-# Product Requirements Document: ORB-SLAM3 validation for splatica-orb-test
+# Product Requirements Document: ORB-SLAM3 validation experiment contract
 
 Status: Draft
-Issue: HEL-42
+Issue: HEL-53
 Last Updated: 2026-03-18
-Source Of Truth: `docs/execution-plan.md`
+Source Of Truth: `docs/execution-plan.md`, `README.md`, and the checked-in manifests
 
-## Objective
+## Experiment Intent
 
-Turn the intake plan into an explicit success contract for the first project
-slice: identify one reproducible ORB-SLAM3 baseline and settings bundle that
-can process the user's stereo fisheye + IMU recordings, then document how to
-rerun and judge that result.
+This repository is not a browser prototype or a generic product brief. It is a
+reproducibility workspace for answering one engineering question:
 
-## Target Operating Scenario
+Can the team pin, prepare, run, and judge one ORB-SLAM3 baseline against the
+provided fisheye recordings and related calibration assets without hidden
+manual steps?
 
-- The user has a custom stereo fisheye camera rig with an attached IMU.
-- The immediate goal is offline validation on recorded sequences, not a live
-  deployment or productized SLAM service.
-- A successful outcome answers a practical question: which ORB-SLAM3 source
-  baseline, commit, and configuration can ingest the user's data format and
-  produce a repeatable validation run.
-- The first pass should work against one smoke-test sequence and one
-  representative sequence from the user's real operating environment when both
-  are available.
+The intake intent from `docs/execution-plan.md` still applies: validate the
+ORB-SLAM3 hypothesis on the user's asset family and leave behind a rerunnable
+experiment contract. The repair in `HEL-53` is to make that contract match the
+repo's real staged workflow instead of the earlier intake-only framing.
 
-## In Scope
+## Locked Project Decisions
 
-- Choose one initial ORB-SLAM3 source baseline and pin the exact repo or fork
-  plus commit SHA used for evaluation.
-- Translate the user's stereo fisheye and IMU calibration into an ORB-SLAM3
-  settings bundle or document why that translation is blocked.
-- Run at least one validation attempt against the user's recorded dataset.
-- Produce a validation report that states what worked, what failed, and what
-  remains unresolved.
+- The primary deliverable is validation evidence, not an end-user application.
+- The first accepted runtime lane is the lens-10 monocular fisheye baseline
+  without IMU, because the current back-to-back rig and missing camera-to-IMU
+  / IMU inputs do not justify claiming stereo-inertial support yet.
+- Stereo fisheye plus IMU assets still matter now because they define the
+  normalization contract and the future full-rig evidence requirements.
+- Dry-run harness outputs, fixture normalization, and YAML generation are
+  necessary setup evidence, but they are not by themselves a successful
+  ORB-SLAM3 validation result.
+- A future full-rig conclusion may be "blocked" or "use a different fusion
+  path" if the non-overlapping rig cannot satisfy standard ORB-SLAM3 stereo
+  assumptions.
 
-## Out Of Scope
+## Real Inputs
 
-- Real-time deployment, robotics integration, or any live runtime guarantees.
-- Automatic calibration generation or sensor re-calibration.
-- Broad bakeoff work across many forks, datasets, or algorithm families.
-- Final publication or deployment decisions beyond the validation artifacts
-  owned by this repo.
+The experiment contract now depends on three input classes.
 
-## Required User-Provided Inputs
+### 1. Checked-In Shareable Inputs
 
-Validation work can only be judged against the user's own rig if the following
-inputs are supplied explicitly.
+These inputs are versioned in the repo and must stay reproducible from a clean
+checkout.
 
-### 1. Recordings
+- Stereo+IMU normalization fixture:
+  `datasets/fixtures/stereo_imu_fixture/raw/`
+- Shareable calibration subset:
+  `configs/calibration/insta360_x3_shareable_rig.json`
+- Normalization manifest:
+  `manifests/stereo_imu_fixture_normalization.json`
+- Calibration smoke manifest:
+  `manifests/insta360_x3_shareable_calibration_smoke.json`
+- Baseline selection and future-rig docs:
+  `docs/candidate-baseline-evaluation.md` and `docs/future-rig-plan.md`
 
-- One replayable stereo recording with left and right image streams from the
-  target rig.
-- One representative IMU stream from the same capture session.
-- Preferred: one short smoke-test sequence and one longer representative
-  sequence.
-- File layout details, naming conventions, and any pre-processing already
-  applied before the data reaches this repo.
+### 2. Local-Only User Inputs
 
-### 2. Camera Calibration
+These inputs are intentionally not committed, but the repo defines their exact
+expected layout and preparation path.
 
-- Intrinsics for both fisheye cameras, including image size, camera model, and
-  distortion coefficients.
-- Left-to-right extrinsics for the stereo pair.
-- Confirmation of whether the recordings are raw fisheye images or already
-  rectified.
+- Raw lens videos:
+  `datasets/user/insta360_x3_one_lens_baseline/raw/video/{00.mp4,10.mp4}`
+- Raw calibration exports:
+  `datasets/user/insta360_x3_one_lens_baseline/raw/calibration/`
+- Derived per-lens bundle for the runnable baseline:
+  `datasets/user/insta360_x3_one_lens_baseline/lenses/10/`
+- Baseline manifest that consumes those derived files:
+  `manifests/insta360_x3_lens10_monocular_baseline.json`
 
-### 3. Camera-To-IMU Calibration
+### 3. Still-Missing Inputs Required For Any Full Stereo+IMU Claim
 
-- Extrinsics between the camera frame and IMU frame.
-- Axis conventions and frame definitions if they differ from ORB-SLAM3 example
-  datasets.
+The repo must keep these gaps explicit instead of guessing values.
 
-### 4. Timing And Synchronization
+- camera-to-IMU extrinsics
+- IMU noise density, random walk, and frequency
+- confirmed timestamp offset and drift behavior across cameras and IMU
+- user-defined acceptance target for tracking quality on the representative run
 
-- Timestamps for left frames, right frames, and IMU samples.
-- Timestamp units and time base.
-- Any known fixed offset, drift, dropped-sample behavior, or sync guarantees
-  between cameras and IMU.
-- Capture rates for both cameras and the IMU.
+Without those inputs, the project may claim harness readiness and monocular
+baseline progress, but not full stereo+IMU validation success.
 
-### 5. IMU Parameters
+## Prepared Artifacts The Repo Must Produce
 
-- Accelerometer and gyroscope units.
-- Noise density and random-walk parameters used for visual-inertial tuning.
-- Any known bias initialization or bias stability notes.
+The repaired PRD needs to match the artifacts already implied by the harness
+and downstream issues.
 
-### 6. Acceptance Target
+### Required Prepared Artifacts
 
-- Which sequence should count as the representative validation target.
-- What the user considers acceptable tracking quality on that sequence.
-- Whether any reference trajectory, map, or qualitative benchmark exists for
-  comparison.
+- Pinned ORB-SLAM3 baseline identity:
+  upstream `UZ-SLAMLab/ORB_SLAM3` at commit
+  `4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4`
+- Reproducible manifests under `manifests/`
+- Generated ORB-SLAM3 settings bundles under `configs/orbslam3/` or `build/`
+- Prepared image/timestamp layouts under `build/`
+- Logs under `logs/out/`
+- Validation reports under `reports/out/`
 
-If camera-to-IMU extrinsics, timestamp behavior, IMU parameters, or the user's
-acceptance target are missing, the repo may still support harness bring-up, but
-it must not claim full stereo-inertial validation success.
+### Minimum Evidence Files Called Out By The Current Repo
+
+- `reports/out/stereo_imu_fixture_normalization.md`
+- `reports/out/insta360_x3_shareable_calibration_smoke.md`
+- `reports/out/insta360_x3_lens10_monocular_prereqs.md`
+- `reports/out/insta360_x3_lens10_monocular.md`
+
+If a downstream issue changes a command or output path, it must update this PRD
+or the command's owning doc in the same change.
+
+## Canonical Validation Flow
+
+The repo now has a staged experiment lane. Later work should reference this
+order instead of inventing new paths.
+
+1. Confirm repo health with `make check`.
+   This aggregates tests, build, smoke, calibration-smoke, and fixture
+   normalization.
+2. Validate the stereo+IMU data contract with `make normalize-fixture`.
+   This proves the canonical raw-input and normalized-output layout from
+   `HEL-46`.
+3. Validate the shareable calibration path with `make calibration-smoke`.
+   This proves the harness can regenerate deterministic monocular YAMLs while
+   recording blockers for any future stereo+IMU bundle.
+4. Fetch and build the selected upstream ORB-SLAM3 baseline with:
+   `./scripts/fetch_orbslam3_baseline.sh` and
+   `./scripts/build_orbslam3_baseline.sh`, using the documented local tool
+   bootstraps as needed.
+5. Import the provided local-only lens assets with
+   `./scripts/import_monocular_video_inputs.py` so the repo owns a deterministic
+   bundle under `datasets/user/insta360_x3_one_lens_baseline/`.
+6. Fail fast on missing prerequisites with `make monocular-prereqs`.
+   That command is the explicit readiness gate before any real ORB-SLAM3 run.
+7. Generate the runnable prepared sequence with
+   `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json --prepare-only`.
+8. Execute the actual runtime lane with
+   `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json`.
+9. Record any tuning pass as a reproducible before/after comparison against the
+   same baseline, manifest, and representative sequence.
+10. Consolidate the final conclusion into one rerunnable report and
+    recommendation for `HEL-49`.
 
 ## Success Criteria
 
-The project needs two distinct pass levels so later experiments can be judged
-without guessing.
+The project now needs four distinct pass levels so later work cannot overclaim
+progress.
 
-### Technical Validation Pass
+### 1. Contract Readiness Pass
 
-A run counts as a technical pass only if all of the following are true:
+This pass is satisfied only if all of the following are true:
 
-- The ORB-SLAM3 source choice is pinned to one repo or fork plus one commit
-  SHA.
-- Another engineer can build and rerun the attempt from a fresh checkout using
-  documented commands and dependencies.
-- The selected user sequence is ingested through a documented dataset layout or
-  normalization step without ad hoc manual edits during the run.
-- ORB-SLAM3 reaches a real processing run on the user's stereo fisheye + IMU
-  data, produces non-empty output artifacts such as trajectory or log files,
-  and does not terminate because of a crash, assertion, or manual restart.
-- The validation report records whether initialization succeeded, when tracking
-  was lost or recovered, and any sequence-specific limitations that prevent the
-  run from being called stable.
+- the repo documents one canonical command path for normalization, calibration
+  smoke, baseline preparation, and runtime validation
+- the baseline repo, commit SHA, manifests, output paths, and expected reports
+  are explicit
+- another engineer can identify which inputs are shareable, which are local
+  only, and which are still missing
 
-### Dataset Acceptance Pass
+### 2. Runnable Baseline Pass
 
-A run counts as a dataset acceptance pass only if all of the following are
+This pass is satisfied only if all of the following are true:
+
+- the selected ORB-SLAM3 baseline is fetched and built at the pinned commit
+- the local-only lens-10 inputs are imported into the deterministic repo layout
+- `make monocular-prereqs` succeeds without hidden manual fixes
+- the preparation step emits the expected settings YAML, timestamp file, and
+  prepared image directory
+
+### 3. Runtime Validation Pass
+
+This pass is satisfied only if all of the following are true:
+
+- the real `mono_tum_vi` lane runs against the prepared lens-10 sequence
+- the run produces non-empty runtime evidence such as log, report, and
+  trajectory outputs
+- the report records whether initialization succeeded, where tracking was lost
+  or recovered, and what sequence-specific limits remain
+- the result can be rerun from the documented commands on another checkout with
+  the same private inputs and baseline pin
+
+### 4. Experiment Decision Pass
+
+This pass is satisfied only if all of the following are true:
+
+- the starting configuration and any tuned configuration are tied to the same
+  baseline SHA and representative input sequence
+- every non-default parameter change is documented with a rationale
+- the final report states one explicit conclusion:
+  validated, partially validated, or blocked
+- the final report names the next unresolved risk instead of leaving the
+  outcome ambiguous
+
+## Full Stereo+IMU Acceptance Boundary
+
+The repo must not claim full success for the back-to-back fisheye + IMU rig
+unless all of the following are true:
+
+- the missing camera-to-IMU, IMU, and timing inputs are supplied explicitly
+- the chosen path proves viable on the representative rig data
+- the report explains whether the result came from standard ORB-SLAM3 support
+  or from a future dual-monocular / fusion workaround
+- the evidence is stronger than fixture normalization, calibration smoke, or a
+  monocular-only run
+
+Until then, the correct language is partial validation or blocked validation,
+not end-to-end stereo-inertial success.
+
+## Explicit Failure Conditions
+
+The experiment is considered failed or still blocked if any of the following is
 true:
 
-- The technical validation pass is already satisfied.
-- The user has supplied an explicit acceptance target for tracking quality,
-  accuracy, or both.
-- The validation report shows that the chosen baseline and config bundle met
-  that target on the agreed representative sequence.
+- calibration or IMU values are inferred instead of sourced from real inputs
+- the repo can only pass smoke or fixture commands but cannot launch the real
+  baseline runner
+- the run crashes, produces no output artifacts, or requires undocumented
+  manual edits during execution
+- the evidence does not identify the exact baseline commit, manifest, and
+  sequence used
+- the repo claims stereo+IMU validation from monocular-only evidence
+- the final report does not state what worked, what failed, and what remains
 
-Without the user-defined acceptance target, the team may claim only a technical
-validation pass, not a full success on the dataset.
+## Downstream Contract For Remaining Issues
 
-## Required Handoff Artifacts
+This repaired PRD is the contract that the remaining issue pack should follow.
 
-The repo handoff is complete only when it contains or references all of the
-following artifacts:
+- `HEL-43` owns the reproducible harness and aggregate validation gate.
+- `HEL-46` owns the stereo+IMU raw and normalized data contract.
+- `HEL-47` owns calibration translation plus explicit blocker reporting.
+- `HEL-48` owns the baseline/fork decision and the pinned upstream commit.
+- `HEL-50` owns the reproducible tuning loop and before/after evidence.
+- `HEL-51` and `HEL-52` own the real monocular baseline lane plus the private
+  input organization path.
+- `HEL-49` must assemble the final validation report, rerun path, and
+  validated/partial/blocked recommendation.
 
-- Baseline selection record: the chosen ORB-SLAM3 repo or fork, commit SHA,
-  rationale for the choice, and any alternatives rejected during triage.
-- Config bundle: the ORB-SLAM3 settings file, calibration translation notes,
-  dataset path assumptions, and the exact run command used for validation.
-- Validation report: dataset identifier, sequence used, input completeness,
-  environment details, commands executed, log locations, observed behavior, and
-  a pass or fail conclusion against the criteria above.
-- Recommendation: a short statement that says what is ready for the next issue,
-  what remains blocked, and whether additional calibration, timing, or fork
-  work is required.
+## Current Known Blockers
 
-## Sequencing Against The Execution Plan
-
-`HEL-42` defines the success contract only. It does not finish the engineering
-harness, backlog decomposition, or publication path early.
-
-1. `HEL-42` defines the operating scenario, required inputs, success criteria,
-   and handoff artifacts.
-2. `HEL-43` builds the reproducible environment, build path, and validation
-   command lane around one baseline.
-3. `HEL-44` decomposes implementation work after the PRD and harness settle.
-4. `HEL-45` decides whether any publishable artifact is needed beyond the
-   validation bundle.
-
-## Open Questions And Blockers
-
-- The user dataset has not yet been attached to this repo, so the exact replay
-  format and normalization work remain unknown.
-- The branch still needs the user's full stereo, fisheye, and camera-to-IMU
-  calibration package to tell whether a settings-only translation is possible.
-- Timestamp alignment and clock-offset behavior are still unknown; this is a
-  likely blocker because timing failures can look like algorithm failures.
-- IMU noise and bias parameters are still unknown; without them, visual-inertial
-  tuning may be guesswork.
-- The user's required validation quality threshold is still unspecified, so
-  final dataset acceptance cannot be declared yet.
-- It is still open whether upstream ORB-SLAM3 is sufficient or whether a
-  maintained fork will be required once the first dataset run is attempted.
+- The current rig is back-to-back rather than a normal overlapping stereo pair.
+- The repo still lacks committed camera-to-IMU and full IMU parameter data.
+- The runtime lane depends on local native ORB-SLAM3 prerequisites and private
+  user inputs that are not present on every machine.
+- The user-facing acceptance threshold for the representative run is still not
+  recorded in the repo.
