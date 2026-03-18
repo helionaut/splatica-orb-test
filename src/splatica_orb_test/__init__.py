@@ -20,6 +20,10 @@ from .harness import (
     resolve_manifest_paths,
     validate_layout,
 )
+from .local_tooling import (
+    resolve_cmake_tool,
+    resolve_repo_local_cmake_paths,
+)
 from .monocular_baseline import (
     ORB_SLAM3_UPSTREAM_MASTER,
     ORB_SLAM3_V1_0_RELEASE,
@@ -73,7 +77,9 @@ __all__ = [
     "render_smoke_log",
     "render_smoke_report",
     "render_stereo_imu_normalization_report",
+    "resolve_cmake_tool",
     "resolve_orbslam3_vocabulary_paths",
+    "resolve_repo_local_cmake_paths",
     "run_calibration_config_smoke",
     "resolve_monocular_baseline_paths",
     "resolve_manifest_paths",

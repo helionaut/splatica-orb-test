@@ -14,11 +14,13 @@
 - `make build`: render the current smoke plan into `build/smoke-plan.md`.
 - `make smoke`: run the dry-run ORB-SLAM3 lane and write smoke outputs under `logs/out/` and `reports/out/`.
 - `make calibration-smoke`: regenerate and validate the checked-in shareable calibration settings bundle plus saved smoke log/report.
+- `make bootstrap-local-cmake`: extract Ubuntu `cmake` packages plus their runtime libraries into `build/local-tools/cmake-root/` so the repo can run the upstream build helper without system-wide install privileges.
 - `make monocular-prereqs`: check whether the private lens-10 inputs, fetched baseline checkout, extracted vocabulary, built executable, and native packages are ready for the real monocular run. The command writes `reports/out/insta360_x3_lens10_monocular_prereqs.md` and exits non-zero while blockers remain.
 - `make normalize-fixture`: normalize the checked-in stereo+IMU fixture into `build/fixtures/stereo_imu_fixture/normalized/` and write a report to `reports/out/stereo_imu_fixture_normalization.md`.
 - `make test`: run the repository tests.
 - `make check`: run tests, build, smoke, calibration-smoke, and fixture normalization together.
 - `./scripts/fetch_orbslam3_baseline.sh`: clone the pinned ORB-SLAM3 upstream baseline into `third_party/orbslam3/upstream` and unpack `Vocabulary/ORBvoc.txt` from the upstream archive so the runtime vocabulary path exists before the full native build.
+- `./scripts/bootstrap_local_cmake.sh`: extract a repo-local `cmake` toolchain from Ubuntu packages into `build/local-tools/cmake-root/`. `./scripts/build_orbslam3_baseline.sh` will use that fallback automatically if `cmake` is not available on `PATH`.
 - `./scripts/extract_orbslam3_vocabulary.py --checkout-dir third_party/orbslam3/upstream`: unpack `Vocabulary/ORBvoc.txt` directly if a checkout already exists but the vocabulary text file has not been materialized yet.
 - `./scripts/build_orbslam3_baseline.sh`: run upstream `build.sh` inside the pinned checkout so `Examples/Monocular/mono_tum_vi` exists. This requires local build tools such as `cmake` and `make`.
 - `./scripts/check_monocular_baseline_prereqs.py --manifest manifests/insta360_x3_lens10_monocular_baseline.json --report reports/out/insta360_x3_lens10_monocular_prereqs.md`: generate a saved readiness report for the private lens-10 monocular lane and fail fast if the environment still cannot execute the real baseline.

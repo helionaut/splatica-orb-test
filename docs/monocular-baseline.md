@@ -66,11 +66,14 @@ Fetch the pinned baseline:
 
 ```bash
 ./scripts/fetch_orbslam3_baseline.sh
+./scripts/bootstrap_local_cmake.sh
 ./scripts/build_orbslam3_baseline.sh
 ```
 
-The build helper assumes local build tools such as `cmake` and `make` are
-installed before upstream compilation starts.
+The build helper assumes `make` exists on the host. If `cmake` is not already
+installed system-wide, the local bootstrap helper extracts a repo-local copy
+under `build/local-tools/cmake-root/`, and the build helper will reuse it
+automatically.
 The fetch helper already unpacks `Vocabulary/ORBvoc.txt` from the upstream
 archive, so a missing extracted vocabulary file after fetch is now a concrete
 baseline checkout problem rather than an expected pre-build state.

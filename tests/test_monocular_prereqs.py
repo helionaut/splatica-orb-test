@@ -89,7 +89,11 @@ class MonocularPrerequisiteTests(unittest.TestCase):
                     return mock.Mock(returncode=0, stdout=f"{BASELINE_COMMIT}\n", stderr="")
                 if cmd[:2] == ["pkg-config", "--modversion"]:
                     package = cmd[2]
-                    versions = {"opencv4": "4.6.0\n", "pangolin": "0.8\n"}
+                    versions = {
+                        "opencv4": "4.6.0\n",
+                        "eigen3": "3.4.0\n",
+                        "pangolin": "0.8\n",
+                    }
                     if package in versions:
                         return mock.Mock(returncode=0, stdout=versions[package], stderr="")
                     return mock.Mock(returncode=1, stdout="", stderr="")

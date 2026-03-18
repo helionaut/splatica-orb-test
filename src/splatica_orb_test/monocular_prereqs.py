@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 import subprocess
 
+from .local_tooling import resolve_cmake_tool
 from .monocular_baseline import (
     load_monocular_baseline_manifest,
     resolve_monocular_baseline_paths,
@@ -83,6 +84,40 @@ def _detect_pkg_config_package(*names: str) -> tuple[str | None, str | None]:
     return None, None
 
 
+def _parse_version(version_text: str) -> tuple[int, ...]:
+    components: list[int] = []
+    for part in version_text.split("."):
+        digits = "".join(char for char in part if char.isdigit())
+        if not digits:
+            break
+        components.append(int(digits))
+    return tuple(components)
+
+
+def _detect_versioned_pkg_config_package(
+    *,
+    label: str,
+    names: tuple[str, ...],
+    minimum_version: tuple[int, ...],
+) -> PrerequisiteCheck:
+    package_name, package_version = _detect_pkg_config_package(*names)
+    if package_name is None or package_version is None:
+        return PrerequisiteCheck(
+            label=label,
+            ready=False,
+            detail="not detected via pkg-config",
+        )
+
+    is_ready = _parse_version(package_version) >= minimum_version
+    minimum_text = ".".join(str(part) for part in minimum_version)
+    status_detail = f"{package_name} {package_version} (requires >= {minimum_text})"
+    return PrerequisiteCheck(
+        label=label,
+        ready=is_ready,
+        detail=status_detail,
+    )
+
+
 def inspect_monocular_baseline_prerequisites(
     repo_root: Path,
     manifest_path: Path,
@@ -122,24 +157,37 @@ def inspect_monocular_baseline_prerequisites(
         )
     )
 
+    resolved_cmake = resolve_cmake_tool(repo_root)
+    execute_checks.append(
+        PrerequisiteCheck(
+            label="Tool `cmake`",
+            ready=resolved_cmake is not None,
+            detail=(
+                "not found on PATH or in build/local-tools/cmake-root"
+                if resolved_cmake is None
+                else resolved_cmake.detail
+            ),
+        )
+    )
     execute_checks.extend(
         [
-            _detect_tool("cmake"),
             _detect_tool("make"),
             _detect_tool("pkg-config"),
         ]
     )
 
-    opencv_name, opencv_version = _detect_pkg_config_package("opencv4", "opencv")
     execute_checks.append(
-        PrerequisiteCheck(
+        _detect_versioned_pkg_config_package(
             label="OpenCV development package",
-            ready=opencv_name is not None,
-            detail=(
-                "not detected via pkg-config"
-                if opencv_name is None
-                else f"{opencv_name} {opencv_version}"
-            ),
+            names=("opencv4", "opencv"),
+            minimum_version=(4, 4),
+        )
+    )
+    execute_checks.append(
+        _detect_versioned_pkg_config_package(
+            label="Eigen3 development package",
+            names=("eigen3",),
+            minimum_version=(3, 3, 0),
         )
     )
 
@@ -151,7 +199,7 @@ def inspect_monocular_baseline_prerequisites(
             detail=(
                 "not detected via pkg-config"
                 if pangolin_name is None
-                else f"{pangolin_name} {pangolin_version}"
+                else f"{pangolin_name} {pangolin_version} (requires CMake-discoverable Pangolin)"
             ),
         )
     )
