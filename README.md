@@ -109,17 +109,23 @@ The baseline flow is:
    so the runtime vocabulary path exists before the full native build.
 2. If the host does not provide `cmake`, bootstrap a repo-local copy with
    `make bootstrap-local-cmake`.
-3. Build the upstream checkout with `./scripts/build_orbslam3_baseline.sh`.
-4. Run `make monocular-prereqs` to confirm that the private lens-10 inputs,
+3. If the host does not provide `Eigen3`, bootstrap a repo-local prefix with
+   `make bootstrap-local-eigen`.
+4. Build the upstream checkout with `./scripts/build_orbslam3_baseline.sh`.
+   That wrapper reproduces the upstream native build steps but disables the
+   optional `Thirdparty/Sophus` tests/examples, which are not required for
+   `mono_tum_vi` and otherwise fail on newer GCC toolchains because upstream
+   enables `-Werror`.
+5. Run `make monocular-prereqs` to confirm that the private lens-10 inputs,
    native build toolchain, and baseline assets are all ready. That command
    writes a saved report to
    `reports/out/insta360_x3_lens10_monocular_prereqs.md` and returns non-zero
    until the lane is actually runnable.
-5. Place the private lens-10 calibration JSON and frame index CSV under
+6. Place the private lens-10 calibration JSON and frame index CSV under
    `datasets/user/insta360_x3_lens10/`.
-6. Generate settings plus the timestamp-named image folder with
+7. Generate settings plus the timestamp-named image folder with
    `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json --prepare-only`.
-7. Execute the actual upstream `mono_tum_vi` runner with
+8. Execute the actual upstream `mono_tum_vi` runner with
    `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json`.
 
 The repo still does not include the private calibration or user sequence

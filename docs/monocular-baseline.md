@@ -67,13 +67,20 @@ Fetch the pinned baseline:
 ```bash
 ./scripts/fetch_orbslam3_baseline.sh
 ./scripts/bootstrap_local_cmake.sh
+./scripts/bootstrap_local_eigen.sh
 ./scripts/build_orbslam3_baseline.sh
 ```
 
 The build helper assumes `make` exists on the host. If `cmake` is not already
 installed system-wide, the local bootstrap helper extracts a repo-local copy
 under `build/local-tools/cmake-root/`, and the build helper will reuse it
-automatically.
+automatically. If `Eigen3` is also absent, the local bootstrap helper extracts
+`libeigen3-dev` into `build/local-tools/eigen-root/`, and the build helper adds
+that prefix automatically through `CMAKE_PREFIX_PATH`.
+The wrapper now runs the ORB-SLAM3 component builds directly instead of
+delegating to upstream `build.sh`, so it can disable optional Sophus
+tests/examples that are not needed for `mono_tum_vi` and otherwise fail on
+newer GCC toolchains because upstream enables `-Werror`.
 The fetch helper already unpacks `Vocabulary/ORBvoc.txt` from the upstream
 archive, so a missing extracted vocabulary file after fetch is now a concrete
 baseline checkout problem rather than an expected pre-build state.

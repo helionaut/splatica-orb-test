@@ -7,7 +7,9 @@ from unittest import mock
 
 from splatica_orb_test.local_tooling import (
     resolve_cmake_tool,
+    resolve_eigen3_prefix,
     resolve_repo_local_cmake_paths,
+    resolve_repo_local_eigen3_paths,
 )
 
 
@@ -57,5 +59,28 @@ class LocalToolingTests(unittest.TestCase):
                 return_value=None,
             ):
                 resolved = resolve_cmake_tool(repo_root)
+
+        self.assertIsNone(resolved)
+
+    def test_detects_repo_local_eigen_prefix(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+            config_path, pkgconfig_path = resolve_repo_local_eigen3_paths(repo_root)
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            config_path.write_text("config", encoding="utf-8")
+            pkgconfig_path.parent.mkdir(parents=True, exist_ok=True)
+            pkgconfig_path.write_text("pc", encoding="utf-8")
+
+            resolved = resolve_eigen3_prefix(repo_root)
+
+        self.assertIsNotNone(resolved)
+        assert resolved is not None
+        self.assertEqual(resolved.prefix, repo_root / "build/local-tools/eigen-root/usr")
+
+    def test_returns_none_when_repo_local_eigen_prefix_is_absent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+
+            resolved = resolve_eigen3_prefix(repo_root)
 
         self.assertIsNone(resolved)

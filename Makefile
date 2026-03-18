@@ -1,7 +1,7 @@
 PYTHON ?= python3
 export PYTHONPATH := $(CURDIR)/src
 
-.PHONY: help build smoke calibration-smoke bootstrap-local-cmake monocular-prereqs normalize-fixture test check verify-production clean
+.PHONY: help build smoke calibration-smoke bootstrap-local-cmake bootstrap-local-eigen monocular-prereqs normalize-fixture test check verify-production clean
 
 help:
 	@printf '%s\n' \
@@ -9,6 +9,7 @@ help:
 		'make smoke               Produce dry-run smoke outputs for the placeholder sequence' \
 		'make calibration-smoke   Generate and validate the shareable calibration settings bundles' \
 		'make bootstrap-local-cmake Bootstrap a repo-local cmake toolchain under build/' \
+		'make bootstrap-local-eigen Bootstrap a repo-local Eigen3 prefix under build/' \
 		'make monocular-prereqs   Check whether the lens-10 monocular baseline is ready to prepare/run' \
 		'make normalize-fixture   Normalize the checked-in stereo+IMU fixture into build/' \
 		'make test                Run the Python stdlib test suite' \
@@ -28,6 +29,9 @@ calibration-smoke:
 
 bootstrap-local-cmake:
 	@./scripts/bootstrap_local_cmake.sh
+
+bootstrap-local-eigen:
+	@./scripts/bootstrap_local_eigen.sh
 
 monocular-prereqs:
 	@PYTHONPATH="$(CURDIR)/src" python3 scripts/check_monocular_baseline_prereqs.py \

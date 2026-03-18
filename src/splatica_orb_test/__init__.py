@@ -22,7 +22,9 @@ from .harness import (
 )
 from .local_tooling import (
     resolve_cmake_tool,
+    resolve_eigen3_prefix,
     resolve_repo_local_cmake_paths,
+    resolve_repo_local_eigen3_paths,
 )
 from .monocular_baseline import (
     ORB_SLAM3_UPSTREAM_MASTER,
@@ -78,8 +80,10 @@ __all__ = [
     "render_smoke_report",
     "render_stereo_imu_normalization_report",
     "resolve_cmake_tool",
+    "resolve_eigen3_prefix",
     "resolve_orbslam3_vocabulary_paths",
     "resolve_repo_local_cmake_paths",
+    "resolve_repo_local_eigen3_paths",
     "run_calibration_config_smoke",
     "resolve_monocular_baseline_paths",
     "resolve_manifest_paths",

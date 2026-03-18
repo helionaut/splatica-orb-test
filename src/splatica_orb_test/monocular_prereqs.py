@@ -5,7 +5,7 @@ from pathlib import Path
 import shutil
 import subprocess
 
-from .local_tooling import resolve_cmake_tool
+from .local_tooling import resolve_cmake_tool, resolve_eigen3_prefix
 from .monocular_baseline import (
     load_monocular_baseline_manifest,
     resolve_monocular_baseline_paths,
@@ -118,6 +118,22 @@ def _detect_versioned_pkg_config_package(
     )
 
 
+def _detect_eigen3_prerequisite(repo_root: Path) -> PrerequisiteCheck:
+    resolved_eigen = resolve_eigen3_prefix(repo_root)
+    if resolved_eigen is not None:
+        return PrerequisiteCheck(
+            label="Eigen3 development package",
+            ready=True,
+            detail=resolved_eigen.detail,
+        )
+
+    return _detect_versioned_pkg_config_package(
+        label="Eigen3 development package",
+        names=("eigen3",),
+        minimum_version=(3, 3, 0),
+    )
+
+
 def inspect_monocular_baseline_prerequisites(
     repo_root: Path,
     manifest_path: Path,
@@ -184,11 +200,7 @@ def inspect_monocular_baseline_prerequisites(
         )
     )
     execute_checks.append(
-        _detect_versioned_pkg_config_package(
-            label="Eigen3 development package",
-            names=("eigen3",),
-            minimum_version=(3, 3, 0),
-        )
+        _detect_eigen3_prerequisite(repo_root)
     )
 
     pangolin_name, pangolin_version = _detect_pkg_config_package("pangolin")
