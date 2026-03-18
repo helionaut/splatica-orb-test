@@ -10,16 +10,32 @@ from .harness import (
     resolve_manifest_paths,
     validate_layout,
 )
+from .monocular_baseline import (
+    ORB_SLAM3_V1_0_RELEASE,
+    build_monocular_tum_vi_command,
+    load_monocular_baseline_manifest,
+    load_monocular_calibration,
+    prepare_monocular_sequence,
+    render_monocular_settings_yaml,
+    resolve_monocular_baseline_paths,
+)
 
 __all__ = [
     "PRODUCTION_VERIFICATION_COMMAND",
     "REPOSITORY_LAYOUT",
     "TEST_FIRST_EXPECTATION",
+    "ORB_SLAM3_V1_0_RELEASE",
+    "build_monocular_tum_vi_command",
     "build_smoke_command",
+    "load_monocular_baseline_manifest",
+    "load_monocular_calibration",
     "load_smoke_manifest",
+    "prepare_monocular_sequence",
     "render_build_plan",
+    "render_monocular_settings_yaml",
     "render_smoke_log",
     "render_smoke_report",
+    "resolve_monocular_baseline_paths",
     "resolve_manifest_paths",
     "validate_layout",
 ]

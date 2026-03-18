@@ -13,6 +13,10 @@
 - `make smoke`: run the dry-run ORB-SLAM3 lane and write smoke outputs under `logs/out/` and `reports/out/`.
 - `make test`: run the repository tests.
 - `make check`: run tests, build, and smoke together.
+- `./scripts/fetch_orbslam3_baseline.sh`: clone the pinned ORB-SLAM3 upstream baseline into `third_party/orbslam3/upstream`.
+- `./scripts/build_orbslam3_baseline.sh`: run upstream `build.sh` inside the pinned checkout so `Examples/Monocular/mono_tum_vi` exists. This requires local build tools such as `cmake` and `make`.
+- `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json --prepare-only`: turn the private monocular calibration plus frame index into a runnable settings file and timestamp-named image folder.
+- `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json`: execute the real upstream `mono_tum_vi` runner once the baseline checkout and private inputs exist.
 - `make verify-production ARTIFACT_URL=https://<published-artifact-url>`: verify a published report or results bundle once deployment exists.
 
 ## Test-first rule
