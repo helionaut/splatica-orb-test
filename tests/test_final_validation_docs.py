@@ -34,16 +34,34 @@ class FinalValidationDocsTests(unittest.TestCase):
             "manifests/insta360_x3_lens10_monocular_baseline.json",
             report,
         )
-        self.assertIn("local-only input bundle", report)
+        self.assertIn(
+            "datasets/user/insta360_x3_one_lens_baseline/raw/video/{00.mp4,10.mp4}",
+            report,
+        )
+        self.assertIn(
+            "datasets/user/insta360_x3_one_lens_baseline/raw/calibration/",
+            report,
+        )
+        self.assertIn(
+            "datasets/user/insta360_x3_one_lens_baseline/lenses/10/import_manifest.json",
+            report,
+        )
+        self.assertIn(
+            "datasets/user/insta360_x3_one_lens_baseline/reports/ingest_report.md",
+            report,
+        )
+        self.assertIn("Next follow-up task:", report)
         self.assertIn("Pangolin", report)
         self.assertIn("make check", report)
         self.assertIn("make monocular-prereqs", report)
+        self.assertIn("./scripts/import_monocular_video_inputs.py", report)
         self.assertIn("./scripts/build_orbslam3_baseline.sh", report)
         self.assertIn(
             "reports/out/insta360_x3_lens10_monocular_prereqs.md",
             report,
         )
         self.assertIn("Reference-Only Paths", report)
+        self.assertNotIn("datasets/user/insta360_x3_lens10/", report)
 
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"
