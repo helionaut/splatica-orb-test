@@ -34,6 +34,10 @@ from .monocular_prereqs import (
     inspect_monocular_baseline_prerequisites,
     render_monocular_baseline_prerequisite_report,
 )
+from .orbslam3_baseline_assets import (
+    ensure_orbslam3_vocabulary_text,
+    resolve_orbslam3_vocabulary_paths,
+)
 from .stereo_imu_normalization import (
     load_stereo_imu_normalization_manifest,
     normalize_stereo_imu_sequence,
@@ -50,6 +54,7 @@ __all__ = [
     "build_shareable_monocular_calibration",
     "build_monocular_tum_vi_command",
     "build_smoke_command",
+    "ensure_orbslam3_vocabulary_text",
     "inspect_monocular_baseline_prerequisites",
     "list_full_rig_blockers",
     "load_calibration_config_smoke_manifest",
@@ -68,6 +73,7 @@ __all__ = [
     "render_smoke_log",
     "render_smoke_report",
     "render_stereo_imu_normalization_report",
+    "resolve_orbslam3_vocabulary_paths",
     "run_calibration_config_smoke",
     "resolve_monocular_baseline_paths",
     "resolve_manifest_paths",

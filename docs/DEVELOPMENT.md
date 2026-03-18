@@ -18,7 +18,8 @@
 - `make normalize-fixture`: normalize the checked-in stereo+IMU fixture into `build/fixtures/stereo_imu_fixture/normalized/` and write a report to `reports/out/stereo_imu_fixture_normalization.md`.
 - `make test`: run the repository tests.
 - `make check`: run tests, build, smoke, calibration-smoke, and fixture normalization together.
-- `./scripts/fetch_orbslam3_baseline.sh`: clone the pinned ORB-SLAM3 upstream baseline into `third_party/orbslam3/upstream`.
+- `./scripts/fetch_orbslam3_baseline.sh`: clone the pinned ORB-SLAM3 upstream baseline into `third_party/orbslam3/upstream` and unpack `Vocabulary/ORBvoc.txt` from the upstream archive so the runtime vocabulary path exists before the full native build.
+- `./scripts/extract_orbslam3_vocabulary.py --checkout-dir third_party/orbslam3/upstream`: unpack `Vocabulary/ORBvoc.txt` directly if a checkout already exists but the vocabulary text file has not been materialized yet.
 - `./scripts/build_orbslam3_baseline.sh`: run upstream `build.sh` inside the pinned checkout so `Examples/Monocular/mono_tum_vi` exists. This requires local build tools such as `cmake` and `make`.
 - `./scripts/check_monocular_baseline_prereqs.py --manifest manifests/insta360_x3_lens10_monocular_baseline.json --report reports/out/insta360_x3_lens10_monocular_prereqs.md`: generate a saved readiness report for the private lens-10 monocular lane and fail fast if the environment still cannot execute the real baseline.
 - `./scripts/prepare_stereo_imu_sequence.py --manifest manifests/stereo_imu_fixture_normalization.json`: normalize one raw stereo+IMU sequence into the canonical output layout defined in `docs/dataset-normalization.md`.

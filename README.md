@@ -105,6 +105,8 @@ candidate comparison and recommendation memo live in
 The baseline flow is:
 
 1. Fetch the pinned ORB-SLAM3 checkout with `./scripts/fetch_orbslam3_baseline.sh`.
+   That helper also unpacks `Vocabulary/ORBvoc.txt` from the upstream archive
+   so the runtime vocabulary path exists before the full native build.
 2. Build the upstream checkout with `./scripts/build_orbslam3_baseline.sh`.
 3. Run `make monocular-prereqs` to confirm that the private lens-10 inputs,
    native build toolchain, and baseline assets are all ready. That command

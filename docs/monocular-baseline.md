@@ -71,6 +71,9 @@ Fetch the pinned baseline:
 
 The build helper assumes local build tools such as `cmake` and `make` are
 installed before upstream compilation starts.
+The fetch helper already unpacks `Vocabulary/ORBvoc.txt` from the upstream
+archive, so a missing extracted vocabulary file after fetch is now a concrete
+baseline checkout problem rather than an expected pre-build state.
 
 Check whether the lane is actually ready before the first private run:
 
