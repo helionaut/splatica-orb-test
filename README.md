@@ -19,6 +19,7 @@ make check
 ## Current Project Docs
 
 - [Execution plan](docs/execution-plan.md)
+- [Dataset normalization](docs/dataset-normalization.md)
 - [Monocular baseline](docs/monocular-baseline.md)
 - [Future rig plan](docs/future-rig-plan.md)
 - [Development guide](docs/DEVELOPMENT.md)
@@ -40,9 +41,26 @@ completion comment.
 ## Current Focus
 
 The repository is moving from intake into a reproducible engineering lane.
-`HEL-41` captures the execution plan, `HEL-43` establishes the harness in this
-branch, and later issues will fill in the pinned ORB-SLAM3 baseline, real
-fixtures, backlog split, and any publication/deployment path.
+`HEL-41` captures the execution plan, `HEL-43` establishes the harness,
+`HEL-46` defines the canonical stereo+IMU normalization lane, and `HEL-51`
+adds the first real monocular baseline. Later issues will fill in the pinned
+ORB-SLAM3 baseline, user-data validation, and any publication/deployment path.
+
+## Stereo + IMU Normalization Lane
+
+`HEL-46` adds the one supported raw-input and normalized-output contract for
+stereo fisheye plus IMU sequences. The checked-in fixture manifest is
+`manifests/stereo_imu_fixture_normalization.json`.
+
+Validate the import path from a clean checkout with:
+
+```bash
+make normalize-fixture
+```
+
+That command normalizes the checked-in raw fixture into
+`build/fixtures/stereo_imu_fixture/normalized/` and writes a saved report to
+`reports/out/stereo_imu_fixture_normalization.md`.
 
 ## Monocular Fisheye Lane
 

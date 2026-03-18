@@ -1,0 +1,13 @@
+{
+  "sequence_id": "fixture-stereo-imu-sequence",
+  "rig": {
+    "left_camera": "cam_left",
+    "right_camera": "cam_right",
+    "imu": "imu0"
+  },
+  "timestamp_unit": "ns",
+  "provenance": {
+    "source": "checked-in fixture",
+    "notes": "Representative HEL-46 stereo + IMU normalization fixture."
+  }
+}
