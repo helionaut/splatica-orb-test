@@ -20,6 +20,12 @@ from .harness import (
     resolve_manifest_paths,
     validate_layout,
 )
+from .local_tooling import (
+    resolve_cmake_tool,
+    resolve_eigen3_prefix,
+    resolve_repo_local_cmake_paths,
+    resolve_repo_local_eigen3_paths,
+)
 from .monocular_baseline import (
     ORB_SLAM3_UPSTREAM_MASTER,
     ORB_SLAM3_V1_0_RELEASE,
@@ -29,6 +35,14 @@ from .monocular_baseline import (
     prepare_monocular_sequence,
     render_monocular_settings_yaml,
     resolve_monocular_baseline_paths,
+)
+from .monocular_prereqs import (
+    inspect_monocular_baseline_prerequisites,
+    render_monocular_baseline_prerequisite_report,
+)
+from .orbslam3_baseline_assets import (
+    ensure_orbslam3_vocabulary_text,
+    resolve_orbslam3_vocabulary_paths,
 )
 from .stereo_imu_normalization import (
     load_stereo_imu_normalization_manifest,
@@ -46,6 +60,8 @@ __all__ = [
     "build_shareable_monocular_calibration",
     "build_monocular_tum_vi_command",
     "build_smoke_command",
+    "ensure_orbslam3_vocabulary_text",
+    "inspect_monocular_baseline_prerequisites",
     "list_full_rig_blockers",
     "load_calibration_config_smoke_manifest",
     "load_monocular_baseline_manifest",
@@ -57,11 +73,17 @@ __all__ = [
     "parse_orbslam3_scalar_settings_text",
     "prepare_monocular_sequence",
     "render_build_plan",
+    "render_monocular_baseline_prerequisite_report",
     "render_monocular_settings_yaml",
     "render_shareable_monocular_settings_yaml",
     "render_smoke_log",
     "render_smoke_report",
     "render_stereo_imu_normalization_report",
+    "resolve_cmake_tool",
+    "resolve_eigen3_prefix",
+    "resolve_orbslam3_vocabulary_paths",
+    "resolve_repo_local_cmake_paths",
+    "resolve_repo_local_eigen3_paths",
     "run_calibration_config_smoke",
     "resolve_monocular_baseline_paths",
     "resolve_manifest_paths",

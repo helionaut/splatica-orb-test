@@ -20,4 +20,7 @@ else
 fi
 
 git -C "${target_dir}" checkout --detach "${commit_sha}"
+PYTHONPATH="${repo_root}/src" python3 \
+  "${repo_root}/scripts/extract_orbslam3_vocabulary.py" \
+  --checkout-dir "${target_dir}"
 printf 'Checked out ORB-SLAM3 %s at %s\n' "${commit_sha}" "${target_dir}"
