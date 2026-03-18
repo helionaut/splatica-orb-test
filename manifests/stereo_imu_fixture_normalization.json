@@ -1,0 +1,15 @@
+{
+  "sequence": {
+    "name": "fixture-stereo-imu-sequence",
+    "raw_root": "datasets/fixtures/stereo_imu_fixture/raw"
+  },
+  "outputs": {
+    "normalized_root": "build/fixtures/stereo_imu_fixture/normalized",
+    "report_path": "reports/out/stereo_imu_fixture_normalization.md"
+  },
+  "launch": {
+    "mode": "normalize_stereo_imu",
+    "script": "scripts/prepare_stereo_imu_sequence.py"
+  },
+  "notes": "Canonical stereo fisheye plus IMU normalization lane for HEL-46. The raw contract is fixed to sequence.json, left_frames.csv, right_frames.csv, imu_samples.csv, and PNG frame sources. The normalized layout emits timestamp-named stereo images, a paired timestamps manifest, normalized IMU samples, and sequence metadata for later tickets."
+}

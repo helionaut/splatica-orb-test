@@ -1,0 +1,5 @@
+timestamp_ns,angular_velocity_x,angular_velocity_y,angular_velocity_z,linear_acceleration_x,linear_acceleration_y,linear_acceleration_z
+1709999999990000000,0.01,0.02,0.03,0.11,0.12,0.13
+1710000000011111111,0.02,0.03,0.04,0.21,0.22,0.23
+1710000000022222222,0.03,0.04,0.05,0.31,0.32,0.33
+1710000000044444444,0.04,0.05,0.06,0.41,0.42,0.43

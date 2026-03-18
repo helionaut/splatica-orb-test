@@ -6,6 +6,32 @@ Do not commit user recordings or other large private data into the repository.
 This directory is git-ignored except for this README so the repo can describe
 private input contracts without publishing user data.
 
+For the HEL-46 stereo+IMU normalization lane, use one raw directory per
+sequence:
+
+```text
+datasets/user/<sequence>/raw/
+  sequence.json
+  left_frames.csv
+  right_frames.csv
+  imu_samples.csv
+  source/
+    left/*.png
+    right/*.png
+```
+
+Run the canonical import command with a manifest that points at that `raw/`
+directory:
+
+```bash
+./scripts/prepare_stereo_imu_sequence.py --manifest <manifest.json>
+```
+
+The only supported frame sources are timestamp-indexed PNG paths referenced
+from `left_frames.csv` and `right_frames.csv`. Direct video files, JPG exports,
+and ad hoc directory scans are intentionally unsupported in this lane so
+failures stay explicit and repeatable.
+
 For the `HEL-51` Insta360 X3 lens-10 monocular baseline, place the private
 inputs at:
 

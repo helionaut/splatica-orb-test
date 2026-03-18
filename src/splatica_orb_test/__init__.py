@@ -19,6 +19,12 @@ from .monocular_baseline import (
     render_monocular_settings_yaml,
     resolve_monocular_baseline_paths,
 )
+from .stereo_imu_normalization import (
+    load_stereo_imu_normalization_manifest,
+    normalize_stereo_imu_sequence,
+    render_stereo_imu_normalization_report,
+    resolve_stereo_imu_normalization_paths,
+)
 
 __all__ = [
     "PRODUCTION_VERIFICATION_COMMAND",
@@ -30,12 +36,16 @@ __all__ = [
     "load_monocular_baseline_manifest",
     "load_monocular_calibration",
     "load_smoke_manifest",
+    "load_stereo_imu_normalization_manifest",
+    "normalize_stereo_imu_sequence",
     "prepare_monocular_sequence",
     "render_build_plan",
     "render_monocular_settings_yaml",
     "render_smoke_log",
     "render_smoke_report",
+    "render_stereo_imu_normalization_report",
     "resolve_monocular_baseline_paths",
     "resolve_manifest_paths",
+    "resolve_stereo_imu_normalization_paths",
     "validate_layout",
 ]
