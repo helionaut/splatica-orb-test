@@ -13,13 +13,17 @@ baseline source selection before attempting the full back-to-back rig.
 ## Baseline Choice
 
 - Upstream repo: `https://github.com/UZ-SLAMLab/ORB_SLAM3`
-- Pinned release: `v1.0-release`
-- Pinned commit: `0df83dde1c85c7ab91a0d47de7a29685d046f637`
+- Pinned branch: `master`
+- Pinned commit: `4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4`
 - Executable path: `Examples/Monocular/mono_tum_vi`
 - Vocabulary path: `Vocabulary/ORBvoc.txt`
 
-This baseline was chosen because the official ORB-SLAM3 release already ships a
-monocular fisheye path for TUM-VI without IMU. That makes it the smallest
+This baseline was chosen because the official ORB-SLAM3 upstream still ships a
+documented monocular fisheye path for TUM-VI without IMU. `HEL-48` checked the
+current upstream `master` against the old `v1.0-release` tag and found that
+`master` is only two documentation commits ahead, so selecting `master` keeps
+the project on the explicit upstream line requested for later tuning work while
+remaining code-equivalent to the old release tag. That makes it the smallest
 change from a documented upstream lane while still matching the immediate need:
 one fisheye lens, offline replay, and no inertial dependence.
 
@@ -117,3 +121,6 @@ This ticket adds the runnable contract and automation, but not the private
 lens-10 calibration JSON or frame index CSV themselves. Until those local-only
 inputs are present, the repo can validate only the generation and preparation
 path, not a full user-data run.
+
+See `docs/candidate-baseline-evaluation.md` for the HEL-48 candidate comparison
+and the explicit rationale for keeping upstream as the selected baseline.

@@ -53,7 +53,7 @@ YAML per lens.
   - `image_width` -> `Camera.width`
   - `image_height` -> `Camera.height`
 
-This is grounded in the official ORB-SLAM3 `v1.0-release` monocular and
+This is grounded in the official ORB-SLAM3 upstream monocular and
 stereo-inertial TUM-VI examples, which both label the fisheye model as
 `KannalaBrandt8` and use the four scalar distortion fields `k1` through `k4`.
 
