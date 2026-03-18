@@ -21,6 +21,7 @@ make check
 ## Current Project Docs
 
 - [Execution plan](docs/execution-plan.md)
+- [Final validation report](docs/final-validation-report.md)
 - [Dataset normalization](docs/dataset-normalization.md)
 - [Calibration translation](docs/calibration-translation.md)
 - [Monocular baseline](docs/monocular-baseline.md)
@@ -41,16 +42,13 @@ verify its published URL with
 record that final location in both the PR summary and the Linear handoff or
 completion comment.
 
-## Current Focus
+## Current Status
 
-The repository is moving from intake into a reproducible engineering lane.
-`HEL-41` captures the execution plan, `HEL-43` establishes the harness,
-`HEL-46` defines the canonical stereo+IMU normalization lane, and `HEL-51`
-adds the first real monocular baseline. `HEL-47` now checks in the shareable
-calibration subset plus deterministic monocular settings artifacts for both
-lenses, while leaving full stereo+IMU support explicitly blocked on missing
-camera-to-IMU and IMU inputs. Later issues will fill in the remaining
-user-data validation and any publication/deployment path.
+The current repo-level conclusion is captured in
+[docs/final-validation-report.md](docs/final-validation-report.md). The
+checked-in rerun path is validated through `make check`, while the actual
+user-rig monocular lane remains blocked until the private lens-10 inputs exist
+on a host that can build ORB-SLAM3 with OpenCV and Pangolin.
 
 ## Stereo + IMU Normalization Lane
 
@@ -138,6 +136,10 @@ The baseline flow is:
 The repo still does not include the private calibration or user sequence
 payload, so the checked-in automation defines the reproducible contract and
 output layout rather than committing user-specific values.
+
+For the final rerun order, auditable artifacts, and the reference-only
+historical paths that are no longer the canonical entrypoint, use
+[docs/final-validation-report.md](docs/final-validation-report.md).
 
 ## Repository layout
 
