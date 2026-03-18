@@ -1,0 +1,7 @@
+__pycache__/
+build/
+logs/out/*
+!logs/out/.gitkeep
+node_modules/
+reports/out/*
+!reports/out/.gitkeep
