@@ -19,6 +19,8 @@ make check
 ## Current Project Docs
 
 - [Execution plan](docs/execution-plan.md)
+- [Monocular baseline](docs/monocular-baseline.md)
+- [Future rig plan](docs/future-rig-plan.md)
 - [Development guide](docs/DEVELOPMENT.md)
 - [Production verification](docs/PRODUCTION_VERIFICATION.md)
 - [Publication decision](docs/publication-decision.md)
@@ -41,6 +43,27 @@ The repository is moving from intake into a reproducible engineering lane.
 `HEL-41` captures the execution plan, `HEL-43` establishes the harness in this
 branch, and later issues will fill in the pinned ORB-SLAM3 baseline, real
 fixtures, backlog split, and any publication/deployment path.
+
+## Monocular Fisheye Lane
+
+`HEL-51` adds the first real run contract for a single Insta360 X3 lens without
+IMU. The checked-in manifest is
+`manifests/insta360_x3_lens10_monocular_baseline.json`.
+
+The baseline flow is:
+
+1. Fetch the pinned ORB-SLAM3 checkout with `./scripts/fetch_orbslam3_baseline.sh`.
+2. Build the upstream checkout with `./scripts/build_orbslam3_baseline.sh`.
+3. Place the private lens-10 calibration JSON and frame index CSV under
+   `datasets/user/insta360_x3_lens10/`.
+4. Generate settings plus the timestamp-named image folder with
+   `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json --prepare-only`.
+5. Execute the actual upstream `mono_tum_vi` runner with
+   `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json`.
+
+The repo still does not include the private calibration or user sequence
+payload, so the checked-in automation defines the reproducible contract and
+output layout rather than committing user-specific values.
 
 ## Repository layout
 

@@ -1,7 +1,10 @@
 __pycache__/
 build/
+datasets/user/*
+!datasets/user/README.md
 logs/out/*
 !logs/out/.gitkeep
 node_modules/
 reports/out/*
 !reports/out/.gitkeep
+third_party/orbslam3/upstream/
