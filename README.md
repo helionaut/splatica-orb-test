@@ -97,6 +97,11 @@ stereo+IMU ORB-SLAM3 bundle.
 IMU. The checked-in manifest is
 `manifests/insta360_x3_lens10_monocular_baseline.json`.
 
+`HEL-48` keeps that lane on the official upstream ORB-SLAM3 `master` line,
+currently pinned to commit `4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4`. The
+candidate comparison and recommendation memo live in
+`docs/candidate-baseline-evaluation.md`.
+
 The baseline flow is:
 
 1. Fetch the pinned ORB-SLAM3 checkout with `./scripts/fetch_orbslam3_baseline.sh`.

@@ -21,6 +21,7 @@ from .harness import (
     validate_layout,
 )
 from .monocular_baseline import (
+    ORB_SLAM3_UPSTREAM_MASTER,
     ORB_SLAM3_V1_0_RELEASE,
     build_monocular_tum_vi_command,
     load_monocular_baseline_manifest,
@@ -40,6 +41,7 @@ __all__ = [
     "PRODUCTION_VERIFICATION_COMMAND",
     "REPOSITORY_LAYOUT",
     "TEST_FIRST_EXPECTATION",
+    "ORB_SLAM3_UPSTREAM_MASTER",
     "ORB_SLAM3_V1_0_RELEASE",
     "build_shareable_monocular_calibration",
     "build_monocular_tum_vi_command",

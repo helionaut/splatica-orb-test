@@ -6,7 +6,7 @@ repo_root="$(cd "${script_dir}/.." && pwd)"
 
 target_dir="${1:-${repo_root}/third_party/orbslam3/upstream}"
 remote_url="https://github.com/UZ-SLAMLab/ORB_SLAM3.git"
-commit_sha="0df83dde1c85c7ab91a0d47de7a29685d046f637"
+commit_sha="4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4"
 
 if [[ -e "${target_dir}" && ! -d "${target_dir}/.git" ]]; then
   printf 'Target exists but is not a git checkout: %s\n' "${target_dir}" >&2

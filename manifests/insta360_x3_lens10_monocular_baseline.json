@@ -1,8 +1,8 @@
 {
   "baseline": {
-    "name": "orbslam3-official-v1.0-release",
+    "name": "orbslam3-upstream-master",
     "repo_url": "https://github.com/UZ-SLAMLab/ORB_SLAM3",
-    "commit": "0df83dde1c85c7ab91a0d47de7a29685d046f637",
+    "commit": "4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4",
     "checkout_path": "third_party/orbslam3/upstream",
     "executable_path": "Examples/Monocular/mono_tum_vi",
     "vocabulary_path": "Vocabulary/ORBvoc.txt"
@@ -25,5 +25,5 @@
     "mode": "monocular_tum_vi",
     "script": "scripts/run_orbslam3_sequence.sh"
   },
-  "notes": "Single-lens Insta360 X3 Lens 10 baseline that follows the upstream ORB-SLAM3 monocular fisheye TUM-VI path without IMU. Preprocessing must provide a frame_index.csv with timestamp_ns,source_path rows and PNG source frames."
+  "notes": "Single-lens Insta360 X3 Lens 10 baseline that follows the current upstream ORB-SLAM3 monocular fisheye TUM-VI path without IMU. As of HEL-48, upstream master is only two documentation commits ahead of v1.0-release, so this selected pin keeps the official upstream line while staying code-equivalent to the older release tag. Preprocessing must provide a frame_index.csv with timestamp_ns,source_path rows and PNG source frames."
 }

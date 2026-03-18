@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 from splatica_orb_test.monocular_baseline import (
-    ORB_SLAM3_V1_0_RELEASE,
+    ORB_SLAM3_UPSTREAM_MASTER,
     build_monocular_tum_vi_command,
     load_monocular_baseline_manifest,
     load_monocular_calibration,
@@ -80,7 +80,7 @@ class MonocularBaselineManifestTests(unittest.TestCase):
             REPO_ROOT / "manifests/insta360_x3_lens10_monocular_baseline.json"
         )
 
-        self.assertEqual(manifest.baseline_commit, ORB_SLAM3_V1_0_RELEASE)
+        self.assertEqual(manifest.baseline_commit, ORB_SLAM3_UPSTREAM_MASTER)
         self.assertEqual(manifest.executable_path, "Examples/Monocular/mono_tum_vi")
         self.assertEqual(manifest.launch_script, "scripts/run_orbslam3_sequence.sh")
         self.assertIn("without IMU", manifest.notes)
