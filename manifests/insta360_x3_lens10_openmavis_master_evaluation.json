@@ -10,8 +10,8 @@
   "sequence": {
     "name": "insta360-x3-lens10-openmavis-master-evaluation",
     "camera_label": "insta360_x3_lens10",
-    "calibration_path": "datasets/user/insta360_x3_lens10/monocular_calibration.json",
-    "frame_index_path": "datasets/user/insta360_x3_lens10/frame_index.csv"
+    "calibration_path": "datasets/user/insta360_x3_one_lens_baseline/lenses/10/monocular_calibration.json",
+    "frame_index_path": "datasets/user/insta360_x3_one_lens_baseline/lenses/10/frame_index.csv"
   },
   "outputs": {
     "settings_path": "build/insta360_x3_lens10/evaluation/openmavis_master/TUM-VI-insta360-x3-lens10.yaml",

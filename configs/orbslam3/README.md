@@ -9,8 +9,10 @@ Place ORB-SLAM3 settings files here.
   `make calibration-smoke` from the shareable HEL-47 calibration subset.
 
 `HEL-51` keeps private lens-10 settings out of git because they are generated
-from the user's private calibration JSON. The canonical generated output path
-is:
+from the user's private calibration JSON. `HEL-52` now derives that JSON from
+the raw mp4 + kb4 bundle under
+`datasets/user/insta360_x3_one_lens_baseline/lenses/10/`. The canonical
+generated settings output path is:
 
 - `build/insta360_x3_lens10/monocular/TUM-VI-insta360-x3-lens10.yaml`
 

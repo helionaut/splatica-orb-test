@@ -65,3 +65,47 @@ def resolve_eigen3_prefix(repo_root: Path) -> ResolvedPrefix | None:
         )
 
     return None
+
+
+def resolve_repo_local_ffmpeg_paths(repo_root: Path) -> tuple[Path, Path]:
+    tool_root = repo_root / "build/local-tools/ffmpeg-root"
+    return (
+        tool_root / "bin/ffmpeg",
+        tool_root / "bin/ffprobe",
+    )
+
+
+def resolve_ffmpeg_tool(repo_root: Path) -> ResolvedTool | None:
+    resolved = shutil.which("ffmpeg")
+    if resolved is not None:
+        return ResolvedTool(
+            path=Path(resolved),
+            detail=resolved,
+        )
+
+    local_ffmpeg, _local_ffprobe = resolve_repo_local_ffmpeg_paths(repo_root)
+    if local_ffmpeg.exists():
+        return ResolvedTool(
+            path=local_ffmpeg,
+            detail=f"{local_ffmpeg} (repo-local bootstrap)",
+        )
+
+    return None
+
+
+def resolve_ffprobe_tool(repo_root: Path) -> ResolvedTool | None:
+    resolved = shutil.which("ffprobe")
+    if resolved is not None:
+        return ResolvedTool(
+            path=Path(resolved),
+            detail=resolved,
+        )
+
+    _local_ffmpeg, local_ffprobe = resolve_repo_local_ffmpeg_paths(repo_root)
+    if local_ffprobe.exists():
+        return ResolvedTool(
+            path=local_ffprobe,
+            detail=f"{local_ffprobe} (repo-local bootstrap)",
+        )
+
+    return None
