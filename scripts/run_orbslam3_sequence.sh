@@ -44,13 +44,52 @@ if [[ "${dry_run}" == "true" ]]; then
   exit 0
 fi
 
-args=(
-  "${repo_root}/scripts/run_monocular_baseline.py"
-  --manifest "${manifest}"
-)
+launch_mode="$(
+  python3 - "${repo_root}" "${manifest}" <<'PY'
+import json
+from pathlib import Path
+import sys
 
-if [[ "${prepare_only}" == "true" ]]; then
-  args+=(--prepare-only)
-fi
+repo_root = Path(sys.argv[1])
+manifest_text = sys.argv[2]
+manifest_path = Path(manifest_text)
+if not manifest_path.is_absolute():
+    manifest_path = repo_root / manifest_path
 
-PYTHONPATH="${repo_root}/src" python3 "${args[@]}"
+raw = json.loads(manifest_path.read_text(encoding="utf-8"))
+launch = raw.get("launch", {})
+if isinstance(launch, dict):
+    print(str(launch.get("mode", "")))
+else:
+    print("")
+PY
+)"
+
+case "${launch_mode}" in
+  calibration_config_smoke)
+    if [[ "${prepare_only}" == "true" ]]; then
+      printf 'The calibration config smoke mode does not support --prepare-only.\n' >&2
+      exit 1
+    fi
+
+    PYTHONPATH="${repo_root}/src" python3 \
+      "${repo_root}/scripts/run_calibration_config_smoke.py" \
+      --manifest "${manifest}"
+    ;;
+  monocular_tum_vi|"")
+    args=(
+      "${repo_root}/scripts/run_monocular_baseline.py"
+      --manifest "${manifest}"
+    )
+
+    if [[ "${prepare_only}" == "true" ]]; then
+      args+=(--prepare-only)
+    fi
+
+    PYTHONPATH="${repo_root}/src" python3 "${args[@]}"
+    ;;
+  *)
+    printf 'Unsupported launch.mode in manifest %s: %s\n' "${manifest}" "${launch_mode}" >&2
+    exit 1
+    ;;
+esac

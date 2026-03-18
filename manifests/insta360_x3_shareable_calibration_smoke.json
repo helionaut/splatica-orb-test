@@ -1,0 +1,30 @@
+{
+  "calibration": {
+    "path": "configs/calibration/insta360_x3_shareable_rig.json"
+  },
+  "profiles": [
+    {
+      "lens_id": "10",
+      "fps": 30.0,
+      "color_order": "RGB",
+      "output_path": "configs/orbslam3/insta360_x3_lens10_monocular.yaml",
+      "notes": "Smoke-only baseline override. Camera.fps is pinned to 30 for the current harness lane, and Camera.RGB follows the upstream TUM-VI example until the user's export path confirms the real ordering."
+    },
+    {
+      "lens_id": "00",
+      "fps": 30.0,
+      "color_order": "RGB",
+      "output_path": "configs/orbslam3/insta360_x3_lens00_monocular.yaml",
+      "notes": "Optional comparison profile for the second lens under the same smoke-only overrides."
+    }
+  ],
+  "outputs": {
+    "log_path": "logs/out/insta360_x3_shareable_calibration_smoke.log",
+    "report_path": "reports/out/insta360_x3_shareable_calibration_smoke.md"
+  },
+  "launch": {
+    "mode": "calibration_config_smoke",
+    "script": "scripts/run_orbslam3_sequence.sh"
+  },
+  "notes": "Harness-integrated config smoke for the shareable Insta360 X3 calibration subset. It writes two monocular YAMLs, validates the required scalar ORB-SLAM3 fields, and records the remaining blockers for any future stereo+IMU settings bundle."
+}

@@ -1,0 +1,59 @@
+%YAML:1.0
+
+# Generated from configs/calibration/insta360_x3_shareable_rig.json lens `00`.
+# Source model mapping: the provided Kannala-Brandt source intrinsics map
+# directly into ORB-SLAM3's KannalaBrandt8 scalar fields fx, fy, cx, cy,
+# and k1-k4 for the monocular fisheye baseline.
+# Smoke/profile override Camera.fps: 30.0
+# Smoke/profile override Camera.RGB: 1 (RGB)
+
+#--------------------------------------------------------------------------------------------
+# Camera Parameters. Adjust them!
+#--------------------------------------------------------------------------------------------
+File.version: "1.0"
+
+Camera.type: "KannalaBrandt8"
+
+# Camera calibration and distortion parameters (OpenCV)
+Camera1.fx: 782.622227542229
+Camera1.fy: 782.699503668759
+Camera1.cx: 1443.452908626408
+Camera1.cy: 1445.65022336888
+
+Camera1.k1: 0.080956728762
+Camera1.k2: -0.028270291027
+Camera1.k3: 0.008690924485
+Camera1.k4: -0.002055498186
+
+# Camera resolution
+Camera.width: 2880
+Camera.height: 2880
+
+# Camera frames per second
+Camera.fps: 30.0
+
+# Color order of the images (0: BGR, 1: RGB. It is ignored if images are grayscale)
+Camera.RGB: 1
+
+#--------------------------------------------------------------------------------------------
+# ORB Parameters
+#--------------------------------------------------------------------------------------------
+ORBextractor.nFeatures: 1500
+ORBextractor.scaleFactor: 1.2
+ORBextractor.nLevels: 8
+ORBextractor.iniThFAST: 20
+ORBextractor.minThFAST: 7
+
+#--------------------------------------------------------------------------------------------
+# Viewer Parameters
+#--------------------------------------------------------------------------------------------
+Viewer.KeyFrameSize: 0.05
+Viewer.KeyFrameLineWidth: 1.0
+Viewer.GraphLineWidth: 0.9
+Viewer.PointSize: 2.0
+Viewer.CameraSize: 0.08
+Viewer.CameraLineWidth: 3.0
+Viewer.ViewpointX: 0.0
+Viewer.ViewpointY: -0.7
+Viewer.ViewpointZ: -3.5
+Viewer.ViewpointF: 500.0

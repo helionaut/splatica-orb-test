@@ -35,7 +35,7 @@ input contract is:
 `monocular_calibration.json` must provide:
 
 - `camera.label`
-- `camera.model` set to `KannalaBrandt8`
+- `camera.model` set to `KannalaBrandt8` or a source `kannalabrandt4` variant
 - `camera.image_width`
 - `camera.image_height`
 - `camera.fps`
