@@ -1,102 +1,177 @@
-# Product Requirements Document: splatica-orb-test
+# Product Requirements Document: ORB-SLAM3 validation for splatica-orb-test
 
 Status: Draft
 Issue: HEL-42
 Last Updated: 2026-03-18
+Source Of Truth: `docs/execution-plan.md`
 
-## Summary
+## Objective
 
-`splatica-orb-test` is a lightweight browser prototype for validating whether a
-single "orb" interaction and visual treatment is compelling enough to justify a
-larger product investment. The first release is intentionally narrow: one
-focused experience, no accounts, no backend, and no production hardening beyond
-what is needed for fast internal evaluation.
+Turn the intake plan into an explicit success contract for the first project
+slice: identify one reproducible ORB-SLAM3 baseline and settings bundle that
+can process the user's stereo fisheye + IMU recordings, then document how to
+rerun and judge that result.
 
-## Assumptions
+## Target Operating Scenario
 
-- The repository currently contains only bootstrap workflow files and no prior
-  product brief or implementation.
-- The project name implies a small, shareable experiment centered on a single
-  orb interaction in the browser.
-- Until stronger product context exists, the primary audience is internal
-  product, design, and engineering stakeholders plus a small set of trusted
-  pilot testers.
+- The user has a custom stereo fisheye camera rig with an attached IMU.
+- The immediate goal is offline validation on recorded sequences, not a live
+  deployment or productized SLAM service.
+- A successful outcome answers a practical question: which ORB-SLAM3 source
+  baseline, commit, and configuration can ingest the user's data format and
+  produce a repeatable validation run.
+- The first pass should work against one smoke-test sequence and one
+  representative sequence from the user's real operating environment when both
+  are available.
 
-## Target Users
+## In Scope
 
-- Product and design stakeholders who need a concrete prototype to evaluate the
-  concept.
-- Frontend engineers who need a crisp baseline scope before building.
-- Trusted pilot testers who can give fast feedback on clarity, delight, and
-  responsiveness.
+- Choose one initial ORB-SLAM3 source baseline and pin the exact repo or fork
+  plus commit SHA used for evaluation.
+- Translate the user's stereo fisheye and IMU calibration into an ORB-SLAM3
+  settings bundle or document why that translation is blocked.
+- Run at least one validation attempt against the user's recorded dataset.
+- Produce a validation report that states what worked, what failed, and what
+  remains unresolved.
 
-## User Problem
+## Out Of Scope
 
-The team currently has no shared definition of what `splatica-orb-test` is
-meant to prove. Without a narrow first-release target, implementation can drift
-into either an underspecified visual demo or an overbuilt application. The
-first users need a simple, shareable prototype that makes the core orb
-interaction immediately understandable and testable.
+- Real-time deployment, robotics integration, or any live runtime guarantees.
+- Automatic calibration generation or sensor re-calibration.
+- Broad bakeoff work across many forks, datasets, or algorithm families.
+- Final publication or deployment decisions beyond the validation artifacts
+  owned by this repo.
 
-## Goals
+## Required User-Provided Inputs
 
-- Establish a single, testable first-release scope for the orb experience.
-- Make the core visual and interaction idea visible within seconds of page
-  load.
-- Gather enough feedback to decide whether to continue investing beyond a
-  prototype.
+Validation work can only be judged against the user's own rig if the following
+inputs are supplied explicitly.
 
-## Non-Goals
+### 1. Recordings
 
-- User accounts, authentication, profiles, or saved state.
-- Backend services, databases, or multi-user collaboration.
-- Multiple scenes, content feeds, or a generalized editor.
-- Monetization, production analytics, or launch-readiness hardening.
-- Broad browser certification beyond a defined modern desktop and mobile
-  baseline.
+- One replayable stereo recording with left and right image streams from the
+  target rig.
+- One representative IMU stream from the same capture session.
+- Preferred: one short smoke-test sequence and one longer representative
+  sequence.
+- File layout details, naming conventions, and any pre-processing already
+  applied before the data reaches this repo.
 
-## First Release Scope
+### 2. Camera Calibration
 
-- A single page or screen.
-- One primary orb element as the focal point.
-- A small set of direct interactions, such as hover, tap, drag, or their
-  equivalent, with immediate visual response.
-- A stable default state so testers can repeatedly evaluate the same
-  experience.
-- Lightweight instructions or framing so a first-time tester knows what to try.
+- Intrinsics for both fisheye cameras, including image size, camera model, and
+  distortion coefficients.
+- Left-to-right extrinsics for the stereo pair.
+- Confirmation of whether the recordings are raw fisheye images or already
+  rectified.
 
-## Success Metrics
+### 3. Camera-To-IMU Calibration
 
-- Comprehension: at least 80% of pilot testers can describe the primary orb
-  interaction or value after a first session without a live walkthrough.
-- Engagement: at least 60% of pilot testers voluntarily perform more than one
-  interaction during the first session.
-- Performance: the initial experience becomes interactive in under 2 seconds on
-  a modern laptop and a current mobile device on a normal connection.
-- Stability: no critical rendering failures or blocking console errors occur
-  during the pilot review flow.
-- Decision quality: product, design, and engineering can make a clear go or
-  no-go decision on the next investment step within one review cycle.
+- Extrinsics between the camera frame and IMU frame.
+- Axis conventions and frame definitions if they differ from ORB-SLAM3 example
+  datasets.
 
-## Acceptance Criteria for First Release
+### 4. Timing And Synchronization
 
-- A reviewer can open the prototype from a documented local or hosted URL
-  without logging in.
-- The initial screen presents a clearly visible orb within the primary viewport
-  on both desktop and mobile widths.
-- The orb responds to at least one intentional user action with an obvious
-  visual change.
-- The experience provides enough context that a first-time tester knows the
-  expected action without external coaching.
-- The prototype can be reset or reloaded into a known starting state for
-  repeated evaluation.
-- Basic run instructions live in the repository so another engineer can
-  reproduce the experience.
-- The team has a defined way to collect structured pilot feedback against the
-  success metrics above.
+- Timestamps for left frames, right frames, and IMU samples.
+- Timestamp units and time base.
+- Any known fixed offset, drift, dropped-sample behavior, or sync guarantees
+  between cameras and IMU.
+- Capture rates for both cameras and the IMU.
 
-## Open Questions
+### 5. IMU Parameters
 
-- What exact orb behavior should count as the core interaction?
-- Should the first pilot stay internal, or include a small external cohort?
-- Does "splatica" imply a specific brand or art direction beyond the orb motif?
+- Accelerometer and gyroscope units.
+- Noise density and random-walk parameters used for visual-inertial tuning.
+- Any known bias initialization or bias stability notes.
+
+### 6. Acceptance Target
+
+- Which sequence should count as the representative validation target.
+- What the user considers acceptable tracking quality on that sequence.
+- Whether any reference trajectory, map, or qualitative benchmark exists for
+  comparison.
+
+If camera-to-IMU extrinsics, timestamp behavior, IMU parameters, or the user's
+acceptance target are missing, the repo may still support harness bring-up, but
+it must not claim full stereo-inertial validation success.
+
+## Success Criteria
+
+The project needs two distinct pass levels so later experiments can be judged
+without guessing.
+
+### Technical Validation Pass
+
+A run counts as a technical pass only if all of the following are true:
+
+- The ORB-SLAM3 source choice is pinned to one repo or fork plus one commit
+  SHA.
+- Another engineer can build and rerun the attempt from a fresh checkout using
+  documented commands and dependencies.
+- The selected user sequence is ingested through a documented dataset layout or
+  normalization step without ad hoc manual edits during the run.
+- ORB-SLAM3 reaches a real processing run on the user's stereo fisheye + IMU
+  data, produces non-empty output artifacts such as trajectory or log files,
+  and does not terminate because of a crash, assertion, or manual restart.
+- The validation report records whether initialization succeeded, when tracking
+  was lost or recovered, and any sequence-specific limitations that prevent the
+  run from being called stable.
+
+### Dataset Acceptance Pass
+
+A run counts as a dataset acceptance pass only if all of the following are
+true:
+
+- The technical validation pass is already satisfied.
+- The user has supplied an explicit acceptance target for tracking quality,
+  accuracy, or both.
+- The validation report shows that the chosen baseline and config bundle met
+  that target on the agreed representative sequence.
+
+Without the user-defined acceptance target, the team may claim only a technical
+validation pass, not a full success on the dataset.
+
+## Required Handoff Artifacts
+
+The repo handoff is complete only when it contains or references all of the
+following artifacts:
+
+- Baseline selection record: the chosen ORB-SLAM3 repo or fork, commit SHA,
+  rationale for the choice, and any alternatives rejected during triage.
+- Config bundle: the ORB-SLAM3 settings file, calibration translation notes,
+  dataset path assumptions, and the exact run command used for validation.
+- Validation report: dataset identifier, sequence used, input completeness,
+  environment details, commands executed, log locations, observed behavior, and
+  a pass or fail conclusion against the criteria above.
+- Recommendation: a short statement that says what is ready for the next issue,
+  what remains blocked, and whether additional calibration, timing, or fork
+  work is required.
+
+## Sequencing Against The Execution Plan
+
+`HEL-42` defines the success contract only. It does not finish the engineering
+harness, backlog decomposition, or publication path early.
+
+1. `HEL-42` defines the operating scenario, required inputs, success criteria,
+   and handoff artifacts.
+2. `HEL-43` builds the reproducible environment, build path, and validation
+   command lane around one baseline.
+3. `HEL-44` decomposes implementation work after the PRD and harness settle.
+4. `HEL-45` decides whether any publishable artifact is needed beyond the
+   validation bundle.
+
+## Open Questions And Blockers
+
+- The user dataset has not yet been attached to this repo, so the exact replay
+  format and normalization work remain unknown.
+- The branch still needs the user's full stereo, fisheye, and camera-to-IMU
+  calibration package to tell whether a settings-only translation is possible.
+- Timestamp alignment and clock-offset behavior are still unknown; this is a
+  likely blocker because timing failures can look like algorithm failures.
+- IMU noise and bias parameters are still unknown; without them, visual-inertial
+  tuning may be guesswork.
+- The user's required validation quality threshold is still unspecified, so
+  final dataset acceptance cannot be declared yet.
+- It is still open whether upstream ORB-SLAM3 is sufficient or whether a
+  maintained fork will be required once the first dataset run is attempted.
