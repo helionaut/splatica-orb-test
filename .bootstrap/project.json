@@ -1,0 +1,67 @@
+{
+  "repo": {
+    "slug": "splatica-orb-test",
+    "owner": "helionaut",
+    "url": "https://github.com/helionaut/splatica-orb-test",
+    "dir": "/home/helionaut/src/projects/splatica-orb-test",
+    "visibility": "public"
+  },
+  "linear": {
+    "project_id": "264bc82d-0b57-4db2-a42e-5d08a74f7e90",
+    "project_slug": "c30355e13948",
+    "project_url": "https://linear.app/heliagents/project/splatica-orb-test-c30355e13948",
+    "starter_issue_id": "a78161e2-2423-4897-830f-991259e94e87",
+    "starter_issue_identifier": "HEL-41",
+    "starter_issue_url": "https://linear.app/heliagents/issue/HEL-41/project-intake-splatica-orb-test",
+    "issues": [
+      {
+        "key": "project-intake",
+        "id": "a78161e2-2423-4897-830f-991259e94e87",
+        "identifier": "HEL-41",
+        "url": "https://linear.app/heliagents/issue/HEL-41/project-intake-splatica-orb-test",
+        "title": "Project intake: splatica-orb-test"
+      },
+      {
+        "key": "prd",
+        "id": "b1b48d79-8dce-45f1-913c-efa5e9776629",
+        "identifier": "HEL-42",
+        "url": "https://linear.app/heliagents/issue/HEL-42/prd-and-success-criteria-splatica-orb-test",
+        "title": "PRD and success criteria: splatica-orb-test"
+      },
+      {
+        "key": "harness",
+        "id": "c3a91f2a-6256-4283-a718-f0d9d57eed2c",
+        "identifier": "HEL-43",
+        "url": "https://linear.app/heliagents/issue/HEL-43/engineering-harness-splatica-orb-test",
+        "title": "Engineering harness: splatica-orb-test"
+      },
+      {
+        "key": "backlog",
+        "id": "939f70b2-553b-4031-a60e-4a5ebe13bf5a",
+        "identifier": "HEL-44",
+        "url": "https://linear.app/heliagents/issue/HEL-44/backlog-decomposition-splatica-orb-test",
+        "title": "Backlog decomposition: splatica-orb-test"
+      },
+      {
+        "key": "deploy",
+        "id": "e6c13d41-ffe9-44ed-8b58-3948017c3d14",
+        "identifier": "HEL-45",
+        "url": "https://linear.app/heliagents/issue/HEL-45/deployment-setup-splatica-orb-test",
+        "title": "Deployment setup: splatica-orb-test"
+      }
+    ]
+  },
+  "telegram": {
+    "chat_id": "-1003774956386",
+    "topic_id": "348",
+    "topic_name": "splatica-orb-test"
+  },
+  "deploy": {
+    "profile": "static-web"
+  },
+  "symphony": {
+    "unit_name": "symphony@splatica-orb-test.service",
+    "launcher_path": "/home/helionaut/srv/symphony/splatica-orb-test.sh",
+    "log_path": "/home/helionaut/srv/symphony/logs/splatica-orb-test.log"
+  }
+}
