@@ -106,11 +106,16 @@ The baseline flow is:
 
 1. Fetch the pinned ORB-SLAM3 checkout with `./scripts/fetch_orbslam3_baseline.sh`.
 2. Build the upstream checkout with `./scripts/build_orbslam3_baseline.sh`.
-3. Place the private lens-10 calibration JSON and frame index CSV under
+3. Run `make monocular-prereqs` to confirm that the private lens-10 inputs,
+   native build toolchain, and baseline assets are all ready. That command
+   writes a saved report to
+   `reports/out/insta360_x3_lens10_monocular_prereqs.md` and returns non-zero
+   until the lane is actually runnable.
+4. Place the private lens-10 calibration JSON and frame index CSV under
    `datasets/user/insta360_x3_lens10/`.
-4. Generate settings plus the timestamp-named image folder with
+5. Generate settings plus the timestamp-named image folder with
    `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json --prepare-only`.
-5. Execute the actual upstream `mono_tum_vi` runner with
+6. Execute the actual upstream `mono_tum_vi` runner with
    `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json`.
 
 The repo still does not include the private calibration or user sequence

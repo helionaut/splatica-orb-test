@@ -1,13 +1,14 @@
 PYTHON ?= python3
 export PYTHONPATH := $(CURDIR)/src
 
-.PHONY: help build smoke calibration-smoke normalize-fixture test check verify-production clean
+.PHONY: help build smoke calibration-smoke monocular-prereqs normalize-fixture test check verify-production clean
 
 help:
 	@printf '%s\n' \
 		'make build               Generate the dry-run smoke plan under build/' \
 		'make smoke               Produce dry-run smoke outputs for the placeholder sequence' \
 		'make calibration-smoke   Generate and validate the shareable calibration settings bundles' \
+		'make monocular-prereqs   Check whether the lens-10 monocular baseline is ready to prepare/run' \
 		'make normalize-fixture   Normalize the checked-in stereo+IMU fixture into build/' \
 		'make test                Run the Python stdlib test suite' \
 		'make check               Run tests, build, smoke, and normalization in one command' \
@@ -23,6 +24,11 @@ smoke:
 
 calibration-smoke:
 	@./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_shareable_calibration_smoke.json
+
+monocular-prereqs:
+	@PYTHONPATH="$(CURDIR)/src" python3 scripts/check_monocular_baseline_prereqs.py \
+		--manifest manifests/insta360_x3_lens10_monocular_baseline.json \
+		--report reports/out/insta360_x3_lens10_monocular_prereqs.md
 
 normalize-fixture:
 	@./scripts/prepare_stereo_imu_sequence.py --manifest manifests/stereo_imu_fixture_normalization.json

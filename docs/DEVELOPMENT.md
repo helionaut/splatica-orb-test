@@ -14,11 +14,13 @@
 - `make build`: render the current smoke plan into `build/smoke-plan.md`.
 - `make smoke`: run the dry-run ORB-SLAM3 lane and write smoke outputs under `logs/out/` and `reports/out/`.
 - `make calibration-smoke`: regenerate and validate the checked-in shareable calibration settings bundle plus saved smoke log/report.
+- `make monocular-prereqs`: check whether the private lens-10 inputs, fetched baseline checkout, extracted vocabulary, built executable, and native packages are ready for the real monocular run. The command writes `reports/out/insta360_x3_lens10_monocular_prereqs.md` and exits non-zero while blockers remain.
 - `make normalize-fixture`: normalize the checked-in stereo+IMU fixture into `build/fixtures/stereo_imu_fixture/normalized/` and write a report to `reports/out/stereo_imu_fixture_normalization.md`.
 - `make test`: run the repository tests.
 - `make check`: run tests, build, smoke, calibration-smoke, and fixture normalization together.
 - `./scripts/fetch_orbslam3_baseline.sh`: clone the pinned ORB-SLAM3 upstream baseline into `third_party/orbslam3/upstream`.
 - `./scripts/build_orbslam3_baseline.sh`: run upstream `build.sh` inside the pinned checkout so `Examples/Monocular/mono_tum_vi` exists. This requires local build tools such as `cmake` and `make`.
+- `./scripts/check_monocular_baseline_prereqs.py --manifest manifests/insta360_x3_lens10_monocular_baseline.json --report reports/out/insta360_x3_lens10_monocular_prereqs.md`: generate a saved readiness report for the private lens-10 monocular lane and fail fast if the environment still cannot execute the real baseline.
 - `./scripts/prepare_stereo_imu_sequence.py --manifest manifests/stereo_imu_fixture_normalization.json`: normalize one raw stereo+IMU sequence into the canonical output layout defined in `docs/dataset-normalization.md`.
 - `./scripts/render_shareable_calibration_settings.py --calibration configs/calibration/insta360_x3_shareable_rig.json --lens 10 --fps 30 --color-order RGB --output configs/orbslam3/insta360_x3_lens10_monocular.yaml`: render one committed shareable monocular settings file directly.
 - `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_shareable_calibration_smoke.json`: regenerate both committed shareable monocular YAMLs and save the config-smoke evidence.

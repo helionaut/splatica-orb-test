@@ -72,6 +72,16 @@ Fetch the pinned baseline:
 The build helper assumes local build tools such as `cmake` and `make` are
 installed before upstream compilation starts.
 
+Check whether the lane is actually ready before the first private run:
+
+```bash
+make monocular-prereqs
+```
+
+That command writes `reports/out/insta360_x3_lens10_monocular_prereqs.md` and
+returns non-zero until the private calibration, frame index, native build
+packages, extracted vocabulary, and built `mono_tum_vi` binary all exist.
+
 Generate the settings YAML directly:
 
 ```bash
