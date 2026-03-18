@@ -8,10 +8,12 @@ Last Updated: 2026-03-18
 
 - User rig verdict: `blocked`
 - Checked-in repo rerun verdict: `validated`
-- Next unresolved risk: on the HEL-54 host, the selected lens-10 monocular lane
-  now has the expected HEL-52 private inputs plus repo-local `cmake`, `Eigen3`,
-  OpenCV, and Boost serialization support, but the actual ORB-SLAM3 run still
-  cannot proceed until Pangolin is provided as a CMake-discoverable package.
+- Next unresolved risk: a real lens-10 user-rig run still requires the
+  local-only input bundle to be imported into the current checkout and
+  Pangolin to be provided as a CMake-discoverable package. On the previously
+  prepared HEL-54 host, Pangolin was the remaining native blocker after the
+  input import plus repo-local `cmake`, `Eigen3`, OpenCV, and Boost
+  serialization bootstraps.
 
 The repo now has one documented rerun path for the selected baseline and one
 final conclusion. Another engineer should start here instead of rediscovering
@@ -226,6 +228,25 @@ Fresh rerun pass executed on 2026-03-18 from a new `HEL-49` worktree created at
 - `apt-cache search '^libpangolin'`
   - Result: returned no package on Ubuntu `noble`
 
+Revalidated from the current `main` checkout on 2026-03-18 after HEL-54 landed
+(`1b51f7c786572a99e314c022a5cb511b0e6f88df`):
+
+- `make test`
+  - Result: passed
+- `make check`
+  - Result: passed
+- `./scripts/fetch_orbslam3_baseline.sh`
+  - Result: passed
+  - Observed: confirmed `third_party/orbslam3/upstream/` at
+    `4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4` with
+    `Vocabulary/ORBvoc.txt` present
+- `make monocular-prereqs`
+  - Result: failed as expected and refreshed
+    `reports/out/insta360_x3_lens10_monocular_prereqs.md`
+  - Observed: a fresh checkout still lacks the local-only lens-10 calibration
+    and frame-index inputs plus native `cmake`, `Eigen3`, OpenCV, Boost
+    serialization, Pangolin, and the built `mono_tum_vi` runner
+
 ## What Worked
 
 - The repo has one pinned ORB-SLAM3 baseline, one checked-in monocular
@@ -271,6 +292,6 @@ lanes:
 - `manifests/insta360_x3_lens10_openmavis_master_evaluation.json`:
   HEL-48 comparison manifest for the OpenMAVIS fork.
 
-If another engineer needs the current recommended path, use the eight-step
+If another engineer needs the current recommended path, use the canonical rerun
 sequence in this document and ignore the historical comparison manifests unless
 they are intentionally re-opening baseline selection.

@@ -46,11 +46,12 @@ completion comment.
 
 The current repo-level conclusion is captured in
 [docs/final-validation-report.md](docs/final-validation-report.md). The
-checked-in rerun path is validated through `make check`. On the current
-HEL-54 host, the private lens-10 bundle can be rebuilt locally and the native
-stack can be bootstrapped through repo-local `cmake`, `Eigen3`, OpenCV, and
-Boost serialization, but the actual monocular lane still remains blocked on
-Pangolin provisioning.
+checked-in rerun path is validated through `make check`. A real user-rig run
+still remains blocked until the local-only lens-10 inputs are imported into the
+current checkout and Pangolin is provided as a CMake-discoverable package. The
+final report also records that, on the previously prepared HEL-54 host,
+Pangolin was the remaining native blocker after the input import plus the
+repo-local `cmake`, `Eigen3`, OpenCV, and Boost serialization bootstraps.
 
 ## Stereo + IMU Normalization Lane
 

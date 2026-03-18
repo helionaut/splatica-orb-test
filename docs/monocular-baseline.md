@@ -209,9 +209,12 @@ The monocular baseline writes:
 This ticket now organizes and derives the local one-lens input bundle from the
 provided raw mp4 and calibration files, but the resulting data stays local-only
 under `datasets/user/`. The repo can validate the import, preparation, and
-run-contract paths without publishing the user recordings themselves. On the
-HEL-54 host, the remaining native blocker after the repo-local `cmake`,
-`Eigen3`, OpenCV, and Boost serialization bootstraps is Pangolin provisioning.
+run-contract paths without publishing the user recordings themselves. From a
+fresh checkout, the lane still remains blocked until the local-only lens-10
+inputs are imported and Pangolin is provided as a CMake-discoverable package.
+The final report records that, on the previously prepared HEL-54 host,
+Pangolin was the remaining native blocker after the repo-local `cmake`,
+`Eigen3`, OpenCV, and Boost serialization bootstraps.
 
 See `docs/candidate-baseline-evaluation.md` for the HEL-48 candidate comparison
 and the explicit rationale for keeping upstream as the selected baseline.
