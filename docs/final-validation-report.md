@@ -8,12 +8,19 @@ Last Updated: 2026-03-18
 
 - User rig verdict: `blocked`
 - Checked-in repo rerun verdict: `validated`
-- Next unresolved risk: a real lens-10 user-rig run still requires the
-  local-only input bundle to be imported into the current checkout and
-  Pangolin to be provided as a CMake-discoverable package. On the previously
-  prepared HEL-54 host, Pangolin was the remaining native blocker after the
-  input import plus repo-local `cmake`, `Eigen3`, OpenCV, and Boost
-  serialization bootstraps.
+- Next unresolved risk: the repo now defines the full post-HEL-52 private
+  input contract under
+  `datasets/user/insta360_x3_one_lens_baseline/`, but a real lens-10 user-rig
+  run still requires either the private raw assets under `raw/` to be imported
+  or an already prepared `lenses/10/` bundle to be present on the checkout,
+  plus Pangolin as a CMake-discoverable package so
+  `./scripts/build_orbslam3_baseline.sh` can produce
+  `Examples/Monocular/mono_tum_vi`.
+- Next follow-up task: on a host that has the private Insta360 exports, run
+  `./scripts/import_monocular_video_inputs.py` into
+  `datasets/user/insta360_x3_one_lens_baseline/` if `lenses/10/` is still
+  empty, provide Pangolin, rerun `make monocular-prereqs`, and then execute
+  `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json`.
 
 The repo now has one documented rerun path for the selected baseline and one
 final conclusion. Another engineer should start here instead of rediscovering
@@ -43,11 +50,21 @@ Supporting checked-in inputs and contracts:
 - Selected monocular baseline rationale:
   [candidate-baseline-evaluation.md](candidate-baseline-evaluation.md)
 
-Private, local-only inputs still required for the actual user-data run:
+Private prepared-input contract for the actual user-data run:
 
-- `datasets/user/insta360_x3_one_lens_baseline/lenses/10/monocular_calibration.json`
-- `datasets/user/insta360_x3_one_lens_baseline/lenses/10/frame_index.csv`
-- PNG frames referenced by `frame_index.csv`
+- Raw source layout:
+  `datasets/user/insta360_x3_one_lens_baseline/raw/video/{00.mp4,10.mp4}` and
+  `datasets/user/insta360_x3_one_lens_baseline/raw/calibration/`
+- Derived lens-10 bundle consumed by
+  `manifests/insta360_x3_lens10_monocular_baseline.json`:
+  `datasets/user/insta360_x3_one_lens_baseline/lenses/10/monocular_calibration.json`,
+  `datasets/user/insta360_x3_one_lens_baseline/lenses/10/frame_index.csv`,
+  `datasets/user/insta360_x3_one_lens_baseline/lenses/10/timestamps.txt`, and
+  `datasets/user/insta360_x3_one_lens_baseline/lenses/10/import_manifest.json`
+- PNG frame sources referenced by `frame_index.csv` under
+  `datasets/user/insta360_x3_one_lens_baseline/lenses/10/source_png/`
+- Bundle-level ingest evidence:
+  `datasets/user/insta360_x3_one_lens_baseline/reports/ingest_report.md`
 
 ## Canonical Rerun Path
 
@@ -107,6 +124,11 @@ Start from a fresh checkout of this repo. Run the steps in this order.
      --extrinsics /path/to/insta360_x3_extr_rigs_calib.json \
      --lenses 10
    ```
+
+   This importer is the post-HEL-52 boundary between raw private inputs and the
+   deterministic prepared bundle. A successful import writes the derived
+   `lenses/10/` files plus
+   `datasets/user/insta360_x3_one_lens_baseline/reports/ingest_report.md`.
 
 8. Provide Pangolin either system-wide or through a local install under
    `build/local-tools/pangolin-root/usr/local/`. Ubuntu `noble` does not
@@ -243,15 +265,22 @@ Revalidated from the current `main` checkout on 2026-03-18 after HEL-54 landed
 - `make monocular-prereqs`
   - Result: failed as expected and refreshed
     `reports/out/insta360_x3_lens10_monocular_prereqs.md`
-  - Observed: a fresh checkout still lacks the local-only lens-10 calibration
-    and frame-index inputs plus native `cmake`, `Eigen3`, OpenCV, Boost
-    serialization, Pangolin, and the built `mono_tum_vi` runner
+  - Observed: a fresh checkout still lacks the local-only one-lens input
+    bundle under `datasets/user/insta360_x3_one_lens_baseline/raw/` and
+    `datasets/user/insta360_x3_one_lens_baseline/lenses/10/`, plus native
+    `cmake`, `Eigen3`, OpenCV, Boost serialization, Pangolin, and the built
+    `mono_tum_vi` runner
 
 ## What Worked
 
 - The repo has one pinned ORB-SLAM3 baseline, one checked-in monocular
   manifest, one shareable calibration bundle, and one checked-in stereo+IMU
   normalization contract.
+- `HEL-52` replaced the old ad hoc private-user lane with one deterministic
+  one-lens bundle rooted at `datasets/user/insta360_x3_one_lens_baseline/`,
+  including raw private inputs under `raw/`, derived runnable lens bundles
+  under `lenses/`, per-lens `import_manifest.json`, and a bundle-level
+  `reports/ingest_report.md`.
 - `make check` is the canonical fresh-checkout validation gate for the
   checked-in repo state.
 - `scripts/fetch_orbslam3_baseline.sh` is the one supported way to materialize
@@ -260,18 +289,26 @@ Revalidated from the current `main` checkout on 2026-03-18 after HEL-54 landed
 - `make monocular-prereqs` is the one supported way to prove whether the real
   monocular run can proceed; it saves the missing/ready state into a report
   instead of leaving that knowledge implicit.
+- On the previously prepared HEL-54 host, the imported
+  `datasets/user/insta360_x3_one_lens_baseline/lenses/10/` bundle plus the
+  repo-local `cmake`, `Eigen3`, OpenCV, and Boost serialization bootstraps
+  were enough to make `make monocular-prereqs` report
+  `Ready for --prepare-only: true`, leaving Pangolin as the next native step
+  before the real runtime lane.
 
 ## What Failed Or Remains Blocked
 
-- The repo still cannot claim a successful user-rig run, because the private
-  lens-10 calibration JSON, frame index CSV, and referenced PNG frames are not
-  versioned in this repo.
+- A fresh checkout that does not have the private raw exports under
+  `datasets/user/insta360_x3_one_lens_baseline/raw/` or an already prepared
+  `datasets/user/insta360_x3_one_lens_baseline/lenses/10/` bundle still cannot
+  claim a successful user-rig run. The repo now documents that contract
+  explicitly; it just does not publish the user files themselves.
 - On the HEL-54 host, the next irreducible native blocker is Pangolin
-  provisioning. The repo-local `cmake`, `Eigen3`, OpenCV, and Boost
-  serialization bootstraps are enough to reach top-level ORB-SLAM3 configure,
-  but `./scripts/build_orbslam3_baseline.sh` still cannot produce the real
-  `Examples/Monocular/mono_tum_vi` executable until `PangolinConfig.cmake`
-  becomes discoverable.
+  provisioning. After the raw import plus repo-local `cmake`, `Eigen3`,
+  OpenCV, and Boost serialization bootstraps, the lane reaches top-level
+  ORB-SLAM3 configure, but `./scripts/build_orbslam3_baseline.sh` still cannot
+  produce the real `Examples/Monocular/mono_tum_vi` executable until
+  `PangolinConfig.cmake` becomes discoverable.
 - Full stereo+IMU validation remains blocked beyond this monocular lane because
   the shareable calibration subset still lacks `camera_to_imu`, IMU noise, IMU
   walk, IMU frequency, and overlapping-stereo geometry required for a credible
