@@ -8,6 +8,17 @@ checkout_dir="${1:-${repo_root}/third_party/orbslam3/upstream}"
 local_cmake_bin="${repo_root}/build/local-tools/cmake-root/usr/bin/cmake"
 local_cmake_lib="${repo_root}/build/local-tools/cmake-root/usr/lib/x86_64-linux-gnu"
 local_eigen_prefix="${repo_root}/build/local-tools/eigen-root/usr"
+local_opencv_prefix="${repo_root}/build/local-tools/opencv-root/usr"
+local_opencv_cmake="${local_opencv_prefix}/lib/x86_64-linux-gnu/cmake/opencv4/OpenCVConfig.cmake"
+local_opencv_pkgconfig="${local_opencv_prefix}/lib/x86_64-linux-gnu/pkgconfig/opencv4.pc"
+local_opencv_lib="${local_opencv_prefix}/lib/x86_64-linux-gnu"
+local_boost_prefix="${repo_root}/build/local-tools/boost-root/usr"
+local_boost_header="${local_boost_prefix}/include/boost/serialization/serialization.hpp"
+local_boost_lib="${local_boost_prefix}/lib/x86_64-linux-gnu"
+local_pangolin_prefix="${repo_root}/build/local-tools/pangolin-root/usr/local"
+local_pangolin_cmake="${local_pangolin_prefix}/lib/cmake/Pangolin/PangolinConfig.cmake"
+local_pangolin_pkgconfig="${local_pangolin_prefix}/lib/pkgconfig/pangolin.pc"
+local_pangolin_lib="${local_pangolin_prefix}/lib"
 cmake_bin=""
 
 for tool in make; do
@@ -55,6 +66,24 @@ run_component_build() {
   if [[ -d "${local_eigen_prefix}/share/eigen3/cmake" ]]; then
     export CMAKE_PREFIX_PATH="${local_eigen_prefix}${CMAKE_PREFIX_PATH:+:${CMAKE_PREFIX_PATH}}"
     export PKG_CONFIG_PATH="${local_eigen_prefix}/share/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}"
+  fi
+  if [[ -f "${local_opencv_cmake}" || -f "${local_opencv_pkgconfig}" ]]; then
+    export CMAKE_PREFIX_PATH="${local_opencv_prefix}${CMAKE_PREFIX_PATH:+:${CMAKE_PREFIX_PATH}}"
+    export PKG_CONFIG_PATH="${local_opencv_prefix}/lib/x86_64-linux-gnu/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}"
+    export LD_LIBRARY_PATH="${local_opencv_lib}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+    export LIBRARY_PATH="${local_opencv_lib}${LIBRARY_PATH:+:${LIBRARY_PATH}}"
+  fi
+  if [[ -f "${local_boost_header}" ]] && compgen -G "${local_boost_lib}/libboost_serialization.so*" >/dev/null; then
+    export CMAKE_PREFIX_PATH="${local_boost_prefix}${CMAKE_PREFIX_PATH:+:${CMAKE_PREFIX_PATH}}"
+    export CPATH="${local_boost_prefix}/include${CPATH:+:${CPATH}}"
+    export LD_LIBRARY_PATH="${local_boost_lib}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+    export LIBRARY_PATH="${local_boost_lib}${LIBRARY_PATH:+:${LIBRARY_PATH}}"
+  fi
+  if [[ -f "${local_pangolin_cmake}" || -f "${local_pangolin_pkgconfig}" ]]; then
+    export CMAKE_PREFIX_PATH="${local_pangolin_prefix}${CMAKE_PREFIX_PATH:+:${CMAKE_PREFIX_PATH}}"
+    export PKG_CONFIG_PATH="${local_pangolin_prefix}/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}"
+    export LD_LIBRARY_PATH="${local_pangolin_lib}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+    export LIBRARY_PATH="${local_pangolin_lib}${LIBRARY_PATH:+:${LIBRARY_PATH}}"
   fi
 
   run_component_build \

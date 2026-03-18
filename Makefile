@@ -1,7 +1,7 @@
 PYTHON ?= python3
 export PYTHONPATH := $(CURDIR)/src
 
-.PHONY: help build smoke calibration-smoke bootstrap-local-cmake bootstrap-local-eigen bootstrap-local-ffmpeg monocular-prereqs normalize-fixture test check verify-production clean
+.PHONY: help build smoke calibration-smoke bootstrap-local-cmake bootstrap-local-eigen bootstrap-local-opencv bootstrap-local-boost bootstrap-local-ffmpeg monocular-prereqs normalize-fixture test check verify-production clean
 
 help:
 	@printf '%s\n' \
@@ -10,6 +10,8 @@ help:
 		'make calibration-smoke   Generate and validate the shareable calibration settings bundles' \
 		'make bootstrap-local-cmake Bootstrap a repo-local cmake toolchain under build/' \
 		'make bootstrap-local-eigen Bootstrap a repo-local Eigen3 prefix under build/' \
+		'make bootstrap-local-opencv Bootstrap a repo-local OpenCV prefix under build/' \
+		'make bootstrap-local-boost Bootstrap a repo-local Boost serialization prefix under build/' \
 		'make bootstrap-local-ffmpeg Bootstrap a repo-local ffmpeg/ffprobe bundle under build/' \
 		'make monocular-prereqs   Check whether the lens-10 monocular baseline is ready to prepare/run' \
 		'make normalize-fixture   Normalize the checked-in stereo+IMU fixture into build/' \
@@ -33,6 +35,12 @@ bootstrap-local-cmake:
 
 bootstrap-local-eigen:
 	@./scripts/bootstrap_local_eigen.sh
+
+bootstrap-local-opencv:
+	@./scripts/bootstrap_local_opencv.sh
+
+bootstrap-local-boost:
+	@./scripts/bootstrap_local_boost.sh
 
 bootstrap-local-ffmpeg:
 	@./scripts/bootstrap_local_ffmpeg.sh

@@ -49,11 +49,13 @@ class MonocularPrerequisiteTests(unittest.TestCase):
 
         self.assertFalse(prerequisites.ready_for_prepare_only)
         self.assertFalse(prerequisites.ready_for_execute)
+        report = render_monocular_baseline_prerequisite_report(prerequisites)
         self.assertEqual(prerequisites.prepare_checks[0].label, "Calibration JSON")
         self.assertFalse(prerequisites.prepare_checks[0].ready)
         self.assertEqual(prerequisites.execute_checks[0].label, "Baseline checkout")
         self.assertFalse(prerequisites.execute_checks[0].ready)
-        self.assertIn("missing", render_monocular_baseline_prerequisite_report(prerequisites))
+        self.assertIn("missing", report)
+        self.assertIn("Boost serialization development package", report)
 
     def test_reports_execution_ready_when_all_assets_exist(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -73,6 +75,16 @@ class MonocularPrerequisiteTests(unittest.TestCase):
                 "archive",
             )
             write_file(repo_root / "third_party/orbslam3/upstream/Vocabulary/ORBvoc.txt", "text")
+            write_file(
+                repo_root
+                / "build/local-tools/boost-root/usr/include/boost/serialization/serialization.hpp",
+                "header",
+            )
+            write_file(
+                repo_root
+                / "build/local-tools/boost-root/usr/lib/x86_64-linux-gnu/libboost_serialization.so",
+                "library",
+            )
             executable = (
                 repo_root
                 / "third_party/orbslam3/upstream/Examples/Monocular/mono_tum_vi"
@@ -144,6 +156,16 @@ class MonocularPrerequisiteTests(unittest.TestCase):
                 repo_root / "third_party/orbslam3/upstream/Vocabulary/ORBvoc.txt.tar.gz",
                 "archive",
             )
+            write_file(
+                repo_root
+                / "build/local-tools/boost-root/usr/include/boost/serialization/serialization.hpp",
+                "header",
+            )
+            write_file(
+                repo_root
+                / "build/local-tools/boost-root/usr/lib/x86_64-linux-gnu/libboost_serialization.so",
+                "library",
+            )
 
             def fake_run(cmd: list[str], **_kwargs: object) -> mock.Mock:
                 if cmd[:2] == ["pkg-config", "--modversion"]:
@@ -198,6 +220,16 @@ class MonocularPrerequisiteTests(unittest.TestCase):
             write_file(repo_root / "third_party/orbslam3/upstream/Vocabulary/ORBvoc.txt", "text")
             write_file(
                 repo_root
+                / "build/local-tools/boost-root/usr/include/boost/serialization/serialization.hpp",
+                "header",
+            )
+            write_file(
+                repo_root
+                / "build/local-tools/boost-root/usr/lib/x86_64-linux-gnu/libboost_serialization.so",
+                "library",
+            )
+            write_file(
+                repo_root
                 / "build/local-tools/eigen-root/usr/share/eigen3/cmake/Eigen3Config.cmake",
                 "config",
             )
@@ -246,4 +278,94 @@ class MonocularPrerequisiteTests(unittest.TestCase):
         report = render_monocular_baseline_prerequisite_report(prerequisites)
         self.assertTrue(prerequisites.ready_for_execute)
         self.assertIn("Eigen3 development package: **ready**", report)
+        self.assertIn("repo-local bootstrap", report)
+
+    def test_reports_repo_local_opencv_and_boost_bootstraps_as_ready(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+            manifest_path = (
+                repo_root / "manifests/insta360_x3_lens10_monocular_baseline.json"
+            )
+            write_file(manifest_path, MANIFEST_PATH.read_text(encoding="utf-8"))
+
+            write_file(
+                repo_root / LENS10_ROOT / "monocular_calibration.json",
+                "{}",
+            )
+            write_file(
+                repo_root / LENS10_ROOT / "frame_index.csv",
+                "timestamp_ns,source_path\n",
+            )
+            write_file(repo_root / "third_party/orbslam3/upstream/.git", "gitdir")
+            write_file(
+                repo_root / "third_party/orbslam3/upstream/Vocabulary/ORBvoc.txt.tar.gz",
+                "archive",
+            )
+            write_file(repo_root / "third_party/orbslam3/upstream/Vocabulary/ORBvoc.txt", "text")
+            write_file(
+                repo_root
+                / "build/local-tools/opencv-root/usr/lib/x86_64-linux-gnu/cmake/opencv4/OpenCVConfig.cmake",
+                "config",
+            )
+            write_file(
+                repo_root
+                / "build/local-tools/opencv-root/usr/lib/x86_64-linux-gnu/pkgconfig/opencv4.pc",
+                "pc",
+            )
+            write_file(
+                repo_root
+                / "build/local-tools/boost-root/usr/include/boost/serialization/serialization.hpp",
+                "header",
+            )
+            write_file(
+                repo_root
+                / "build/local-tools/boost-root/usr/lib/x86_64-linux-gnu/libboost_serialization.so",
+                "library",
+            )
+            executable = (
+                repo_root
+                / "third_party/orbslam3/upstream/Examples/Monocular/mono_tum_vi"
+            )
+            write_file(executable, "binary")
+            executable.chmod(0o755)
+
+            def fake_run(cmd: list[str], **_kwargs: object) -> mock.Mock:
+                if cmd[:4] == [
+                    "git",
+                    "-C",
+                    str(repo_root / "third_party/orbslam3/upstream"),
+                    "rev-parse",
+                ]:
+                    return mock.Mock(returncode=0, stdout=f"{BASELINE_COMMIT}\n", stderr="")
+                if cmd[:2] == ["pkg-config", "--modversion"]:
+                    package = cmd[2]
+                    versions = {
+                        "eigen3": "3.4.0\n",
+                        "pangolin": "0.8\n",
+                    }
+                    if package in versions:
+                        return mock.Mock(returncode=0, stdout=versions[package], stderr="")
+                    return mock.Mock(returncode=1, stdout="", stderr="")
+                raise AssertionError(f"Unexpected command: {cmd}")
+
+            with mock.patch(
+                "splatica_orb_test.monocular_prereqs.shutil.which",
+                side_effect=lambda name: {
+                    "cmake": "/tmp/cmake",
+                    "make": "/usr/bin/make",
+                    "pkg-config": "/usr/bin/pkg-config",
+                }.get(name),
+            ), mock.patch(
+                "splatica_orb_test.monocular_prereqs.subprocess.run",
+                side_effect=fake_run,
+            ):
+                prerequisites = inspect_monocular_baseline_prerequisites(
+                    repo_root,
+                    manifest_path,
+                )
+
+        report = render_monocular_baseline_prerequisite_report(prerequisites)
+        self.assertTrue(prerequisites.ready_for_execute)
+        self.assertIn("OpenCV development package: **ready**", report)
+        self.assertIn("Boost serialization development package: **ready**", report)
         self.assertIn("repo-local bootstrap", report)

@@ -5,7 +5,13 @@ from pathlib import Path
 import shutil
 import subprocess
 
-from .local_tooling import resolve_cmake_tool, resolve_eigen3_prefix
+from .local_tooling import (
+    resolve_boost_prefix,
+    resolve_cmake_tool,
+    resolve_eigen3_prefix,
+    resolve_opencv_prefix,
+    resolve_pangolin_prefix,
+)
 from .monocular_baseline import (
     load_monocular_baseline_manifest,
     resolve_monocular_baseline_paths,
@@ -134,6 +140,83 @@ def _detect_eigen3_prerequisite(repo_root: Path) -> PrerequisiteCheck:
     )
 
 
+def _detect_opencv_prerequisite(repo_root: Path) -> PrerequisiteCheck:
+    resolved_opencv = resolve_opencv_prefix(repo_root)
+    if resolved_opencv is not None:
+        return PrerequisiteCheck(
+            label="OpenCV development package",
+            ready=True,
+            detail=resolved_opencv.detail,
+        )
+
+    return _detect_versioned_pkg_config_package(
+        label="OpenCV development package",
+        names=("opencv4", "opencv"),
+        minimum_version=(4, 4),
+    )
+
+
+def _system_boost_serialization_ready() -> bool:
+    header_path = Path("/usr/include/boost/serialization/serialization.hpp")
+    if not header_path.exists():
+        return False
+
+    library_roots = (
+        Path("/usr/lib/x86_64-linux-gnu"),
+        Path("/usr/lib64"),
+        Path("/usr/lib"),
+    )
+    return any(
+        library_root.exists()
+        and any(library_root.glob("libboost_serialization.so*"))
+        for library_root in library_roots
+    )
+
+
+def _detect_boost_serialization_prerequisite(repo_root: Path) -> PrerequisiteCheck:
+    resolved_boost = resolve_boost_prefix(repo_root)
+    if resolved_boost is not None:
+        return PrerequisiteCheck(
+            label="Boost serialization development package",
+            ready=True,
+            detail=resolved_boost.detail,
+        )
+
+    if _system_boost_serialization_ready():
+        return PrerequisiteCheck(
+            label="Boost serialization development package",
+            ready=True,
+            detail="/usr/include + /usr/lib (system install)",
+        )
+
+    return PrerequisiteCheck(
+        label="Boost serialization development package",
+        ready=False,
+        detail="not detected on system paths or in build/local-tools/boost-root",
+    )
+
+
+def _detect_pangolin_prerequisite(repo_root: Path) -> PrerequisiteCheck:
+    resolved_pangolin = resolve_pangolin_prefix(repo_root)
+    if resolved_pangolin is not None:
+        return PrerequisiteCheck(
+            label="Pangolin development package",
+            ready=True,
+            detail=resolved_pangolin.detail,
+        )
+
+    pangolin_name, pangolin_version = _detect_pkg_config_package("pangolin")
+    return PrerequisiteCheck(
+        label="Pangolin development package",
+        ready=pangolin_name is not None,
+        detail=(
+            "not detected via pkg-config or build/local-tools/pangolin-root"
+            if pangolin_name is None
+            else f"{pangolin_name} {pangolin_version} (requires CMake-discoverable Pangolin)"
+        ),
+    )
+
+
 def inspect_monocular_baseline_prerequisites(
     repo_root: Path,
     manifest_path: Path,
@@ -192,29 +275,10 @@ def inspect_monocular_baseline_prerequisites(
         ]
     )
 
-    execute_checks.append(
-        _detect_versioned_pkg_config_package(
-            label="OpenCV development package",
-            names=("opencv4", "opencv"),
-            minimum_version=(4, 4),
-        )
-    )
-    execute_checks.append(
-        _detect_eigen3_prerequisite(repo_root)
-    )
-
-    pangolin_name, pangolin_version = _detect_pkg_config_package("pangolin")
-    execute_checks.append(
-        PrerequisiteCheck(
-            label="Pangolin development package",
-            ready=pangolin_name is not None,
-            detail=(
-                "not detected via pkg-config"
-                if pangolin_name is None
-                else f"{pangolin_name} {pangolin_version} (requires CMake-discoverable Pangolin)"
-            ),
-        )
-    )
+    execute_checks.append(_detect_opencv_prerequisite(repo_root))
+    execute_checks.append(_detect_eigen3_prerequisite(repo_root))
+    execute_checks.append(_detect_boost_serialization_prerequisite(repo_root))
+    execute_checks.append(_detect_pangolin_prerequisite(repo_root))
 
     vocabulary_archive = resolved.vocabulary.with_suffix(".txt.tar.gz")
     execute_checks.extend(

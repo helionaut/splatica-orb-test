@@ -8,10 +8,10 @@ Last Updated: 2026-03-18
 
 - User rig verdict: `blocked`
 - Checked-in repo rerun verdict: `validated`
-- Next unresolved risk: the selected lens-10 monocular lane still cannot run on
-  the user's rig until `datasets/user/insta360_x3_lens10/monocular_calibration.json`
-  and `datasets/user/insta360_x3_lens10/frame_index.csv` are supplied on a host
-  that can build ORB-SLAM3 with CMake-discoverable OpenCV and Pangolin.
+- Next unresolved risk: on the HEL-54 host, the selected lens-10 monocular lane
+  now has the expected HEL-52 private inputs plus repo-local `cmake`, `Eigen3`,
+  OpenCV, and Boost serialization support, but the actual ORB-SLAM3 run still
+  cannot proceed until Pangolin is provided as a CMake-discoverable package.
 
 The repo now has one documented rerun path for the selected baseline and one
 final conclusion. Another engineer should start here instead of rediscovering
@@ -43,8 +43,8 @@ Supporting checked-in inputs and contracts:
 
 Private, local-only inputs still required for the actual user-data run:
 
-- `datasets/user/insta360_x3_lens10/monocular_calibration.json`
-- `datasets/user/insta360_x3_lens10/frame_index.csv`
+- `datasets/user/insta360_x3_one_lens_baseline/lenses/10/monocular_calibration.json`
+- `datasets/user/insta360_x3_one_lens_baseline/lenses/10/frame_index.csv`
 - PNG frames referenced by `frame_index.csv`
 
 ## Canonical Rerun Path
@@ -81,13 +81,42 @@ Start from a fresh checkout of this repo. Run the steps in this order.
    make bootstrap-local-eigen
    ```
 
-5. Build the selected ORB-SLAM3 baseline:
+5. If the host does not already provide OpenCV 4, bootstrap the repo-local prefix:
+
+   ```bash
+   make bootstrap-local-opencv
+   ```
+
+6. If the host does not already provide Boost serialization, bootstrap the repo-local prefix:
+
+   ```bash
+   make bootstrap-local-boost
+   ```
+
+7. If the host does not already provide `ffmpeg`/`ffprobe`, bootstrap the repo-local media bundle and import the raw one-lens assets:
+
+   ```bash
+   make bootstrap-local-ffmpeg
+   ./scripts/import_monocular_video_inputs.py \
+     --video-00 /path/to/00.mp4 \
+     --video-10 /path/to/10.mp4 \
+     --calibration-00 /path/to/insta360_x3_kb4_00_calib.txt \
+     --calibration-10 /path/to/insta360_x3_kb4_10_calib.txt \
+     --extrinsics /path/to/insta360_x3_extr_rigs_calib.json \
+     --lenses 10
+   ```
+
+8. Provide Pangolin either system-wide or through a local install under
+   `build/local-tools/pangolin-root/usr/local/`. Ubuntu `noble` does not
+   currently expose a `libpangolin-dev` apt package.
+
+9. Build the selected ORB-SLAM3 baseline:
 
    ```bash
    ./scripts/build_orbslam3_baseline.sh
    ```
 
-6. Check whether the private monocular lane is actually runnable:
+10. Check whether the private monocular lane is actually runnable:
 
    ```bash
    make monocular-prereqs
@@ -96,7 +125,7 @@ Start from a fresh checkout of this repo. Run the steps in this order.
    This writes `reports/out/insta360_x3_lens10_monocular_prereqs.md` and
    returns non-zero until the host and local-only lens-10 inputs are ready.
 
-7. Once `make monocular-prereqs` reports full readiness, prepare the timestamped
+11. Once `make monocular-prereqs` reports full readiness, prepare the timestamped
    image folder and settings bundle:
 
    ```bash
@@ -105,7 +134,7 @@ Start from a fresh checkout of this repo. Run the steps in this order.
      --prepare-only
    ```
 
-8. Execute the selected baseline:
+12. Execute the selected baseline:
 
    ```bash
    ./scripts/run_orbslam3_sequence.sh \
@@ -166,16 +195,36 @@ Fresh rerun pass executed on 2026-03-18 from a new `HEL-49` worktree created at
   - Result: passed
   - Observed: bootstrapped repo-local `Eigen3` under
     `build/local-tools/eigen-root/usr/`
-- `./scripts/build_orbslam3_baseline.sh`
-  - Result: failed as expected on this host
-  - Observed blocker: `Thirdparty/DBoW2` configuration stopped with
-    `OpenCV > 3.0 not found.`
+- `make bootstrap-local-ffmpeg`
+  - Result: passed
+  - Observed: bootstrapped repo-local `ffmpeg` and `ffprobe` under
+    `build/local-tools/ffmpeg-root/`
+- `./scripts/import_monocular_video_inputs.py --lenses 10`
+  - Result: passed
+  - Observed: copied raw assets into
+    `datasets/user/insta360_x3_one_lens_baseline/`, extracted 270 lens-10 PNGs,
+    and generated `monocular_calibration.json`, `frame_index.csv`,
+    `timestamps.txt`, and `import_manifest.json` under
+    `datasets/user/insta360_x3_one_lens_baseline/lenses/10/`
 - `make monocular-prereqs`
   - Result: failed as expected and wrote
     `reports/out/insta360_x3_lens10_monocular_prereqs.md`
-  - Observed blockers: missing private `monocular_calibration.json`,
-    missing private `frame_index.csv`, missing OpenCV, missing Pangolin, and
-    missing built `Examples/Monocular/mono_tum_vi`
+  - Observed: `Ready for --prepare-only: true`
+- `make bootstrap-local-opencv`
+  - Result: passed
+  - Observed: bootstrapped repo-local OpenCV under
+    `build/local-tools/opencv-root/usr/`
+- `make bootstrap-local-boost`
+  - Result: passed
+  - Observed: bootstrapped repo-local Boost serialization under
+    `build/local-tools/boost-root/usr/`
+- `./scripts/build_orbslam3_baseline.sh`
+  - Result: failed as expected on this host
+  - Observed: completed `Thirdparty/DBoW2`, `Thirdparty/g2o`, and
+    `Thirdparty/Sophus`, then stopped at top-level ORB-SLAM3 configure because
+    `find_package(Pangolin REQUIRED)` could not resolve `PangolinConfig.cmake`
+- `apt-cache search '^libpangolin'`
+  - Result: returned no package on Ubuntu `noble`
 
 ## What Worked
 
@@ -196,9 +245,12 @@ Fresh rerun pass executed on 2026-03-18 from a new `HEL-49` worktree created at
 - The repo still cannot claim a successful user-rig run, because the private
   lens-10 calibration JSON, frame index CSV, and referenced PNG frames are not
   versioned in this repo.
-- The host must expose CMake-discoverable OpenCV and Pangolin development
-  packages before `./scripts/build_orbslam3_baseline.sh` can produce the real
-  `Examples/Monocular/mono_tum_vi` executable.
+- On the HEL-54 host, the next irreducible native blocker is Pangolin
+  provisioning. The repo-local `cmake`, `Eigen3`, OpenCV, and Boost
+  serialization bootstraps are enough to reach top-level ORB-SLAM3 configure,
+  but `./scripts/build_orbslam3_baseline.sh` still cannot produce the real
+  `Examples/Monocular/mono_tum_vi` executable until `PangolinConfig.cmake`
+  becomes discoverable.
 - Full stereo+IMU validation remains blocked beyond this monocular lane because
   the shareable calibration subset still lacks `camera_to_imu`, IMU noise, IMU
   walk, IMU frequency, and overlapping-stereo geometry required for a credible
