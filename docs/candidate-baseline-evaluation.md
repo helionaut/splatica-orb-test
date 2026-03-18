@@ -26,8 +26,8 @@ The comparison manifests live in:
 
 All three manifests point at the same private inputs:
 
-- `datasets/user/insta360_x3_lens10/monocular_calibration.json`
-- `datasets/user/insta360_x3_lens10/frame_index.csv`
+- `datasets/user/insta360_x3_one_lens_baseline/lenses/10/monocular_calibration.json`
+- `datasets/user/insta360_x3_one_lens_baseline/lenses/10/frame_index.csv`
 
 ## Environment Evidence
 
@@ -49,7 +49,7 @@ for every candidate before any `mono_tum_vi` launch can happen.
 
 | Candidate | Repo / commit | Build result | Run result | Notable observations |
 | --- | --- | --- | --- | --- |
-| Selected baseline | `UZ-SLAMLab/ORB_SLAM3` @ `4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4` | Blocked locally by missing `cmake`, OpenCV dev metadata, and Pangolin metadata | Blocked locally by missing `datasets/user/insta360_x3_lens10/monocular_calibration.json` and `datasets/user/insta360_x3_lens10/frame_index.csv` | Current upstream reference line. `master` is only two commits ahead of `v1.0-release`, and both commits update docs only (`README.md`, `Dependencies.md`). |
+| Selected baseline | `UZ-SLAMLab/ORB_SLAM3` @ `4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4` | Blocked locally by missing `cmake`, OpenCV dev metadata, and Pangolin metadata | Blocked locally by missing `datasets/user/insta360_x3_one_lens_baseline/lenses/10/monocular_calibration.json` and `datasets/user/insta360_x3_one_lens_baseline/lenses/10/frame_index.csv` | Current upstream reference line. `master` is only two commits ahead of `v1.0-release`, and both commits update docs only (`README.md`, `Dependencies.md`). |
 | Alternative commit | `UZ-SLAMLab/ORB_SLAM3` @ `0df83dde1c85c7ab91a0d47de7a29685d046f637` | Blocked by the same local infrastructure gap | Blocked by the same missing private lens-10 inputs | Still a valid upstream baseline, but not materially different from current `master` for this lane because the post-release delta is documentation-only. |
 | Alternative fork | `MAVIS-SLAM/OpenMAVIS` @ `b13b1c20e84efa4bb63564e26308541af70d03f2` | Blocked by the same local infrastructure gap | Blocked by the same missing private lens-10 inputs | Adds multi-camera visual-inertial work, but the fork is framed around multiple partially overlapped camera systems and Hilti-style multi-inertial runs, not the current single-lens no-IMU baseline or a back-to-back non-overlapping rig. |
 
@@ -126,7 +126,7 @@ environment still needs:
 
 - native ORB-SLAM3 build prerequisites (`cmake`, OpenCV development package,
   Pangolin development package)
-- the private lens-10 monocular inputs under `datasets/user/insta360_x3_lens10/`
+- the private lens-10 monocular inputs under `datasets/user/insta360_x3_one_lens_baseline/lenses/10/`
 
 Until those exist on the same machine, HEL-48 can lock the source baseline and
 the normalized evaluation contract, but not a full side-by-side runtime report

@@ -8,8 +8,11 @@ from unittest import mock
 from splatica_orb_test.local_tooling import (
     resolve_cmake_tool,
     resolve_eigen3_prefix,
+    resolve_ffmpeg_tool,
+    resolve_ffprobe_tool,
     resolve_repo_local_cmake_paths,
     resolve_repo_local_eigen3_paths,
+    resolve_repo_local_ffmpeg_paths,
 )
 
 
@@ -61,6 +64,94 @@ class LocalToolingTests(unittest.TestCase):
                 resolved = resolve_cmake_tool(repo_root)
 
         self.assertIsNone(resolved)
+
+    def test_prefers_path_ffmpeg_when_available(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+
+            with mock.patch(
+                "splatica_orb_test.local_tooling.shutil.which",
+                side_effect=lambda name: {
+                    "ffmpeg": "/usr/bin/ffmpeg",
+                }.get(name),
+            ):
+                resolved = resolve_ffmpeg_tool(repo_root)
+
+        self.assertIsNotNone(resolved)
+        assert resolved is not None
+        self.assertEqual(resolved.path, Path("/usr/bin/ffmpeg"))
+        self.assertFalse(resolved.uses_repo_local_runtime)
+
+    def test_uses_repo_local_ffmpeg_when_path_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+            local_ffmpeg, _local_ffprobe = resolve_repo_local_ffmpeg_paths(repo_root)
+            local_ffmpeg.parent.mkdir(parents=True, exist_ok=True)
+            local_ffmpeg.write_text("binary", encoding="utf-8")
+            local_ffmpeg.chmod(0o755)
+
+            with mock.patch(
+                "splatica_orb_test.local_tooling.shutil.which",
+                return_value=None,
+            ):
+                resolved = resolve_ffmpeg_tool(repo_root)
+
+        self.assertIsNotNone(resolved)
+        assert resolved is not None
+        self.assertEqual(resolved.path, local_ffmpeg)
+        self.assertFalse(resolved.uses_repo_local_runtime)
+        self.assertIn("repo-local bootstrap", resolved.detail)
+
+    def test_prefers_path_ffprobe_when_available(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+
+            with mock.patch(
+                "splatica_orb_test.local_tooling.shutil.which",
+                side_effect=lambda name: {
+                    "ffprobe": "/usr/bin/ffprobe",
+                }.get(name),
+            ):
+                resolved = resolve_ffprobe_tool(repo_root)
+
+        self.assertIsNotNone(resolved)
+        assert resolved is not None
+        self.assertEqual(resolved.path, Path("/usr/bin/ffprobe"))
+        self.assertFalse(resolved.uses_repo_local_runtime)
+
+    def test_uses_repo_local_ffprobe_when_path_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+            _local_ffmpeg, local_ffprobe = resolve_repo_local_ffmpeg_paths(repo_root)
+            local_ffprobe.parent.mkdir(parents=True, exist_ok=True)
+            local_ffprobe.write_text("binary", encoding="utf-8")
+            local_ffprobe.chmod(0o755)
+
+            with mock.patch(
+                "splatica_orb_test.local_tooling.shutil.which",
+                return_value=None,
+            ):
+                resolved = resolve_ffprobe_tool(repo_root)
+
+        self.assertIsNotNone(resolved)
+        assert resolved is not None
+        self.assertEqual(resolved.path, local_ffprobe)
+        self.assertFalse(resolved.uses_repo_local_runtime)
+        self.assertIn("repo-local bootstrap", resolved.detail)
+
+    def test_returns_none_when_no_ffmpeg_or_ffprobe_exist(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+
+            with mock.patch(
+                "splatica_orb_test.local_tooling.shutil.which",
+                return_value=None,
+            ):
+                resolved_ffmpeg = resolve_ffmpeg_tool(repo_root)
+                resolved_ffprobe = resolve_ffprobe_tool(repo_root)
+
+        self.assertIsNone(resolved_ffmpeg)
+        self.assertIsNone(resolved_ffprobe)
 
     def test_detects_repo_local_eigen_prefix(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -15,6 +15,7 @@ from splatica_orb_test.monocular_prereqs import (
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = REPO_ROOT / "manifests/insta360_x3_lens10_monocular_baseline.json"
 BASELINE_COMMIT = "4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4"
+LENS10_ROOT = Path("datasets/user/insta360_x3_one_lens_baseline/lenses/10")
 
 
 def write_file(path: Path, text: str = "") -> None:
@@ -62,8 +63,8 @@ class MonocularPrerequisiteTests(unittest.TestCase):
             )
             write_file(manifest_path, MANIFEST_PATH.read_text(encoding="utf-8"))
 
-            calibration_path = repo_root / "datasets/user/insta360_x3_lens10/monocular_calibration.json"
-            frame_index_path = repo_root / "datasets/user/insta360_x3_lens10/frame_index.csv"
+            calibration_path = repo_root / LENS10_ROOT / "monocular_calibration.json"
+            frame_index_path = repo_root / LENS10_ROOT / "frame_index.csv"
             write_file(calibration_path, json.dumps({"camera": {}}))
             write_file(frame_index_path, "timestamp_ns,source_path\n")
             write_file(repo_root / "third_party/orbslam3/upstream/.git", "gitdir")
@@ -131,11 +132,11 @@ class MonocularPrerequisiteTests(unittest.TestCase):
             write_file(manifest_path, MANIFEST_PATH.read_text(encoding="utf-8"))
 
             write_file(
-                repo_root / "datasets/user/insta360_x3_lens10/monocular_calibration.json",
+                repo_root / LENS10_ROOT / "monocular_calibration.json",
                 "{}",
             )
             write_file(
-                repo_root / "datasets/user/insta360_x3_lens10/frame_index.csv",
+                repo_root / LENS10_ROOT / "frame_index.csv",
                 "timestamp_ns,source_path\n",
             )
             write_file(repo_root / "third_party/orbslam3/upstream/.git", "gitdir")
@@ -182,11 +183,11 @@ class MonocularPrerequisiteTests(unittest.TestCase):
             write_file(manifest_path, MANIFEST_PATH.read_text(encoding="utf-8"))
 
             write_file(
-                repo_root / "datasets/user/insta360_x3_lens10/monocular_calibration.json",
+                repo_root / LENS10_ROOT / "monocular_calibration.json",
                 "{}",
             )
             write_file(
-                repo_root / "datasets/user/insta360_x3_lens10/frame_index.csv",
+                repo_root / LENS10_ROOT / "frame_index.csv",
                 "timestamp_ns,source_path\n",
             )
             write_file(repo_root / "third_party/orbslam3/upstream/.git", "gitdir")

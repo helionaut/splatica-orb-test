@@ -10,8 +10,8 @@
   "sequence": {
     "name": "insta360-x3-lens10-monocular-baseline",
     "camera_label": "insta360_x3_lens10",
-    "calibration_path": "datasets/user/insta360_x3_lens10/monocular_calibration.json",
-    "frame_index_path": "datasets/user/insta360_x3_lens10/frame_index.csv"
+    "calibration_path": "datasets/user/insta360_x3_one_lens_baseline/lenses/10/monocular_calibration.json",
+    "frame_index_path": "datasets/user/insta360_x3_one_lens_baseline/lenses/10/frame_index.csv"
   },
   "outputs": {
     "settings_path": "build/insta360_x3_lens10/monocular/TUM-VI-insta360-x3-lens10.yaml",
@@ -25,5 +25,5 @@
     "mode": "monocular_tum_vi",
     "script": "scripts/run_orbslam3_sequence.sh"
   },
-  "notes": "Single-lens Insta360 X3 Lens 10 baseline that follows the current upstream ORB-SLAM3 monocular fisheye TUM-VI path without IMU. As of HEL-48, upstream master is only two documentation commits ahead of v1.0-release, so this selected pin keeps the official upstream line while staying code-equivalent to the older release tag. Preprocessing must provide a frame_index.csv with timestamp_ns,source_path rows and PNG source frames."
+  "notes": "Single-lens Insta360 X3 Lens 10 baseline that follows the current upstream ORB-SLAM3 monocular fisheye TUM-VI path without IMU. As of HEL-48, upstream master is only two documentation commits ahead of v1.0-release, so this selected pin keeps the official upstream line while staying code-equivalent to the older release tag. HEL-52 now derives the private lens inputs from raw 00.mp4 and 10.mp4 videos plus the raw kb4 calibration exports under datasets/user/insta360_x3_one_lens_baseline/."
 }

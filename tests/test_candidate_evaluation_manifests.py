@@ -11,8 +11,12 @@ from splatica_orb_test.monocular_baseline import (
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-LENS10_CALIBRATION_PATH = "datasets/user/insta360_x3_lens10/monocular_calibration.json"
-LENS10_FRAME_INDEX_PATH = "datasets/user/insta360_x3_lens10/frame_index.csv"
+LENS10_CALIBRATION_PATH = (
+    "datasets/user/insta360_x3_one_lens_baseline/lenses/10/monocular_calibration.json"
+)
+LENS10_FRAME_INDEX_PATH = (
+    "datasets/user/insta360_x3_one_lens_baseline/lenses/10/frame_index.csv"
+)
 
 
 class CandidateEvaluationManifestTests(unittest.TestCase):
