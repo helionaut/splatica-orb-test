@@ -1,0 +1,20 @@
+{
+  "baseline": {
+    "name": "orbslam3-upstream-placeholder",
+    "repo_url": "https://github.com/UZ-SLAMLab/ORB_SLAM3",
+    "commit": "pin-me-in-a-follow-up-ticket"
+  },
+  "sequence": {
+    "name": "fixture-dry-run",
+    "dataset_path": "datasets/fixtures",
+    "settings_path": "configs/orbslam3/smoke-placeholder.yaml"
+  },
+  "outputs": {
+    "log_path": "logs/out/fixture-dry-run.log",
+    "report_path": "reports/out/fixture-dry-run.md"
+  },
+  "launch": {
+    "script": "scripts/run_orbslam3_sequence.sh"
+  },
+  "notes": "Dry-run harness only until a real ORB-SLAM3 baseline, calibration bundle, and representative sequence are pinned."
+}

@@ -6,34 +6,39 @@ Last Updated: 2026-03-18
 
 ## Current Decision
 
-`splatica-orb-test` does not need a publishable artifact yet, and this repo
+`splatica-orb-test` still does not need a publishable artifact, and this repo
 should not add a placeholder deployment target.
 
-As of this decision, the tracked repository only contains bootstrap workflow
-files and project instructions. It does not contain:
+The repo can now generate local dry-run outputs through the harness:
 
-- a generated validation report
-- a downloadable results bundle
-- a user-facing web app
-- a release pipeline that produces a concrete artifact
+- `build/smoke-plan.md` from `make build`
+- dry-run logs under `logs/out/`
+- dry-run reports under `reports/out/`
+- a future URL verification command via `make verify-production`
 
-Because no concrete deliverable exists yet, the correct deployment choice is
-"no publication for now."
+Those outputs are local validation scaffolding, not a release-grade
+deliverable. They do not yet capture a reviewed ORB-SLAM3 run against a pinned
+baseline and dataset snapshot, and they are intentionally disposable. Because
+no concrete validation report or results bundle is ready to distribute, the
+correct publication choice is still "no deployment for now."
 
 ## Why This Is The Right Call
 
 - The ticket explicitly warns against assuming a user-facing web app.
-- The current tracked repo state has no artifact to host or distribute.
+- The current harness only produces dry-run scaffolding and placeholder
+  outputs, not a stable artifact worth distributing.
 - A fake GitHub Pages site or empty release would create a maintenance burden
   without improving validation or review.
+- The repo now has enough structure to define a future publication path without
+  pretending that a publishable result already exists.
 
 ## Trigger To Revisit Publication
 
 Open a follow-up publication change only after the repo can generate one of
-these concrete outputs from source control:
+these concrete outputs from source control and a pinned run manifest:
 
-- a static validation report that summarizes a real ORB-SLAM3 evaluation run
 - a downloadable results bundle that contains logs, configs, and outcome data
+- a static validation report that summarizes a real ORB-SLAM3 evaluation run
 - both, if the report and raw bundle serve different review needs
 
 Until one of those exists, the release answer remains "no deployment."
@@ -41,8 +46,9 @@ Until one of those exists, the release answer remains "no deployment."
 ## Expected First Artifact
 
 If publication becomes necessary, prefer a downloadable results bundle as the
-primary artifact. The bundle should be easier to version and review than a live
-site, and it matches the current repo goal better than an interactive
+primary artifact. Publish that bundle as a GitHub Release asset tied to the
+validating commit or release tag. A bundle is easier to version and review than
+a live site, and it matches the current repo goal better than an interactive
 deployment.
 
 The first publishable bundle should include at least:
@@ -55,7 +61,8 @@ The first publishable bundle should include at least:
 - a manifest file with generation time and checksum data
 
 If reviewers need a more readable summary, add a static HTML or Markdown report
-alongside the bundle instead of replacing it.
+alongside the same release asset set instead of replacing it. A dedicated
+static site should remain optional until repeated review needs justify it.
 
 ## Release Verification Path
 
@@ -66,8 +73,12 @@ following:
    checkout.
 2. Confirm the manifest captures the producing repo SHA, dataset reference,
    upstream baseline, and config version.
-3. Verify the published artifact checksum matches the locally generated output.
-4. Confirm the published URL or release asset resolves and downloads correctly.
+3. Run `make verify-production ARTIFACT_URL=https://<published-artifact-url>`
+   against the published URL and confirm the expected marker resolves over
+   HTTPS.
+4. Verify the published artifact checksum matches the locally generated output.
+5. Confirm the PR summary and Linear handoff/completion comment both record the
+   exact final artifact URL or release-asset location.
 
 This ticket does not implement those publication steps yet because there is no
 artifact to verify.
