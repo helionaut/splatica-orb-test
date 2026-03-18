@@ -1,0 +1,5 @@
+# Placeholder settings bundle for the HEL-43 dry-run harness.
+# Replace this file with a rig-specific ORB-SLAM3 YAML once calibration data is available.
+
+Camera.type: "StereoFisheye+IMU"
+Camera.comment: "Dry-run placeholder only; not a real calibration."
