@@ -23,6 +23,7 @@ class FinalValidationDocsTests(unittest.TestCase):
             encoding="utf-8"
         )
 
+        self.assertIn("Status: Final", report)
         self.assertIn("User rig verdict: `blocked`", report)
         self.assertIn(
             "4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4",
