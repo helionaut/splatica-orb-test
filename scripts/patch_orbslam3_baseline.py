@@ -178,6 +178,102 @@ def normalize_shutdown(block: str) -> str:
     return block
 
 
+def normalize_mono_tum_vi_main(block: str) -> str:
+    original_sequence = (
+        '    // Stop all threads\n'
+        '    SLAM.Shutdown();\n'
+        '\n'
+        '\n'
+        '    // Tracking time statistics\n'
+        '\n'
+        '    // Save camera trajectory\n'
+        '\n'
+        '    if (bFileName)\n'
+        '    {\n'
+        '        const string kf_file =  "kf_" + string(argv[argc-1]) + ".txt";\n'
+        '        const string f_file =  "f_" + string(argv[argc-1]) + ".txt";\n'
+        '        SLAM.SaveTrajectoryEuRoC(f_file);\n'
+        '        SLAM.SaveKeyFrameTrajectoryEuRoC(kf_file);\n'
+        '    }\n'
+        '    else\n'
+        '    {\n'
+        '        SLAM.SaveTrajectoryEuRoC("CameraTrajectory.txt");\n'
+        '        SLAM.SaveKeyFrameTrajectoryEuRoC("KeyFrameTrajectory.txt");\n'
+        '    }\n'
+    )
+    replacement_sequence = (
+        '    // Stop all threads\n'
+        '    cout << "HEL-63 diagnostic: entering SLAM shutdown" << endl;\n'
+        '    SLAM.Shutdown();\n'
+        '    cout << "HEL-63 diagnostic: SLAM shutdown completed" << endl;\n'
+        '\n'
+        '    const bool skip_frame_trajectory_save = std::getenv("ORB_SLAM3_SKIP_FRAME_TRAJECTORY_SAVE") != nullptr;\n'
+        '    const bool skip_keyframe_trajectory_save = std::getenv("ORB_SLAM3_SKIP_KEYFRAME_TRAJECTORY_SAVE") != nullptr;\n'
+        '    if(skip_frame_trajectory_save || skip_keyframe_trajectory_save)\n'
+        '    {\n'
+        '        cout << "HEL-63 diagnostic: save toggles frame=" << skip_frame_trajectory_save\n'
+        '             << ", keyframe=" << skip_keyframe_trajectory_save << endl;\n'
+        '    }\n'
+        '\n'
+        '    // Tracking time statistics\n'
+        '\n'
+        '    // Save camera trajectory\n'
+        '\n'
+        '    if (bFileName)\n'
+        '    {\n'
+        '        const string kf_file =  "kf_" + string(argv[argc-1]) + ".txt";\n'
+        '        const string f_file =  "f_" + string(argv[argc-1]) + ".txt";\n'
+        '        if(skip_frame_trajectory_save)\n'
+        '            cout << "HEL-63 diagnostic: skipping SaveTrajectoryEuRoC for " << f_file << endl;\n'
+        '        else\n'
+        '        {\n'
+        '            cout << "HEL-63 diagnostic: calling SaveTrajectoryEuRoC for " << f_file << endl;\n'
+        '            SLAM.SaveTrajectoryEuRoC(f_file);\n'
+        '            cout << "HEL-63 diagnostic: SaveTrajectoryEuRoC completed" << endl;\n'
+        '        }\n'
+        '        if(skip_keyframe_trajectory_save)\n'
+        '            cout << "HEL-63 diagnostic: skipping SaveKeyFrameTrajectoryEuRoC for " << kf_file << endl;\n'
+        '        else\n'
+        '        {\n'
+        '            cout << "HEL-63 diagnostic: calling SaveKeyFrameTrajectoryEuRoC for " << kf_file << endl;\n'
+        '            SLAM.SaveKeyFrameTrajectoryEuRoC(kf_file);\n'
+        '            cout << "HEL-63 diagnostic: SaveKeyFrameTrajectoryEuRoC completed" << endl;\n'
+        '        }\n'
+        '    }\n'
+        '    else\n'
+        '    {\n'
+        '        if(skip_frame_trajectory_save)\n'
+        '            cout << "HEL-63 diagnostic: skipping SaveTrajectoryEuRoC for CameraTrajectory.txt" << endl;\n'
+        '        else\n'
+        '        {\n'
+        '            cout << "HEL-63 diagnostic: calling SaveTrajectoryEuRoC for CameraTrajectory.txt" << endl;\n'
+        '            SLAM.SaveTrajectoryEuRoC("CameraTrajectory.txt");\n'
+        '            cout << "HEL-63 diagnostic: SaveTrajectoryEuRoC completed" << endl;\n'
+        '        }\n'
+        '        if(skip_keyframe_trajectory_save)\n'
+        '            cout << "HEL-63 diagnostic: skipping SaveKeyFrameTrajectoryEuRoC for KeyFrameTrajectory.txt" << endl;\n'
+        '        else\n'
+        '        {\n'
+        '            cout << "HEL-63 diagnostic: calling SaveKeyFrameTrajectoryEuRoC for KeyFrameTrajectory.txt" << endl;\n'
+        '            SLAM.SaveKeyFrameTrajectoryEuRoC("KeyFrameTrajectory.txt");\n'
+        '            cout << "HEL-63 diagnostic: SaveKeyFrameTrajectoryEuRoC completed" << endl;\n'
+        '        }\n'
+        '    }\n'
+    )
+    block, count = re.subn(
+        re.escape(original_sequence),
+        lambda _: replacement_sequence,
+        block,
+        count=1,
+    )
+    if count == 0:
+        if "HEL-63 diagnostic: entering SLAM shutdown" in block:
+            return block
+        raise ValueError("Failed to normalize mono_tum_vi save flow")
+
+    return block
+
+
 def patch_system_cc(path: Path) -> bool:
     original = path.read_text(encoding="utf-8")
     updated = rewrite_function_block(
@@ -206,6 +302,34 @@ def patch_system_cc(path: Path) -> bool:
     return True
 
 
+def patch_mono_tum_vi(path: Path) -> bool:
+    original = path.read_text(encoding="utf-8")
+    if "#include <cstdlib>\n" in original:
+        updated = original
+    else:
+        updated, count = re.subn(
+            r'#include <unistd\.h>\n',
+            '#include <unistd.h>\n#include <cstdlib>\n',
+            original,
+            count=1,
+        )
+        if count == 0:
+            raise ValueError("Failed to normalize mono_tum_vi includes")
+
+    updated = rewrite_function_block(
+        updated,
+        signature="int main(int argc, char **argv)\n{",
+        next_signature="\nvoid LoadImages(",
+        rewriter=normalize_mono_tum_vi_main,
+    )
+
+    if updated == original:
+        return False
+
+    path.write_text(updated, encoding="utf-8")
+    return True
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkout-dir", required=True)
@@ -213,14 +337,24 @@ def main() -> int:
 
     checkout_dir = Path(args.checkout_dir).resolve()
     system_cc = checkout_dir / "src/System.cc"
+    mono_tum_vi_cc = checkout_dir / "Examples/Monocular/mono_tum_vi.cc"
     if not system_cc.exists():
         raise SystemExit(f"Missing ORB-SLAM3 source file: {system_cc}")
+    if not mono_tum_vi_cc.exists():
+        raise SystemExit(f"Missing ORB-SLAM3 source file: {mono_tum_vi_cc}")
 
     changed = patch_system_cc(system_cc)
-    if changed:
-        print(f"Patched ORB-SLAM3 trajectory guards in {system_cc}")
+    mono_changed = patch_mono_tum_vi(mono_tum_vi_cc)
+    if changed or mono_changed:
+        print(
+            "Patched ORB-SLAM3 trajectory guards/diagnostics in "
+            f"{system_cc} and {mono_tum_vi_cc}"
+        )
     else:
-        print(f"ORB-SLAM3 trajectory guards already present in {system_cc}")
+        print(
+            "ORB-SLAM3 trajectory guards/diagnostics already present in "
+            f"{system_cc} and {mono_tum_vi_cc}"
+        )
     return 0
 
 

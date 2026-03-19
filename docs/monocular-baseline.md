@@ -217,6 +217,38 @@ The execution wrapper now:
   output directory
 - exits non-zero if the process returns without those trajectory artifacts
 
+For HEL-63 follow-up diagnostics, the same runner also supports explicit
+aggressive-ORB and save-isolation reruns without hand-editing the private
+`monocular_calibration.json` bundle:
+
+```bash
+./scripts/run_monocular_baseline.py \
+  --manifest manifests/insta360_x3_lens10_monocular_baseline.json \
+  --output-tag orb_aggressive \
+  --orb-n-features 4000 \
+  --orb-ini-fast 8 \
+  --orb-min-fast 3
+```
+
+```bash
+./scripts/run_monocular_baseline.py \
+  --manifest manifests/insta360_x3_lens10_monocular_baseline.json \
+  --output-tag orb_aggressive_stride3_skip_keyframes \
+  --orb-n-features 4000 \
+  --orb-ini-fast 8 \
+  --orb-min-fast 3 \
+  --frame-stride 3 \
+  --skip-keyframe-trajectory-save
+```
+
+These flags create distinct settings/image/trajectory/log/report outputs per
+`--output-tag`, replay every Nth frame when `--frame-stride` is set, and export
+`ORB_SLAM3_SKIP_FRAME_TRAJECTORY_SAVE=1` /
+`ORB_SLAM3_SKIP_KEYFRAME_TRAJECTORY_SAVE=1` into the patched upstream
+`mono_tum_vi` runner so the log shows whether the abort happens before shutdown
+completes, inside `SaveTrajectoryEuRoC`, or inside
+`SaveKeyFrameTrajectoryEuRoC`.
+
 ## Outputs
 
 The monocular baseline writes:

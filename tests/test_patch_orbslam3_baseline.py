@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import tempfile
 import unittest
 
 
@@ -116,3 +117,129 @@ bool System::isShutDown() { return false; }
             PATCH_HELPER.normalize_shutdown(shutdown_block),
             shutdown_block,
         )
+
+    def test_rewrites_mono_tum_vi_main_with_save_phase_diagnostics(self) -> None:
+        source = """#include <unistd.h>
+
+int main(int argc, char **argv)
+{
+    bool bFileName = true;
+
+    // Stop all threads
+    SLAM.Shutdown();
+
+
+    // Tracking time statistics
+
+    // Save camera trajectory
+
+    if (bFileName)
+    {
+        const string kf_file =  "kf_" + string(argv[argc-1]) + ".txt";
+        const string f_file =  "f_" + string(argv[argc-1]) + ".txt";
+        SLAM.SaveTrajectoryEuRoC(f_file);
+        SLAM.SaveKeyFrameTrajectoryEuRoC(kf_file);
+    }
+    else
+    {
+        SLAM.SaveTrajectoryEuRoC("CameraTrajectory.txt");
+        SLAM.SaveKeyFrameTrajectoryEuRoC("KeyFrameTrajectory.txt");
+    }
+
+    return 0;
+}
+
+void LoadImages() {}
+"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            source_path = Path(tmpdir) / "mono_tum_vi.cc"
+            source_path.write_text(source, encoding="utf-8")
+            changed = PATCH_HELPER.patch_mono_tum_vi(source_path)
+            rewritten = source_path.read_text(encoding="utf-8")
+
+        self.assertTrue(changed)
+        self.assertIn("#include <cstdlib>", rewritten)
+        self.assertIn('std::getenv("ORB_SLAM3_SKIP_FRAME_TRAJECTORY_SAVE")', rewritten)
+        self.assertIn("HEL-63 diagnostic: entering SLAM shutdown", rewritten)
+        self.assertIn("HEL-63 diagnostic: SaveTrajectoryEuRoC completed", rewritten)
+        self.assertIn(
+            "HEL-63 diagnostic: SaveKeyFrameTrajectoryEuRoC completed",
+            rewritten,
+        )
+
+    def test_mono_tum_vi_rewrite_is_idempotent(self) -> None:
+        source = """#include <unistd.h>
+#include <cstdlib>
+
+int main(int argc, char **argv)
+{
+    bool bFileName = true;
+
+    // Stop all threads
+    cout << "HEL-63 diagnostic: entering SLAM shutdown" << endl;
+    SLAM.Shutdown();
+    cout << "HEL-63 diagnostic: SLAM shutdown completed" << endl;
+
+    const bool skip_frame_trajectory_save = std::getenv("ORB_SLAM3_SKIP_FRAME_TRAJECTORY_SAVE") != nullptr;
+    const bool skip_keyframe_trajectory_save = std::getenv("ORB_SLAM3_SKIP_KEYFRAME_TRAJECTORY_SAVE") != nullptr;
+    if(skip_frame_trajectory_save || skip_keyframe_trajectory_save)
+    {
+        cout << "HEL-63 diagnostic: save toggles frame=" << skip_frame_trajectory_save
+             << ", keyframe=" << skip_keyframe_trajectory_save << endl;
+    }
+
+    // Tracking time statistics
+
+    // Save camera trajectory
+
+    if (bFileName)
+    {
+        const string kf_file =  "kf_" + string(argv[argc-1]) + ".txt";
+        const string f_file =  "f_" + string(argv[argc-1]) + ".txt";
+        if(skip_frame_trajectory_save)
+            cout << "HEL-63 diagnostic: skipping SaveTrajectoryEuRoC for " << f_file << endl;
+        else
+        {
+            cout << "HEL-63 diagnostic: calling SaveTrajectoryEuRoC for " << f_file << endl;
+            SLAM.SaveTrajectoryEuRoC(f_file);
+            cout << "HEL-63 diagnostic: SaveTrajectoryEuRoC completed" << endl;
+        }
+        if(skip_keyframe_trajectory_save)
+            cout << "HEL-63 diagnostic: skipping SaveKeyFrameTrajectoryEuRoC for " << kf_file << endl;
+        else
+        {
+            cout << "HEL-63 diagnostic: calling SaveKeyFrameTrajectoryEuRoC for " << kf_file << endl;
+            SLAM.SaveKeyFrameTrajectoryEuRoC(kf_file);
+            cout << "HEL-63 diagnostic: SaveKeyFrameTrajectoryEuRoC completed" << endl;
+        }
+    }
+    else
+    {
+        if(skip_frame_trajectory_save)
+            cout << "HEL-63 diagnostic: skipping SaveTrajectoryEuRoC for CameraTrajectory.txt" << endl;
+        else
+        {
+            cout << "HEL-63 diagnostic: calling SaveTrajectoryEuRoC for CameraTrajectory.txt" << endl;
+            SLAM.SaveTrajectoryEuRoC("CameraTrajectory.txt");
+            cout << "HEL-63 diagnostic: SaveTrajectoryEuRoC completed" << endl;
+        }
+        if(skip_keyframe_trajectory_save)
+            cout << "HEL-63 diagnostic: skipping SaveKeyFrameTrajectoryEuRoC for KeyFrameTrajectory.txt" << endl;
+        else
+        {
+            cout << "HEL-63 diagnostic: calling SaveKeyFrameTrajectoryEuRoC for KeyFrameTrajectory.txt" << endl;
+            SLAM.SaveKeyFrameTrajectoryEuRoC("KeyFrameTrajectory.txt");
+            cout << "HEL-63 diagnostic: SaveKeyFrameTrajectoryEuRoC completed" << endl;
+        }
+    }
+
+    return 0;
+}
+
+void LoadImages() {}
+"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            source_path = Path(tmpdir) / "mono_tum_vi.cc"
+            source_path.write_text(source, encoding="utf-8")
+            self.assertFalse(PATCH_HELPER.patch_mono_tum_vi(source_path))
+            self.assertEqual(source_path.read_text(encoding="utf-8"), source)

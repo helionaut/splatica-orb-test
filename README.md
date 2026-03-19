@@ -26,6 +26,7 @@ make check
 
 - [Execution plan](docs/execution-plan.md)
 - [Final validation report](docs/final-validation-report.md)
+- [HEL-63 post-initialization abort follow-up](docs/hel-63-post-initialization-abort-follow-up.md)
 - [Dataset normalization](docs/dataset-normalization.md)
 - [Calibration translation](docs/calibration-translation.md)
 - [Monocular baseline](docs/monocular-baseline.md)

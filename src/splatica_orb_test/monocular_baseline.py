@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import json
 from pathlib import Path
 import shutil
@@ -350,11 +350,64 @@ Viewer.ViewpointF: {_format_number(calibration.viewer.viewpoint_f, force_decimal
 """
 
 
+def apply_monocular_orb_overrides(
+    calibration: MonocularCalibration,
+    *,
+    n_features: int | None = None,
+    ini_fast: int | None = None,
+    min_fast: int | None = None,
+) -> MonocularCalibration:
+    return replace(
+        calibration,
+        orb=replace(
+            calibration.orb,
+            n_features=calibration.orb.n_features if n_features is None else n_features,
+            ini_fast=calibration.orb.ini_fast if ini_fast is None else ini_fast,
+            min_fast=calibration.orb.min_fast if min_fast is None else min_fast,
+        ),
+    )
+
+
+def apply_monocular_output_tag(
+    resolved: ResolvedMonocularBaselinePaths,
+    output_tag: str | None,
+) -> ResolvedMonocularBaselinePaths:
+    if not output_tag:
+        return resolved
+
+    normalized_tag = output_tag.strip()
+    if not normalized_tag:
+        return resolved
+
+    suffix = f"_{normalized_tag}"
+    trajectory_dir = resolved.trajectory_stem.parent.parent / f"{resolved.trajectory_stem.parent.name}{suffix}"
+    return replace(
+        resolved,
+        image_dir=resolved.image_dir.parent / f"{resolved.image_dir.name}{suffix}",
+        log=resolved.log.with_name(f"{resolved.log.stem}{suffix}{resolved.log.suffix}"),
+        report=resolved.report.with_name(
+            f"{resolved.report.stem}{suffix}{resolved.report.suffix}"
+        ),
+        settings=resolved.settings.with_name(
+            f"{resolved.settings.stem}{suffix}{resolved.settings.suffix}"
+        ),
+        timestamps=resolved.timestamps.with_name(
+            f"{resolved.timestamps.stem}{suffix}{resolved.timestamps.suffix}"
+        ),
+        trajectory_stem=trajectory_dir / f"{resolved.trajectory_stem.name}{suffix}",
+    )
+
+
 def prepare_monocular_sequence(
     frame_index_path: Path,
     image_dir: Path,
     timestamps_path: Path,
+    *,
+    frame_stride: int = 1,
 ) -> PreparedSequence:
+    if frame_stride <= 0:
+        raise ValueError("Frame stride must be a positive integer.")
+
     entries: list[tuple[int, Path]] = []
 
     with frame_index_path.open(encoding="utf-8", newline="") as handle:
@@ -375,8 +428,12 @@ def prepare_monocular_sequence(
     if not entries:
         raise ValueError("Frame index did not contain any frames.")
 
+    selected_entries = entries[::frame_stride]
+    if not selected_entries:
+        raise ValueError("Frame stride removed every frame from the prepared sequence.")
+
     previous_timestamp = None
-    for timestamp_ns, source_path in entries:
+    for timestamp_ns, source_path in selected_entries:
         if previous_timestamp is not None and timestamp_ns <= previous_timestamp:
             raise ValueError("Frame index timestamps must be strictly increasing.")
         if source_path.suffix.lower() != ".png":
@@ -389,7 +446,7 @@ def prepare_monocular_sequence(
     timestamps_path.parent.mkdir(parents=True, exist_ok=True)
 
     written_timestamps: list[str] = []
-    for timestamp_ns, source_path in entries:
+    for timestamp_ns, source_path in selected_entries:
         destination = image_dir / f"{timestamp_ns}.png"
         shutil.copyfile(source_path, destination)
         written_timestamps.append(str(timestamp_ns))
@@ -397,9 +454,9 @@ def prepare_monocular_sequence(
     timestamps_path.write_text("\n".join(written_timestamps) + "\n", encoding="utf-8")
 
     return PreparedSequence(
-        first_timestamp_ns=entries[0][0],
-        frame_count=len(entries),
-        last_timestamp_ns=entries[-1][0],
+        first_timestamp_ns=selected_entries[0][0],
+        frame_count=len(selected_entries),
+        last_timestamp_ns=selected_entries[-1][0],
     )
 
 

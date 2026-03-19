@@ -16,6 +16,10 @@ class FinalValidationDocsTests(unittest.TestCase):
         readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
         self.assertIn("(docs/final-validation-report.md)", readme)
+        self.assertIn(
+            "(docs/hel-63-post-initialization-abort-follow-up.md)",
+            readme,
+        )
         self.assertIn("make check", readme)
 
     def test_final_report_records_canonical_baseline_and_verdict(self) -> None:
@@ -76,6 +80,26 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("double free or corruption (out)", follow_up)
         self.assertIn("New Map created with 93 points", follow_up)
         self.assertIn("New Map created with 83 points", follow_up)
+
+    def test_hel63_follow_up_doc_records_diagnostic_lane(self) -> None:
+        follow_up = (
+            REPO_ROOT / "docs/hel-63-post-initialization-abort-follow-up.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("Issue: HEL-63", follow_up)
+        self.assertIn("--output-tag", follow_up)
+        self.assertIn("--frame-stride", follow_up)
+        self.assertIn("--skip-frame-trajectory-save", follow_up)
+        self.assertIn("--skip-keyframe-trajectory-save", follow_up)
+        self.assertIn("HEL-63 diagnostic: entering SLAM shutdown", follow_up)
+        self.assertIn(
+            "ORB_SLAM3_SKIP_FRAME_TRAJECTORY_SAVE=1",
+            follow_up,
+        )
+        self.assertIn(
+            "ORB_SLAM3_SKIP_KEYFRAME_TRAJECTORY_SAVE=1",
+            follow_up,
+        )
 
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"

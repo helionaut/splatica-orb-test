@@ -58,6 +58,9 @@ class OperatorScriptTests(unittest.TestCase):
             "No keyframes were recorded; skipping keyframe trajectory save.", script
         )
         self.assertIn("Map* pBiggerMap = nullptr;", script)
+        self.assertIn("HEL-63 diagnostic: entering SLAM shutdown", script)
+        self.assertIn("ORB_SLAM3_SKIP_FRAME_TRAJECTORY_SAVE", script)
+        self.assertIn("ORB_SLAM3_SKIP_KEYFRAME_TRAJECTORY_SAVE", script)
 
     def test_monocular_runner_uses_trajectory_workdir_and_validates_outputs(self) -> None:
         script = (REPO_ROOT / "scripts/run_monocular_baseline.py").read_text(
@@ -67,6 +70,9 @@ class OperatorScriptTests(unittest.TestCase):
         self.assertIn("resolve_monocular_trajectory_outputs", script)
         self.assertIn("cwd=run_workdir", script)
         self.assertIn("without writing non-empty trajectory artifacts", script)
+        self.assertIn("--frame-stride", script)
+        self.assertIn("--output-tag", script)
+        self.assertIn("--skip-frame-trajectory-save", script)
 
     def test_sequence_launcher_supports_rgbd_tum_mode(self) -> None:
         script = (REPO_ROOT / "scripts/run_orbslam3_sequence.sh").read_text(

@@ -24,7 +24,9 @@ Last Updated: 2026-03-19
 The repo now has one documented rerun path for the selected baseline plus one
 follow-up execution report for the private host run. Another engineer should
 start here instead of rediscovering the lane from old issue branches or
-generated reports.
+generated reports. The current crash-isolation commands and save-phase
+diagnostics are tracked in the
+[HEL-63 post-initialization abort follow-up](hel-63-post-initialization-abort-follow-up.md).
 
 ## Selected Baseline And Config Bundle
 
