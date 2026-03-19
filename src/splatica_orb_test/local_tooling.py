@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
 import shutil
 
@@ -88,6 +89,24 @@ def resolve_opencv_prefix(repo_root: Path) -> ResolvedPrefix | None:
     return None
 
 
+def resolve_repo_local_opencv_runtime_library_paths(repo_root: Path) -> tuple[Path, ...]:
+    prefix = repo_root / "build/local-tools/opencv-root/usr"
+    candidates = (
+        prefix / "lib",
+        prefix / "lib/x86_64-linux-gnu",
+        prefix / "lib/x86_64-linux-gnu/atlas",
+        prefix / "lib/x86_64-linux-gnu/blas",
+        prefix / "lib/x86_64-linux-gnu/lapack",
+        prefix / "lib/x86_64-linux-gnu/blis-openmp",
+        prefix / "lib/x86_64-linux-gnu/blis-pthread",
+        prefix / "lib/x86_64-linux-gnu/blis-serial",
+        prefix / "lib/x86_64-linux-gnu/openblas-openmp",
+        prefix / "lib/x86_64-linux-gnu/openblas-pthread",
+        prefix / "lib/x86_64-linux-gnu/openblas-serial",
+    )
+    return tuple(path for path in candidates if path.exists())
+
+
 def resolve_repo_local_boost_paths(repo_root: Path) -> tuple[Path, Path]:
     prefix = repo_root / "build/local-tools/boost-root/usr"
     return (
@@ -108,6 +127,11 @@ def resolve_boost_prefix(repo_root: Path) -> ResolvedPrefix | None:
     return None
 
 
+def resolve_repo_local_boost_runtime_library_paths(repo_root: Path) -> tuple[Path, ...]:
+    _header_path, library_path = resolve_repo_local_boost_paths(repo_root)
+    return (library_path,) if library_path.exists() else ()
+
+
 def resolve_repo_local_pangolin_paths(repo_root: Path) -> tuple[Path, Path]:
     prefix = repo_root / "build/local-tools/pangolin-root/usr/local"
     return (
@@ -126,6 +150,26 @@ def resolve_pangolin_prefix(repo_root: Path) -> ResolvedPrefix | None:
         )
 
     return None
+
+
+def resolve_repo_local_pangolin_runtime_library_paths(repo_root: Path) -> tuple[Path, ...]:
+    candidates = (
+        repo_root / "build/local-tools/pangolin-root/usr/local/lib",
+        repo_root
+        / "build/local-tools/pangolin-root/sysroot/usr/lib/x86_64-linux-gnu",
+    )
+    return tuple(path for path in candidates if path.exists())
+
+
+def resolve_headless_display_prefix() -> tuple[str, ...]:
+    if os.environ.get("DISPLAY"):
+        return ()
+
+    xvfb_run = shutil.which("xvfb-run")
+    if xvfb_run is None:
+        return ()
+
+    return (xvfb_run, "-a")
 
 
 def resolve_repo_local_ffmpeg_paths(repo_root: Path) -> tuple[Path, Path]:

@@ -11,8 +11,12 @@ from splatica_orb_test.local_tooling import (
     resolve_eigen3_prefix,
     resolve_ffmpeg_tool,
     resolve_ffprobe_tool,
+    resolve_headless_display_prefix,
     resolve_opencv_prefix,
     resolve_pangolin_prefix,
+    resolve_repo_local_boost_runtime_library_paths,
+    resolve_repo_local_opencv_runtime_library_paths,
+    resolve_repo_local_pangolin_runtime_library_paths,
     resolve_repo_local_boost_paths,
     resolve_repo_local_cmake_paths,
     resolve_repo_local_eigen3_paths,
@@ -233,6 +237,16 @@ class LocalToolingTests(unittest.TestCase):
 
         self.assertIsNone(resolved)
 
+    def test_detects_repo_local_boost_runtime_library_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+            _header_path, library_path = resolve_repo_local_boost_paths(repo_root)
+            library_path.mkdir(parents=True, exist_ok=True)
+
+            resolved = resolve_repo_local_boost_runtime_library_paths(repo_root)
+
+        self.assertEqual(resolved, (library_path,))
+
     def test_detects_repo_local_pangolin_prefix(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_root = Path(tmpdir)
@@ -258,3 +272,64 @@ class LocalToolingTests(unittest.TestCase):
             resolved = resolve_pangolin_prefix(repo_root)
 
         self.assertIsNone(resolved)
+
+    def test_detects_repo_local_opencv_runtime_library_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+            prefix = repo_root / "build/local-tools/opencv-root/usr"
+            candidates = (
+                prefix / "lib",
+                prefix / "lib/x86_64-linux-gnu",
+                prefix / "lib/x86_64-linux-gnu/lapack",
+            )
+            for path in candidates:
+                path.mkdir(parents=True, exist_ok=True)
+
+            resolved = resolve_repo_local_opencv_runtime_library_paths(repo_root)
+
+        self.assertEqual(resolved, candidates)
+
+    def test_detects_repo_local_pangolin_runtime_library_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+            install_lib = repo_root / "build/local-tools/pangolin-root/usr/local/lib"
+            sysroot_lib = (
+                repo_root
+                / "build/local-tools/pangolin-root/sysroot/usr/lib/x86_64-linux-gnu"
+            )
+            install_lib.mkdir(parents=True, exist_ok=True)
+            sysroot_lib.mkdir(parents=True, exist_ok=True)
+
+            resolved = resolve_repo_local_pangolin_runtime_library_paths(repo_root)
+
+        self.assertEqual(resolved, (install_lib, sysroot_lib))
+
+    def test_uses_xvfb_run_when_display_is_absent(self) -> None:
+        with mock.patch.dict(
+            "splatica_orb_test.local_tooling.os.environ",
+            {},
+            clear=True,
+        ):
+            with mock.patch(
+                "splatica_orb_test.local_tooling.shutil.which",
+                side_effect=lambda name: {
+                    "xvfb-run": "/usr/bin/xvfb-run",
+                }.get(name),
+            ):
+                resolved = resolve_headless_display_prefix()
+
+        self.assertEqual(resolved, ("/usr/bin/xvfb-run", "-a"))
+
+    def test_skips_xvfb_run_when_display_exists(self) -> None:
+        with mock.patch.dict(
+            "splatica_orb_test.local_tooling.os.environ",
+            {"DISPLAY": ":99"},
+            clear=True,
+        ):
+            with mock.patch(
+                "splatica_orb_test.local_tooling.shutil.which",
+                return_value="/usr/bin/xvfb-run",
+            ):
+                resolved = resolve_headless_display_prefix()
+
+        self.assertEqual(resolved, ())

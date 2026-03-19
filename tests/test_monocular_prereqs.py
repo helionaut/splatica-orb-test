@@ -56,6 +56,7 @@ class MonocularPrerequisiteTests(unittest.TestCase):
         self.assertFalse(prerequisites.execute_checks[0].ready)
         self.assertIn("missing", report)
         self.assertIn("Boost serialization development package", report)
+        self.assertIn("make bootstrap-local-pangolin", report)
 
     def test_reports_execution_ready_when_all_assets_exist(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

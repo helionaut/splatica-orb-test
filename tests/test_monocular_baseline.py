@@ -12,6 +12,7 @@ from splatica_orb_test.monocular_baseline import (
     load_monocular_calibration,
     prepare_monocular_sequence,
     render_monocular_settings_yaml,
+    resolve_monocular_trajectory_outputs,
     resolve_monocular_baseline_paths,
 )
 
@@ -24,6 +25,7 @@ def write_calibration(
     *,
     color_order: str = "RGB",
     model: str = "KannalaBrandt8",
+    fps: int | float = 30,
 ) -> None:
     path.write_text(
         json.dumps(
@@ -33,7 +35,7 @@ def write_calibration(
                     "model": model,
                     "image_width": 1920,
                     "image_height": 1920,
-                    "fps": 30,
+                    "fps": fps,
                     "color_order": color_order,
                     "intrinsics": {
                         "fx": 812.5,
@@ -112,6 +114,16 @@ class MonocularCalibrationRenderingTests(unittest.TestCase):
             calibration = load_monocular_calibration(calibration_path)
 
         self.assertEqual(calibration.camera_model, "KannalaBrandt8")
+
+    def test_rounds_non_integer_fps_for_orbslam3_settings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            calibration_path = Path(tmpdir) / "calibration.json"
+            write_calibration(calibration_path, fps=29.97002997002997)
+
+            calibration = load_monocular_calibration(calibration_path)
+            settings = render_monocular_settings_yaml(calibration)
+
+        self.assertIn("Camera.fps: 30", settings)
 
     def test_requires_explicit_color_order(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -225,9 +237,25 @@ class MonocularCommandTests(unittest.TestCase):
                 ),
                 str(REPO_ROOT / "build/insta360_x3_lens10/monocular/images"),
                 str(REPO_ROOT / "build/insta360_x3_lens10/monocular/timestamps.txt"),
-                str(
-                    REPO_ROOT
-                    / "build/insta360_x3_lens10/monocular/trajectory/insta360_x3_lens10"
-                ),
+                "insta360_x3_lens10",
             ],
+        )
+
+    def test_resolves_expected_trajectory_output_paths(self) -> None:
+        manifest = load_monocular_baseline_manifest(
+            REPO_ROOT / "manifests/insta360_x3_lens10_monocular_baseline.json"
+        )
+        resolved = resolve_monocular_baseline_paths(REPO_ROOT, manifest)
+
+        outputs = resolve_monocular_trajectory_outputs(resolved)
+
+        self.assertEqual(
+            outputs.frame_trajectory,
+            REPO_ROOT
+            / "build/insta360_x3_lens10/monocular/trajectory/f_insta360_x3_lens10.txt",
+        )
+        self.assertEqual(
+            outputs.keyframe_trajectory,
+            REPO_ROOT
+            / "build/insta360_x3_lens10/monocular/trajectory/kf_insta360_x3_lens10.txt",
         )

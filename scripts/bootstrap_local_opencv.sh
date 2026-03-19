@@ -6,7 +6,8 @@ repo_root="$(cd "${script_dir}/.." && pwd)"
 
 packages_dir="${repo_root}/build/local-tools/opencv-pkgs"
 root_dir="${repo_root}/build/local-tools/opencv-root"
-packages=(
+manifest_path="${root_dir}/bootstrap-manifest.txt"
+seed_packages=(
   libopencv-dev
   libopencv-calib3d-dev
   libopencv-contrib-dev
@@ -61,7 +62,7 @@ packages=(
   libgdcm-dev
 )
 
-for tool in apt dpkg-deb; do
+for tool in apt apt-cache dpkg-deb; do
   if ! command -v "${tool}" >/dev/null 2>&1; then
     printf 'Missing required bootstrap tool: %s\n' "${tool}" >&2
     exit 1
@@ -72,6 +73,28 @@ mkdir -p "${packages_dir}"
 rm -rf "${root_dir}"
 mkdir -p "${root_dir}"
 
+mapfile -t packages < <(
+  {
+    printf '%s\n' "${seed_packages[@]}"
+    apt-cache depends \
+      --recurse \
+      --no-recommends \
+      --no-suggests \
+      --no-conflicts \
+      --no-breaks \
+      --no-replaces \
+      --no-enhances \
+      "${seed_packages[@]}" 2>/dev/null \
+      | awk '
+          /^[A-Za-z0-9][^ ]*$/ { print $1; next }
+          /^  Depends: / || /^\|Depends: / {
+            dep=$2
+            if (dep !~ /^</) print dep
+          }
+        '
+  } | sort -u
+)
+
 (
   cd "${packages_dir}"
   apt download "${packages[@]}"
@@ -81,8 +104,16 @@ mkdir -p "${root_dir}"
   done
 )
 
+{
+  printf 'Seed packages:\n'
+  printf '  - %s\n' "${seed_packages[@]}"
+  printf 'Resolved package closure:\n'
+  printf '  - %s\n' "${packages[@]}"
+} > "${manifest_path}"
+
 printf 'Bootstrapped local OpenCV prefix: %s\n' "${root_dir}/usr"
 printf 'OpenCV CMake config: %s\n' \
   "${root_dir}/usr/lib/x86_64-linux-gnu/cmake/opencv4/OpenCVConfig.cmake"
 printf 'OpenCV pkg-config metadata: %s\n' \
   "${root_dir}/usr/lib/x86_64-linux-gnu/pkgconfig/opencv4.pc"
+printf 'Bootstrap manifest: %s\n' "${manifest_path}"
