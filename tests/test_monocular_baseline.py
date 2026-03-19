@@ -7,6 +7,8 @@ import unittest
 
 from splatica_orb_test.monocular_baseline import (
     ORB_SLAM3_UPSTREAM_MASTER,
+    apply_monocular_orb_overrides,
+    apply_monocular_output_tag,
     build_monocular_tum_vi_command,
     load_monocular_baseline_manifest,
     load_monocular_calibration,
@@ -106,6 +108,23 @@ class MonocularCalibrationRenderingTests(unittest.TestCase):
         self.assertIn("ORBextractor.nFeatures: 1800", settings)
         self.assertIn("Viewer.ViewpointF: 500.0", settings)
 
+    def test_applies_aggressive_orb_overrides(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            calibration_path = Path(tmpdir) / "calibration.json"
+            write_calibration(calibration_path)
+
+            calibration = apply_monocular_orb_overrides(
+                load_monocular_calibration(calibration_path),
+                n_features=4000,
+                ini_fast=8,
+                min_fast=3,
+            )
+            settings = render_monocular_settings_yaml(calibration)
+
+        self.assertIn("ORBextractor.nFeatures: 4000", settings)
+        self.assertIn("ORBextractor.iniThFAST: 8", settings)
+        self.assertIn("ORBextractor.minThFAST: 3", settings)
+
     def test_accepts_kannala_brandt4_source_models(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             calibration_path = Path(tmpdir) / "calibration.json"
@@ -187,6 +206,62 @@ class MonocularSequencePreparationTests(unittest.TestCase):
                 "1710000000000000000\n1710000000033333333\n",
             )
 
+    def test_prepares_every_third_frame_when_stride_is_requested(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            source_dir = tmp_path / "source"
+            source_dir.mkdir()
+
+            for name in ("a", "b", "c", "d"):
+                (source_dir / f"frame-{name}.png").write_text(name, encoding="utf-8")
+
+            frame_index_path = tmp_path / "frame_index.csv"
+            frame_index_path.write_text(
+                "\n".join(
+                    [
+                        "timestamp_ns,source_path",
+                        "1,source/frame-a.png",
+                        "2,source/frame-b.png",
+                        "3,source/frame-c.png",
+                        "4,source/frame-d.png",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            prepared = prepare_monocular_sequence(
+                frame_index_path,
+                tmp_path / "prepared" / "images",
+                tmp_path / "prepared" / "timestamps.txt",
+                frame_stride=3,
+            )
+
+            self.assertEqual(prepared.frame_count, 2)
+            self.assertEqual(prepared.first_timestamp_ns, 1)
+            self.assertEqual(prepared.last_timestamp_ns, 4)
+
+    def test_requires_positive_frame_stride(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            source_dir = tmp_path / "source"
+            source_dir.mkdir()
+            (source_dir / "frame-a.png").write_text("frame-a", encoding="utf-8")
+
+            frame_index_path = tmp_path / "frame_index.csv"
+            frame_index_path.write_text(
+                "timestamp_ns,source_path\n1,source/frame-a.png\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "positive integer"):
+                prepare_monocular_sequence(
+                    frame_index_path,
+                    tmp_path / "prepared" / "images",
+                    tmp_path / "prepared" / "timestamps.txt",
+                    frame_stride=0,
+                )
+
     def test_requires_strictly_increasing_timestamps(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)
@@ -258,4 +333,28 @@ class MonocularCommandTests(unittest.TestCase):
             outputs.keyframe_trajectory,
             REPO_ROOT
             / "build/insta360_x3_lens10/monocular/trajectory/kf_insta360_x3_lens10.txt",
+        )
+
+    def test_applies_output_tag_to_generated_artifacts(self) -> None:
+        manifest = load_monocular_baseline_manifest(
+            REPO_ROOT / "manifests/insta360_x3_lens10_monocular_baseline.json"
+        )
+        resolved = apply_monocular_output_tag(
+            resolve_monocular_baseline_paths(REPO_ROOT, manifest),
+            "orb_aggressive",
+        )
+
+        self.assertEqual(
+            resolved.settings,
+            REPO_ROOT
+            / "build/insta360_x3_lens10/monocular/TUM-VI-insta360-x3-lens10_orb_aggressive.yaml",
+        )
+        self.assertEqual(
+            resolved.image_dir,
+            REPO_ROOT / "build/insta360_x3_lens10/monocular/images_orb_aggressive",
+        )
+        self.assertEqual(
+            resolved.trajectory_stem,
+            REPO_ROOT
+            / "build/insta360_x3_lens10/monocular/trajectory_orb_aggressive/insta360_x3_lens10_orb_aggressive",
         )

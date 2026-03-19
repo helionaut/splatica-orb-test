@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import html
 import json
 from pathlib import Path
@@ -128,6 +128,37 @@ def resolve_rgbd_tum_baseline_paths(
         trajectory_plot=repo_root / manifest.trajectory_plot_path,
         visual_report=repo_root / manifest.visual_report_path,
         vocabulary=baseline_root / manifest.vocabulary_path,
+    )
+
+
+def apply_rgbd_tum_output_tag(
+    resolved: ResolvedRgbdTumBaselinePaths,
+    output_tag: str | None,
+) -> ResolvedRgbdTumBaselinePaths:
+    if not output_tag:
+        return resolved
+
+    normalized_tag = output_tag.strip()
+    if not normalized_tag:
+        return resolved
+
+    suffix = f"_{normalized_tag}"
+    trajectory_dir = resolved.trajectory_dir.parent / f"{resolved.trajectory_dir.name}{suffix}"
+    return replace(
+        resolved,
+        camera_trajectory=trajectory_dir / resolved.camera_trajectory.name,
+        keyframe_trajectory=trajectory_dir / resolved.keyframe_trajectory.name,
+        log=resolved.log.with_name(f"{resolved.log.stem}{suffix}{resolved.log.suffix}"),
+        report=resolved.report.with_name(
+            f"{resolved.report.stem}{suffix}{resolved.report.suffix}"
+        ),
+        trajectory_dir=trajectory_dir,
+        trajectory_plot=resolved.trajectory_plot.with_name(
+            f"{resolved.trajectory_plot.stem}{suffix}{resolved.trajectory_plot.suffix}"
+        ),
+        visual_report=resolved.visual_report.with_name(
+            f"{resolved.visual_report.stem}{suffix}{resolved.visual_report.suffix}"
+        ),
     )
 
 

@@ -13,6 +13,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from splatica_orb_test.monocular_baseline import (  # noqa: E402
+    apply_monocular_orb_overrides,
+    apply_monocular_output_tag,
     build_monocular_tum_vi_command,
     load_monocular_baseline_manifest,
     load_monocular_calibration,
@@ -157,12 +159,27 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--prepare-only", action="store_true")
+    parser.add_argument("--output-tag")
+    parser.add_argument("--frame-stride", type=int, default=1)
+    parser.add_argument("--orb-n-features", type=int)
+    parser.add_argument("--orb-ini-fast", type=int)
+    parser.add_argument("--orb-min-fast", type=int)
+    parser.add_argument("--skip-frame-trajectory-save", action="store_true")
+    parser.add_argument("--skip-keyframe-trajectory-save", action="store_true")
     args = parser.parse_args()
 
     manifest = load_monocular_baseline_manifest(resolve_repo_path(args.manifest))
-    resolved = resolve_monocular_baseline_paths(REPO_ROOT, manifest)
+    resolved = apply_monocular_output_tag(
+        resolve_monocular_baseline_paths(REPO_ROOT, manifest),
+        args.output_tag,
+    )
 
-    calibration = load_monocular_calibration(resolved.calibration)
+    calibration = apply_monocular_orb_overrides(
+        load_monocular_calibration(resolved.calibration),
+        n_features=args.orb_n_features,
+        ini_fast=args.orb_ini_fast,
+        min_fast=args.orb_min_fast,
+    )
     resolved.settings.parent.mkdir(parents=True, exist_ok=True)
     resolved.settings.write_text(
         render_monocular_settings_yaml(calibration),
@@ -173,6 +190,7 @@ def main() -> int:
         resolved.frame_index,
         resolved.image_dir,
         resolved.timestamps,
+        frame_stride=args.frame_stride,
     )
     run_workdir = resolved.trajectory_stem.parent
     run_workdir.mkdir(parents=True, exist_ok=True)
@@ -203,6 +221,14 @@ def main() -> int:
                 result_details=[
                     f"Execution is deferred; run from {relative_to_repo(run_workdir)}.",
                     "Trajectory outputs are only written during execute mode.",
+                    f"Frame stride: {args.frame_stride}",
+                    "Aggressive ORB overrides: "
+                    f"nFeatures={calibration.orb.n_features}, "
+                    f"iniThFAST={calibration.orb.ini_fast}, "
+                    f"minThFAST={calibration.orb.min_fast}",
+                    "Save skip toggles: "
+                    f"frame={args.skip_frame_trajectory_save}, "
+                    f"keyframe={args.skip_keyframe_trajectory_save}",
                 ],
                 run_workdir=run_workdir,
                 resolved=resolved,
@@ -242,18 +268,45 @@ def main() -> int:
         log_handle.write(f"Command: {shlex.join(command)}\n")
         log_handle.write(f"Calibration: {relative_to_repo(resolved.calibration)}\n")
         log_handle.write(f"Frame index: {relative_to_repo(resolved.frame_index)}\n\n")
+        log_handle.write(f"Frame stride: {args.frame_stride}\n")
+        log_handle.write(
+            "Aggressive ORB overrides: "
+            f"nFeatures={calibration.orb.n_features}, "
+            f"iniThFAST={calibration.orb.ini_fast}, "
+            f"minThFAST={calibration.orb.min_fast}\n"
+        )
+        log_handle.write(
+            "Save skip toggles: "
+            f"frame={args.skip_frame_trajectory_save}, "
+            f"keyframe={args.skip_keyframe_trajectory_save}\n\n"
+        )
+        run_env = build_runtime_environment()
+        if args.skip_frame_trajectory_save:
+            run_env["ORB_SLAM3_SKIP_FRAME_TRAJECTORY_SAVE"] = "1"
+        if args.skip_keyframe_trajectory_save:
+            run_env["ORB_SLAM3_SKIP_KEYFRAME_TRAJECTORY_SAVE"] = "1"
         result = subprocess.run(
             command,
             check=False,
             cwd=run_workdir,
             stdout=log_handle,
             stderr=subprocess.STDOUT,
-            env=build_runtime_environment(),
+            env=run_env,
             text=True,
         )
 
     final_exit_code = result.returncode
-    result_details = [f"Raw process exit code: {result.returncode}"]
+    result_details = [
+        f"Raw process exit code: {result.returncode}",
+        f"Frame stride: {args.frame_stride}",
+        "Aggressive ORB overrides: "
+        f"nFeatures={calibration.orb.n_features}, "
+        f"iniThFAST={calibration.orb.ini_fast}, "
+        f"minThFAST={calibration.orb.min_fast}",
+        "Save skip toggles: "
+        f"frame={args.skip_frame_trajectory_save}, "
+        f"keyframe={args.skip_keyframe_trajectory_save}",
+    ]
     missing_or_empty_outputs: list[Path] = []
     for label, trajectory_path in (
         ("Frame trajectory", trajectory_outputs.frame_trajectory),
