@@ -10,14 +10,17 @@ This file remains the command reference.
 2. Generate the current dry-run build artifact with `make build`.
 3. Exercise the smoke-run path with `make smoke`.
 4. Exercise the checked-in calibration translation path with `make calibration-smoke`.
-5. Exercise the dataset normalization path with `make normalize-fixture`.
-6. Run the aggregate validation gate with `make check`.
+5. Exercise the public RGB-D sanity lane with `make rgbd-sanity` when you need a clean-room upstream proof.
+6. Exercise the dataset normalization path with `make normalize-fixture`.
+7. Run the aggregate validation gate with `make check`.
 
 ## Commands
 
 - `make build`: render the current smoke plan into `build/smoke-plan.md`.
 - `make smoke`: run the dry-run ORB-SLAM3 lane and write smoke outputs under `logs/out/` and `reports/out/`.
 - `make calibration-smoke`: regenerate and validate the checked-in shareable calibration settings bundle plus saved smoke log/report.
+- `make fetch-tum-rgbd`: download and extract the public TUM RGB-D `fr1/xyz` archive into `datasets/public/tum_rgbd/`.
+- `make rgbd-sanity`: fetch the pinned ORB-SLAM3 baseline, bootstrap repo-local native dependencies, download the public TUM RGB-D `fr1/xyz` sequence, build the upstream `rgbd_tum` target, and run the clean-room sanity lane end-to-end.
 - `make bootstrap-local-cmake`: extract Ubuntu `cmake` packages plus their runtime libraries into `build/local-tools/cmake-root/` so the repo can run the upstream build helper without system-wide install privileges.
 - `make bootstrap-local-eigen`: extract the Ubuntu `libeigen3-dev` package into `build/local-tools/eigen-root/` so the repo can satisfy `Eigen3` without a system-wide install.
 - `make bootstrap-local-opencv`: extract the Ubuntu OpenCV 4 dev/runtime package set plus its transitive dependency closure into `build/local-tools/opencv-root/` so the repo can satisfy `find_package(OpenCV 4.4)` and the final ORB-SLAM3 example link step without a system-wide install.
@@ -29,6 +32,7 @@ This file remains the command reference.
 - `make test`: run the repository tests.
 - `make check`: run tests, build, smoke, calibration-smoke, and fixture normalization together.
 - `./scripts/fetch_orbslam3_baseline.sh`: clone the pinned ORB-SLAM3 upstream baseline into `third_party/orbslam3/upstream` and unpack `Vocabulary/ORBvoc.txt` from the upstream archive so the runtime vocabulary path exists before the full native build.
+- `./scripts/fetch_tum_rgbd_dataset.py --manifest manifests/tum_rgbd_fr1_xyz_sanity.json`: download the official TUM RGB-D `fr1/xyz` archive into `datasets/public/tum_rgbd/`, extract it in place, and leave a deterministic dataset root for the public sanity lane.
 - `./scripts/bootstrap_local_cmake.sh`: extract a repo-local `cmake` toolchain from Ubuntu packages into `build/local-tools/cmake-root/`. `./scripts/build_orbslam3_baseline.sh` will use that fallback automatically if `cmake` is not available on `PATH`.
 - `./scripts/bootstrap_local_eigen.sh`: extract a repo-local `Eigen3` prefix from Ubuntu packages into `build/local-tools/eigen-root/`. `./scripts/build_orbslam3_baseline.sh` will add that prefix to `CMAKE_PREFIX_PATH` automatically if present.
 - `./scripts/bootstrap_local_opencv.sh`: extract the Ubuntu OpenCV 4 dev/runtime package set plus its transitive dependency closure into `build/local-tools/opencv-root/`, and record the resolved package list in `build/local-tools/opencv-root/bootstrap-manifest.txt`. `./scripts/build_orbslam3_baseline.sh` and `make monocular-prereqs` will reuse that prefix automatically if the host does not already provide OpenCV.
@@ -37,7 +41,10 @@ This file remains the command reference.
 - `./scripts/bootstrap_local_pangolin.sh`: clone Pangolin `v0.8`, resolve the Ubuntu GL/GLEW/X11 development package closure into `build/local-tools/pangolin-root/sysroot/`, and install `PangolinConfig.cmake` plus the Pangolin shared libraries under `build/local-tools/pangolin-root/usr/local/`. The helper injects `-include cstdint` so Pangolin still builds under Ubuntu `noble`'s GCC 13 toolchain, and both `./scripts/build_orbslam3_baseline.sh` and the real monocular runner will reuse the repo-local Pangolin runtime paths automatically.
 - `./scripts/extract_orbslam3_vocabulary.py --checkout-dir third_party/orbslam3/upstream`: unpack `Vocabulary/ORBvoc.txt` directly if a checkout already exists but the vocabulary text file has not been materialized yet.
 - `./scripts/build_orbslam3_baseline.sh`: run the pinned ORB-SLAM3 native build sequence so `Examples/Monocular/mono_tum_vi` exists. The wrapper keeps the upstream component order, automatically reuses repo-local `cmake`, `Eigen3`, OpenCV, Boost serialization, and Pangolin fallbacks, disables optional `Thirdparty/Sophus` tests/examples because they are not required for `mono_tum_vi` and fail under newer GCC releases when upstream `-Werror` is enabled, asks CMake to build only the required `mono_tum_vi` target instead of the full upstream example set, and patches the upstream trajectory-save path so empty-keyframe runs fail cleanly instead of segfaulting during shutdown.
+- `ORB_SLAM3_BUILD_TARGET=rgbd_tum ./scripts/build_orbslam3_baseline.sh`: build the upstream public RGB-D example target instead of the private monocular one.
 - `./scripts/check_monocular_baseline_prereqs.py --manifest manifests/insta360_x3_lens10_monocular_baseline.json --report reports/out/insta360_x3_lens10_monocular_prereqs.md`: generate a saved readiness report for the private lens-10 monocular lane and fail fast if the environment still cannot execute the real baseline.
+- `./scripts/run_orbslam3_sequence.sh --manifest manifests/tum_rgbd_fr1_xyz_sanity.json`: execute the public RGB-D sanity lane with upstream `rgbd_tum`, the upstream `TUM1.yaml` settings file, the upstream `fr1_xyz.txt` association file, and non-empty trajectory verification.
+- `./scripts/run_clean_room_rgbd_sanity.sh manifests/tum_rgbd_fr1_xyz_sanity.json`: run the full clean-room HEL-61 sequence in one repo-local command, including fetch, dependency bootstrap, dataset download, build, and RGB-D execution.
 - `./scripts/import_monocular_video_inputs.py --video-00 /path/to/00.mp4 --video-10 /path/to/10.mp4 --calibration-00 /path/to/insta360_x3_kb4_00_calib.txt --calibration-10 /path/to/insta360_x3_kb4_10_calib.txt --extrinsics /path/to/insta360_x3_extr_rigs_calib.json`: copy the raw one-lens assets into `datasets/user/insta360_x3_one_lens_baseline/`, extract source PNGs for both lenses, derive per-lens calibration JSON files, and write frame-index/timestamp/import-manifest outputs for the monocular baseline lane.
 - `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json`: execute the real upstream `mono_tum_vi` runner once the baseline checkout and private inputs exist. The wrapper injects repo-local OpenCV, Boost, and Pangolin runtime library paths, auto-wraps the binary with `xvfb-run -a` when `DISPLAY` is absent, runs from the configured trajectory directory so ORB-SLAM3 writes `f_<stem>.txt` and `kf_<stem>.txt` in the expected place, and exits non-zero when the process finishes without those trajectory artifacts.
 - `./scripts/prepare_stereo_imu_sequence.py --manifest manifests/stereo_imu_fixture_normalization.json`: normalize one raw stereo+IMU sequence into the canonical output layout defined in `docs/dataset-normalization.md`.
@@ -55,6 +62,7 @@ Behavior changes should begin with a failing test in `tests/`, or land with the 
 - `configs/calibration/`: camera and IMU calibration inputs.
 - `configs/orbslam3/`: ORB-SLAM3 settings bundles.
 - `datasets/fixtures/`: small shareable smoke fixtures.
+- `datasets/public/`: public datasets that the repo can redownload for clean-room validation.
 - `datasets/user/`: local-only user datasets and larger recordings.
 - `docs/`: design, scope, and operator docs.
 - `logs/out/`: generated logs from dry-runs and future real runs.

@@ -1,0 +1,33 @@
+{
+  "baseline": {
+    "name": "orbslam3-upstream-master",
+    "repo_url": "https://github.com/UZ-SLAMLab/ORB_SLAM3",
+    "commit": "4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4",
+    "checkout_path": "third_party/orbslam3/upstream",
+    "executable_path": "Examples/RGB-D/rgbd_tum",
+    "vocabulary_path": "Vocabulary/ORBvoc.txt"
+  },
+  "sequence": {
+    "name": "tum-rgbd-fr1-xyz-sanity",
+    "dataset_name": "rgbd_dataset_freiburg1_xyz",
+    "archive_url": "https://cvg.cit.tum.de/rgbd/dataset/freiburg1/rgbd_dataset_freiburg1_xyz.tgz",
+    "archive_path": "datasets/public/tum_rgbd/rgbd_dataset_freiburg1_xyz.tgz",
+    "dataset_root": "datasets/public/tum_rgbd/rgbd_dataset_freiburg1_xyz",
+    "association_path": "third_party/orbslam3/upstream/Examples/RGB-D/associations/fr1_xyz.txt",
+    "settings_path": "third_party/orbslam3/upstream/Examples/RGB-D/TUM1.yaml"
+  },
+  "outputs": {
+    "trajectory_dir": "build/tum_rgbd_fr1_xyz/trajectory",
+    "camera_trajectory_path": "build/tum_rgbd_fr1_xyz/trajectory/CameraTrajectory.txt",
+    "keyframe_trajectory_path": "build/tum_rgbd_fr1_xyz/trajectory/KeyFrameTrajectory.txt",
+    "log_path": "logs/out/tum_rgbd_fr1_xyz.log",
+    "report_path": "reports/out/tum_rgbd_fr1_xyz.md",
+    "trajectory_plot_path": "reports/out/tum_rgbd_fr1_xyz_trajectory.svg",
+    "visual_report_path": "reports/out/tum_rgbd_fr1_xyz.html"
+  },
+  "launch": {
+    "mode": "rgbd_tum",
+    "script": "scripts/run_orbslam3_sequence.sh"
+  },
+  "notes": "Public clean-room sanity lane for upstream ORB-SLAM3 using the official TUM RGB-D fr1/xyz pinhole sequence, the upstream TUM1.yaml settings bundle, and the upstream fr1_xyz association file."
+}

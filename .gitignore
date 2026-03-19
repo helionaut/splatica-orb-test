@@ -1,5 +1,7 @@
 __pycache__/
 build/
+datasets/public/*
+!datasets/public/README.md
 datasets/user/*
 !datasets/user/README.md
 logs/out/*

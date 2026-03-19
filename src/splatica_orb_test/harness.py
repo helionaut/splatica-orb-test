@@ -34,6 +34,10 @@ REPOSITORY_LAYOUT = (
         details="Small reproducible smoke fixtures safe to share.",
     ),
     RepositoryArea(
+        path="datasets/public",
+        details="Public datasets that the repo can redownload for clean-room runs.",
+    ),
+    RepositoryArea(
         path="datasets/user",
         details="Local-only user recordings and larger private inputs.",
     ),

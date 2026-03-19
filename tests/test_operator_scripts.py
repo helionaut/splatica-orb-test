@@ -48,3 +48,28 @@ class OperatorScriptTests(unittest.TestCase):
         self.assertIn("resolve_monocular_trajectory_outputs", script)
         self.assertIn("cwd=run_workdir", script)
         self.assertIn("without writing non-empty trajectory artifacts", script)
+
+    def test_sequence_launcher_supports_rgbd_tum_mode(self) -> None:
+        script = (REPO_ROOT / "scripts/run_orbslam3_sequence.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("rgbd_tum", script)
+        self.assertIn("run_rgbd_tum_baseline.py", script)
+
+    def test_clean_room_rgbd_sanity_script_covers_fetch_build_and_run(self) -> None:
+        script = (REPO_ROOT / "scripts/run_clean_room_rgbd_sanity.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("run_clean_room_rgbd_sanity.py", script)
+
+    def test_clean_room_rgbd_sanity_python_runner_tracks_progress(self) -> None:
+        script = (REPO_ROOT / "scripts/run_clean_room_rgbd_sanity.py").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn(".symphony/progress/HEL-61.json", script)
+        self.assertIn("build_progress_payload", script)
+        self.assertIn("ORB_SLAM3_BUILD_TARGET", script)
+        self.assertIn("fresh_execution_paths", script)

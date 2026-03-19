@@ -1,13 +1,15 @@
 PYTHON ?= python3
 export PYTHONPATH := $(CURDIR)/src
 
-.PHONY: help build smoke calibration-smoke bootstrap-local-cmake bootstrap-local-eigen bootstrap-local-opencv bootstrap-local-boost bootstrap-local-ffmpeg bootstrap-local-pangolin monocular-prereqs normalize-fixture test check verify-production clean
+.PHONY: help build smoke calibration-smoke fetch-tum-rgbd rgbd-sanity bootstrap-local-cmake bootstrap-local-eigen bootstrap-local-opencv bootstrap-local-boost bootstrap-local-ffmpeg bootstrap-local-pangolin monocular-prereqs normalize-fixture test check verify-production clean
 
 help:
 	@printf '%s\n' \
 		'make build               Generate the dry-run smoke plan under build/' \
 		'make smoke               Produce dry-run smoke outputs for the placeholder sequence' \
 		'make calibration-smoke   Generate and validate the shareable calibration settings bundles' \
+		'make fetch-tum-rgbd      Download and extract the public TUM RGB-D fr1/xyz sanity dataset' \
+		'make rgbd-sanity         Run the clean-room TUM RGB-D fr1/xyz upstream sanity lane' \
 		'make bootstrap-local-cmake Bootstrap a repo-local cmake toolchain under build/' \
 		'make bootstrap-local-eigen Bootstrap a repo-local Eigen3 prefix under build/' \
 		'make bootstrap-local-opencv Bootstrap a repo-local OpenCV prefix under build/' \
@@ -30,6 +32,12 @@ smoke:
 
 calibration-smoke:
 	@./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_shareable_calibration_smoke.json
+
+fetch-tum-rgbd:
+	@./scripts/fetch_tum_rgbd_dataset.py --manifest manifests/tum_rgbd_fr1_xyz_sanity.json
+
+rgbd-sanity:
+	@./scripts/run_clean_room_rgbd_sanity.sh manifests/tum_rgbd_fr1_xyz_sanity.json
 
 bootstrap-local-cmake:
 	@./scripts/bootstrap_local_cmake.sh
