@@ -2,7 +2,7 @@
 
 Status: Final
 Issue: HEL-49
-Last Updated: 2026-03-18
+Last Updated: 2026-03-19
 
 ## Final Recommendation
 
@@ -12,15 +12,19 @@ Last Updated: 2026-03-18
   input contract under
   `datasets/user/insta360_x3_one_lens_baseline/`, but a real lens-10 user-rig
   run still requires either the private raw assets under `raw/` to be imported
-  or an already prepared `lenses/10/` bundle to be present on the checkout,
-  plus Pangolin as a CMake-discoverable package so
-  `./scripts/build_orbslam3_baseline.sh` can produce
-  `Examples/Monocular/mono_tum_vi`.
+  or an already prepared `lenses/10/` bundle to be present on the checkout.
+  Once those inputs exist, the repo can now bootstrap Pangolin, build
+  `Examples/Monocular/mono_tum_vi`, and execute the real monocular lane, but
+  the imported lens-10 sequence currently produces zero keyframes and no saved
+  trajectory artifacts.
 - Next follow-up task: on a host that has the private Insta360 exports, run
   `./scripts/import_monocular_video_inputs.py` into
   `datasets/user/insta360_x3_one_lens_baseline/` if `lenses/10/` is still
-  empty, provide Pangolin, rerun `make monocular-prereqs`, and then execute
+  empty, rerun `make monocular-prereqs`, and then execute
   `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json`.
+  If the resulting log still reports `Map 0 has 0 KFs`, investigate
+  calibration, frame selection, or ORB extractor tuning rather than native
+  dependency setup.
 
 The repo now has one documented rerun path for the selected baseline and one
 final conclusion. Another engineer should start here instead of rediscovering
@@ -106,6 +110,11 @@ Start from a fresh checkout of this repo. Run the steps in this order.
    make bootstrap-local-opencv
    ```
 
+   The repo-local bootstrap records the resolved package closure in
+   `build/local-tools/opencv-root/bootstrap-manifest.txt` so the local OpenCV
+   prefix carries the transitive libraries needed by the ORB-SLAM3 example
+   link step.
+
 6. If the host does not already provide Boost serialization, bootstrap the repo-local prefix:
 
    ```bash
@@ -130,15 +139,23 @@ Start from a fresh checkout of this repo. Run the steps in this order.
    `lenses/10/` files plus
    `datasets/user/insta360_x3_one_lens_baseline/reports/ingest_report.md`.
 
-8. Provide Pangolin either system-wide or through a local install under
-   `build/local-tools/pangolin-root/usr/local/`. Ubuntu `noble` does not
-   currently expose a `libpangolin-dev` apt package.
+8. If the host does not already provide Pangolin, bootstrap the repo-local
+   Pangolin prefix:
+
+   ```bash
+   make bootstrap-local-pangolin
+   ```
 
 9. Build the selected ORB-SLAM3 baseline:
 
    ```bash
    ./scripts/build_orbslam3_baseline.sh
    ```
+
+   The wrapper builds the pinned baseline components plus the required
+   `mono_tum_vi` target instead of the whole upstream example tree, and applies
+   a local guard so empty-keyframe runs skip trajectory-save segfaults and
+   leave a clean log/report trail.
 
 10. Check whether the private monocular lane is actually runnable:
 
@@ -165,6 +182,11 @@ Start from a fresh checkout of this repo. Run the steps in this order.
      --manifest manifests/insta360_x3_lens10_monocular_baseline.json
    ```
 
+   The wrapper now runs ORB-SLAM3 from the configured trajectory output
+   directory, passes the basename `insta360_x3_lens10` to upstream, and exits
+   non-zero when the process returns without `f_insta360_x3_lens10.txt` and
+   `kf_insta360_x3_lens10.txt`.
+
 There are no hidden manual rename or cleanup steps in the supported lane. The
 private run depends only on the documented input files, the pinned upstream
 checkout, and the native build dependencies called out above.
@@ -187,7 +209,8 @@ Artifacts for the selected monocular baseline lane once the host is ready:
 - `reports/out/insta360_x3_lens10_monocular_prereqs.md`
 - `build/insta360_x3_lens10/monocular/images/`
 - `build/insta360_x3_lens10/monocular/timestamps.txt`
-- `build/insta360_x3_lens10/monocular/trajectory/insta360_x3_lens10*`
+- `build/insta360_x3_lens10/monocular/trajectory/f_insta360_x3_lens10.txt`
+- `build/insta360_x3_lens10/monocular/trajectory/kf_insta360_x3_lens10.txt`
 - `logs/out/insta360_x3_lens10_monocular.log`
 - `reports/out/insta360_x3_lens10_monocular.md`
 
@@ -271,6 +294,31 @@ Revalidated from the current `main` checkout on 2026-03-18 after HEL-54 landed
     `cmake`, `Eigen3`, OpenCV, Boost serialization, Pangolin, and the built
     `mono_tum_vi` runner
 
+Executed on 2026-03-19 from the HEL-56 worktree on a host that already had the
+private lens-10 bundle plus repo-local Pangolin/OpenCV/Boost support available:
+
+- `make test`
+  - Result: passed
+- `./scripts/build_orbslam3_baseline.sh`
+  - Result: passed
+  - Observed: built `Examples/Monocular/mono_tum_vi` with the repo-local
+    Pangolin, OpenCV, Boost, and `cmake` fallbacks, plus a local ORB-SLAM3
+    patch that turns empty-keyframe shutdown crashes into logged no-op saves
+- `make monocular-prereqs`
+  - Result: passed
+  - Observed: refreshed
+    `reports/out/insta360_x3_lens10_monocular_prereqs.md` with
+    `Ready for --prepare-only: true` and `Ready for full execution: true`
+- `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json`
+  - Result: failed with auditable evidence and refreshed
+    `logs/out/insta360_x3_lens10_monocular.log` plus
+    `reports/out/insta360_x3_lens10_monocular.md`
+  - Observed: the wrapper launched the real `mono_tum_vi` binary under
+    `xvfb-run -a`, ORB-SLAM3 loaded the generated YAML and 270 prepared frames,
+    the atlas reached shutdown with `Map 0 has 0 KFs`, and the process wrote no
+    frame/keyframe trajectory files. The wrapper therefore returned exit code
+    `2` even though the upstream process returned `0`.
+
 ## What Worked
 
 - The repo has one pinned ORB-SLAM3 baseline, one checked-in monocular
@@ -289,12 +337,15 @@ Revalidated from the current `main` checkout on 2026-03-18 after HEL-54 landed
 - `make monocular-prereqs` is the one supported way to prove whether the real
   monocular run can proceed; it saves the missing/ready state into a report
   instead of leaving that knowledge implicit.
-- On the previously prepared HEL-54 host, the imported
-  `datasets/user/insta360_x3_one_lens_baseline/lenses/10/` bundle plus the
-  repo-local `cmake`, `Eigen3`, OpenCV, and Boost serialization bootstraps
-  were enough to make `make monocular-prereqs` report
-  `Ready for --prepare-only: true`, leaving Pangolin as the next native step
-  before the real runtime lane.
+- The repo now has one documented native bootstrap lane for Pangolin,
+  OpenCV, Boost serialization, and the ORB-SLAM3 runtime environment. On the
+  HEL-56 host that lane built `mono_tum_vi`, made `make monocular-prereqs`
+  report full readiness, and executed the real user-rig command without hidden
+  manual steps.
+- The real monocular wrapper now leaves behind an auditable report even when
+  ORB-SLAM3 fails to produce a savable trajectory. It records the working
+  directory, expected `f_*.txt` and `kf_*.txt` outputs, raw process exit code,
+  and the synthetic failure when those artifacts are missing.
 
 ## What Failed Or Remains Blocked
 
@@ -303,12 +354,12 @@ Revalidated from the current `main` checkout on 2026-03-18 after HEL-54 landed
   `datasets/user/insta360_x3_one_lens_baseline/lenses/10/` bundle still cannot
   claim a successful user-rig run. The repo now documents that contract
   explicitly; it just does not publish the user files themselves.
-- On the HEL-54 host, the next irreducible native blocker is Pangolin
-  provisioning. After the raw import plus repo-local `cmake`, `Eigen3`,
-  OpenCV, and Boost serialization bootstraps, the lane reaches top-level
-  ORB-SLAM3 configure, but `./scripts/build_orbslam3_baseline.sh` still cannot
-  produce the real `Examples/Monocular/mono_tum_vi` executable until
-  `PangolinConfig.cmake` becomes discoverable.
+- On the HEL-56 host, native setup is no longer the next blocker. After the raw
+  import plus repo-local `cmake`, `Eigen3`, OpenCV, Boost serialization, and
+  Pangolin bootstraps, the lane builds and launches `mono_tum_vi`, but the
+  imported lens-10 user sequence still fails to initialize a track. The final
+  log shows `Map 0 has 0 KFs`, and both expected trajectory outputs remain
+  absent.
 - Full stereo+IMU validation remains blocked beyond this monocular lane because
   the shareable calibration subset still lacks `camera_to_imu`, IMU noise, IMU
   walk, IMU frequency, and overlapping-stereo geometry required for a credible

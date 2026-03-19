@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 import shlex
 import subprocess
@@ -17,7 +18,14 @@ from splatica_orb_test.monocular_baseline import (  # noqa: E402
     load_monocular_calibration,
     prepare_monocular_sequence,
     render_monocular_settings_yaml,
+    resolve_monocular_trajectory_outputs,
     resolve_monocular_baseline_paths,
+)
+from splatica_orb_test.local_tooling import (  # noqa: E402
+    resolve_headless_display_prefix,
+    resolve_repo_local_boost_runtime_library_paths,
+    resolve_repo_local_opencv_runtime_library_paths,
+    resolve_repo_local_pangolin_runtime_library_paths,
 )
 
 
@@ -43,10 +51,14 @@ def render_report(
     manifest_notes: str,
     prepared_frame_count: int,
     report_path: Path,
+    result_details: list[str],
+    run_workdir: Path,
     resolved,
+    trajectory_outputs,
 ) -> str:
     command_text = shlex.join(command)
     exit_line = "not executed" if exit_code is None else str(exit_code)
+    detail_lines = "\n".join(f"- {detail}" for detail in result_details) or "- none recorded"
 
     return f"""# Monocular baseline report: {resolved.report.stem}
 
@@ -73,12 +85,19 @@ def render_report(
 - Prepared image directory: `{relative_to_repo(resolved.image_dir)}`
 - Prepared timestamps file: `{relative_to_repo(resolved.timestamps)}`
 - Trajectory stem: `{relative_to_repo(resolved.trajectory_stem)}`
+- Trajectory working directory: `{relative_to_repo(run_workdir)}`
+- Expected frame trajectory: `{relative_to_repo(trajectory_outputs.frame_trajectory)}`
+- Expected keyframe trajectory: `{relative_to_repo(trajectory_outputs.keyframe_trajectory)}`
 - Log path: `{relative_to_repo(resolved.log)}`
 - Report path: `{relative_to_repo(report_path)}`
 
 ## Planned command
 
 `{command_text}`
+
+## Result details
+
+{detail_lines}
 
 ## Notes
 
@@ -91,7 +110,9 @@ def write_prepare_only_log(
     command: list[str],
     manifest_notes: str,
     prepared_frame_count: int,
+    run_workdir: Path,
     resolved,
+    trajectory_outputs,
 ) -> None:
     resolved.log.parent.mkdir(parents=True, exist_ok=True)
     resolved.log.write_text(
@@ -102,6 +123,9 @@ def write_prepare_only_log(
                 f"Settings YAML: {relative_to_repo(resolved.settings)}",
                 f"Prepared image directory: {relative_to_repo(resolved.image_dir)}",
                 f"Prepared timestamps file: {relative_to_repo(resolved.timestamps)}",
+                f"Trajectory working directory: {relative_to_repo(run_workdir)}",
+                f"Expected frame trajectory: {relative_to_repo(trajectory_outputs.frame_trajectory)}",
+                f"Expected keyframe trajectory: {relative_to_repo(trajectory_outputs.keyframe_trajectory)}",
                 f"Command: {shlex.join(command)}",
                 f"Notes: {manifest_notes}",
             ]
@@ -109,6 +133,24 @@ def write_prepare_only_log(
         + "\n",
         encoding="utf-8",
     )
+
+
+def build_runtime_environment() -> dict[str, str]:
+    env = os.environ.copy()
+    runtime_paths: list[str] = []
+    for path in resolve_repo_local_opencv_runtime_library_paths(REPO_ROOT):
+        runtime_paths.append(str(path))
+    for path in resolve_repo_local_boost_runtime_library_paths(REPO_ROOT):
+        runtime_paths.append(str(path))
+    for path in resolve_repo_local_pangolin_runtime_library_paths(REPO_ROOT):
+        runtime_paths.append(str(path))
+    if runtime_paths:
+        existing = env.get("LD_LIBRARY_PATH")
+        unique_runtime_paths = list(dict.fromkeys(runtime_paths))
+        env["LD_LIBRARY_PATH"] = ":".join(
+            unique_runtime_paths + ([existing] if existing else [])
+        )
+    return env
 
 
 def main() -> int:
@@ -132,15 +174,22 @@ def main() -> int:
         resolved.image_dir,
         resolved.timestamps,
     )
-    resolved.trajectory_stem.parent.mkdir(parents=True, exist_ok=True)
-    command = build_monocular_tum_vi_command(resolved)
+    run_workdir = resolved.trajectory_stem.parent
+    run_workdir.mkdir(parents=True, exist_ok=True)
+    trajectory_outputs = resolve_monocular_trajectory_outputs(resolved)
+    command = [
+        *resolve_headless_display_prefix(),
+        *build_monocular_tum_vi_command(resolved),
+    ]
 
     if args.prepare_only:
         write_prepare_only_log(
             command=command,
             manifest_notes=manifest.notes,
             prepared_frame_count=prepared.frame_count,
+            run_workdir=run_workdir,
             resolved=resolved,
+            trajectory_outputs=trajectory_outputs,
         )
         resolved.report.parent.mkdir(parents=True, exist_ok=True)
         resolved.report.write_text(
@@ -151,7 +200,13 @@ def main() -> int:
                 manifest_notes=manifest.notes,
                 prepared_frame_count=prepared.frame_count,
                 report_path=resolved.report,
+                result_details=[
+                    f"Execution is deferred; run from {relative_to_repo(run_workdir)}.",
+                    "Trajectory outputs are only written during execute mode.",
+                ],
+                run_workdir=run_workdir,
                 resolved=resolved,
+                trajectory_outputs=trajectory_outputs,
             ),
             encoding="utf-8",
         )
@@ -176,35 +231,81 @@ def main() -> int:
         )
 
     resolved.log.parent.mkdir(parents=True, exist_ok=True)
+    for trajectory_path in (
+        trajectory_outputs.frame_trajectory,
+        trajectory_outputs.keyframe_trajectory,
+    ):
+        if trajectory_path.exists():
+            trajectory_path.unlink()
     with resolved.log.open("w", encoding="utf-8") as log_handle:
+        log_handle.write(f"Working directory: {relative_to_repo(run_workdir)}\n")
         log_handle.write(f"Command: {shlex.join(command)}\n")
         log_handle.write(f"Calibration: {relative_to_repo(resolved.calibration)}\n")
         log_handle.write(f"Frame index: {relative_to_repo(resolved.frame_index)}\n\n")
         result = subprocess.run(
             command,
             check=False,
+            cwd=run_workdir,
             stdout=log_handle,
             stderr=subprocess.STDOUT,
+            env=build_runtime_environment(),
             text=True,
         )
+
+    final_exit_code = result.returncode
+    result_details = [f"Raw process exit code: {result.returncode}"]
+    missing_or_empty_outputs: list[Path] = []
+    for label, trajectory_path in (
+        ("Frame trajectory", trajectory_outputs.frame_trajectory),
+        ("Keyframe trajectory", trajectory_outputs.keyframe_trajectory),
+    ):
+        if not trajectory_path.exists():
+            result_details.append(
+                f"{label}: missing at {relative_to_repo(trajectory_path)}"
+            )
+            missing_or_empty_outputs.append(trajectory_path)
+            continue
+
+        size_bytes = trajectory_path.stat().st_size
+        result_details.append(
+            f"{label}: {relative_to_repo(trajectory_path)} ({size_bytes} bytes)"
+        )
+        if size_bytes == 0:
+            missing_or_empty_outputs.append(trajectory_path)
+
+    if result.returncode == 0 and missing_or_empty_outputs:
+        final_exit_code = 2
+        missing_paths = ", ".join(
+            relative_to_repo(path) for path in missing_or_empty_outputs
+        )
+        summary = (
+            "ORB-SLAM3 exited without writing non-empty trajectory artifacts: "
+            f"{missing_paths}. This indicates the run never produced a savable track."
+        )
+        result_details.append(summary)
+        with resolved.log.open("a", encoding="utf-8") as log_handle:
+            log_handle.write(f"\n{summary}\n")
 
     resolved.report.parent.mkdir(parents=True, exist_ok=True)
     resolved.report.write_text(
         render_report(
             command=command,
             execution_mode="execute",
-            exit_code=result.returncode,
+            exit_code=final_exit_code,
             manifest_notes=manifest.notes,
             prepared_frame_count=prepared.frame_count,
             report_path=resolved.report,
+            result_details=result_details,
+            run_workdir=run_workdir,
             resolved=resolved,
+            trajectory_outputs=trajectory_outputs,
         ),
         encoding="utf-8",
     )
 
     print(f"Wrote log: {relative_to_repo(resolved.log)}")
     print(f"Wrote report: {relative_to_repo(resolved.report)}")
-    return result.returncode
+    return final_exit_code
 
 
 if __name__ == "__main__":

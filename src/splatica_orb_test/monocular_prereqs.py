@@ -210,7 +210,7 @@ def _detect_pangolin_prerequisite(repo_root: Path) -> PrerequisiteCheck:
         label="Pangolin development package",
         ready=pangolin_name is not None,
         detail=(
-            "not detected via pkg-config or build/local-tools/pangolin-root"
+            "not detected via pkg-config or build/local-tools/pangolin-root; run make bootstrap-local-pangolin"
             if pangolin_name is None
             else f"{pangolin_name} {pangolin_version} (requires CMake-discoverable Pangolin)"
         ),

@@ -1,7 +1,7 @@
 PYTHON ?= python3
 export PYTHONPATH := $(CURDIR)/src
 
-.PHONY: help build smoke calibration-smoke bootstrap-local-cmake bootstrap-local-eigen bootstrap-local-opencv bootstrap-local-boost bootstrap-local-ffmpeg monocular-prereqs normalize-fixture test check verify-production clean
+.PHONY: help build smoke calibration-smoke bootstrap-local-cmake bootstrap-local-eigen bootstrap-local-opencv bootstrap-local-boost bootstrap-local-ffmpeg bootstrap-local-pangolin monocular-prereqs normalize-fixture test check verify-production clean
 
 help:
 	@printf '%s\n' \
@@ -13,6 +13,7 @@ help:
 		'make bootstrap-local-opencv Bootstrap a repo-local OpenCV prefix under build/' \
 		'make bootstrap-local-boost Bootstrap a repo-local Boost serialization prefix under build/' \
 		'make bootstrap-local-ffmpeg Bootstrap a repo-local ffmpeg/ffprobe bundle under build/' \
+		'make bootstrap-local-pangolin Bootstrap a repo-local Pangolin prefix plus GL/GLEW/X11 sysroot under build/' \
 		'make monocular-prereqs   Check whether the lens-10 monocular baseline is ready to prepare/run' \
 		'make normalize-fixture   Normalize the checked-in stereo+IMU fixture into build/' \
 		'make test                Run the Python stdlib test suite' \
@@ -44,6 +45,9 @@ bootstrap-local-boost:
 
 bootstrap-local-ffmpeg:
 	@./scripts/bootstrap_local_ffmpeg.sh
+
+bootstrap-local-pangolin:
+	@./scripts/bootstrap_local_pangolin.sh
 
 monocular-prereqs:
 	@PYTHONPATH="$(CURDIR)/src" python3 scripts/check_monocular_baseline_prereqs.py \

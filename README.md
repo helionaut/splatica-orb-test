@@ -48,10 +48,15 @@ The current repo-level conclusion is captured in
 [docs/final-validation-report.md](docs/final-validation-report.md). The
 checked-in rerun path is validated through `make check`. A real user-rig run
 still remains blocked until the local-only lens-10 inputs are imported into the
-current checkout and Pangolin is provided as a CMake-discoverable package. The
-final report also records that, on the previously prepared HEL-54 host,
-Pangolin was the remaining native blocker after the input import plus the
-repo-local `cmake`, `Eigen3`, OpenCV, and Boost serialization bootstraps.
+current checkout. Pangolin is now part of the documented repo-local bootstrap
+flow through `make bootstrap-local-pangolin`, which extracts the required
+GL/GLEW/X11 development sysroot and installs a CMake-discoverable Pangolin
+prefix under `build/local-tools/pangolin-root/usr/local/`. The repo-local
+OpenCV bootstrap now also records its resolved dependency closure so the local
+prefix carries the transitive Qt/TBB/media libraries needed by the ORB-SLAM3
+example link step. On a host with the imported lens-10 bundle and the repo-local
+native toolchain in place, the baseline now executes end-to-end, but the current
+user sequence still produces zero keyframes and no saved trajectory artifacts.
 
 ## Stereo + IMU Normalization Lane
 
@@ -118,15 +123,15 @@ The baseline flow is:
    prefix with `make bootstrap-local-boost`.
 6. If the host does not provide `ffmpeg`/`ffprobe`, bootstrap the pinned
    repo-local media bundle with `make bootstrap-local-ffmpeg`.
-7. If the host does not provide Pangolin, install it system-wide or into
-   `build/local-tools/pangolin-root/usr/local` so CMake can resolve
-   `PangolinConfig.cmake`. Ubuntu `noble` does not currently ship a
-   `libpangolin-dev` package.
+7. If the host does not provide Pangolin, bootstrap the repo-local Pangolin
+   prefix plus its GL/GLEW/X11 development sysroot with
+   `make bootstrap-local-pangolin`.
 8. Build the upstream checkout with `./scripts/build_orbslam3_baseline.sh`.
    That wrapper reproduces the upstream native build steps but disables the
    optional `Thirdparty/Sophus` tests/examples, which are not required for
    `mono_tum_vi` and otherwise fail on newer GCC toolchains because upstream
-   enables `-Werror`.
+   enables `-Werror`. It now asks CMake for the required `mono_tum_vi` target
+   directly instead of blocking on unrelated upstream example binaries.
 9. Run `make monocular-prereqs` to confirm that the private lens-10 inputs,
    native build toolchain, and baseline assets are all ready. That command
    writes a saved report to
@@ -143,6 +148,11 @@ The baseline flow is:
    `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json --prepare-only`.
 12. Execute the actual upstream `mono_tum_vi` runner with
    `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json`.
+   The wrapper now auto-injects repo-local OpenCV, Boost, and Pangolin runtime
+   library paths, uses `xvfb-run -a` on headless hosts, runs from the trajectory
+   output directory so ORB-SLAM3 writes `f_<stem>.txt` and `kf_<stem>.txt`
+   correctly, and returns non-zero when the run finishes without trajectory
+   artifacts.
 
 The repo still does not include the private calibration or user sequence
 payload, so the checked-in automation defines the reproducible contract and

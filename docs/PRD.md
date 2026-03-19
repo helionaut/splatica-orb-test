@@ -121,7 +121,8 @@ order instead of inventing new paths.
    This proves the harness can regenerate deterministic monocular YAMLs while
    recording blockers for any future stereo+IMU bundle.
 4. Fetch and build the selected upstream ORB-SLAM3 baseline with:
-   `./scripts/fetch_orbslam3_baseline.sh` and
+   `./scripts/fetch_orbslam3_baseline.sh`,
+   `make bootstrap-local-pangolin`, and
    `./scripts/build_orbslam3_baseline.sh`, using the documented local tool
    bootstraps as needed.
 5. Import the provided local-only lens assets with

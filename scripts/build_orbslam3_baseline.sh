@@ -19,7 +19,27 @@ local_pangolin_prefix="${repo_root}/build/local-tools/pangolin-root/usr/local"
 local_pangolin_cmake="${local_pangolin_prefix}/lib/cmake/Pangolin/PangolinConfig.cmake"
 local_pangolin_pkgconfig="${local_pangolin_prefix}/lib/pkgconfig/pangolin.pc"
 local_pangolin_lib="${local_pangolin_prefix}/lib"
+local_pangolin_sysroot_prefix="${repo_root}/build/local-tools/pangolin-root/sysroot/usr"
+local_pangolin_sysroot_lib="${local_pangolin_sysroot_prefix}/lib/x86_64-linux-gnu"
+local_pangolin_sysroot_include="${local_pangolin_sysroot_prefix}/include"
+local_pangolin_sysroot_pkgconfig="${local_pangolin_sysroot_lib}/pkgconfig"
+local_pangolin_sysroot_share_pkgconfig="${local_pangolin_sysroot_prefix}/share/pkgconfig"
 cmake_bin=""
+build_target="${ORB_SLAM3_BUILD_TARGET:-mono_tum_vi}"
+local_opencv_link_dirs=(
+  "${local_opencv_prefix}/lib"
+  "${local_opencv_lib}"
+  "${local_opencv_prefix}/lib/x86_64-linux-gnu/atlas"
+  "${local_opencv_prefix}/lib/x86_64-linux-gnu/blas"
+  "${local_opencv_prefix}/lib/x86_64-linux-gnu/lapack"
+  "${local_opencv_prefix}/lib/x86_64-linux-gnu/blis-openmp"
+  "${local_opencv_prefix}/lib/x86_64-linux-gnu/blis-pthread"
+  "${local_opencv_prefix}/lib/x86_64-linux-gnu/blis-serial"
+  "${local_opencv_prefix}/lib/x86_64-linux-gnu/openblas-openmp"
+  "${local_opencv_prefix}/lib/x86_64-linux-gnu/openblas-pthread"
+  "${local_opencv_prefix}/lib/x86_64-linux-gnu/openblas-serial"
+)
+linker_search_dirs=()
 
 for tool in make; do
   if ! command -v "${tool}" >/dev/null 2>&1; then
@@ -58,6 +78,36 @@ run_component_build() {
   )
 }
 
+prepend_path_var() {
+  local name="$1"
+  local value="$2"
+
+  if [[ ! -d "${value}" ]]; then
+    return 0
+  fi
+
+  local current_value="${!name-}"
+  if [[ -n "${current_value}" ]]; then
+    printf -v "${name}" '%s:%s' "${value}" "${current_value}"
+  else
+    printf -v "${name}" '%s' "${value}"
+  fi
+  export "${name}"
+}
+
+append_linker_search_dir() {
+  local dir="$1"
+
+  if [[ ! -d "${dir}" ]]; then
+    return 0
+  fi
+
+  linker_search_dirs+=("${dir}")
+  prepend_path_var LD_LIBRARY_PATH "${dir}"
+  prepend_path_var LIBRARY_PATH "${dir}"
+  prepend_path_var CMAKE_LIBRARY_PATH "${dir}"
+}
+
 (
   if [[ "${cmake_bin}" == "${local_cmake_bin}" ]]; then
     export PATH="$(dirname "${local_cmake_bin}"):${PATH}"
@@ -70,20 +120,26 @@ run_component_build() {
   if [[ -f "${local_opencv_cmake}" || -f "${local_opencv_pkgconfig}" ]]; then
     export CMAKE_PREFIX_PATH="${local_opencv_prefix}${CMAKE_PREFIX_PATH:+:${CMAKE_PREFIX_PATH}}"
     export PKG_CONFIG_PATH="${local_opencv_prefix}/lib/x86_64-linux-gnu/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}"
-    export LD_LIBRARY_PATH="${local_opencv_lib}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
-    export LIBRARY_PATH="${local_opencv_lib}${LIBRARY_PATH:+:${LIBRARY_PATH}}"
+    for link_dir in "${local_opencv_link_dirs[@]}"; do
+      append_linker_search_dir "${link_dir}"
+    done
   fi
   if [[ -f "${local_boost_header}" ]] && compgen -G "${local_boost_lib}/libboost_serialization.so*" >/dev/null; then
     export CMAKE_PREFIX_PATH="${local_boost_prefix}${CMAKE_PREFIX_PATH:+:${CMAKE_PREFIX_PATH}}"
     export CPATH="${local_boost_prefix}/include${CPATH:+:${CPATH}}"
-    export LD_LIBRARY_PATH="${local_boost_lib}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
-    export LIBRARY_PATH="${local_boost_lib}${LIBRARY_PATH:+:${LIBRARY_PATH}}"
+    append_linker_search_dir "${local_boost_lib}"
   fi
   if [[ -f "${local_pangolin_cmake}" || -f "${local_pangolin_pkgconfig}" ]]; then
     export CMAKE_PREFIX_PATH="${local_pangolin_prefix}${CMAKE_PREFIX_PATH:+:${CMAKE_PREFIX_PATH}}"
     export PKG_CONFIG_PATH="${local_pangolin_prefix}/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}"
-    export LD_LIBRARY_PATH="${local_pangolin_lib}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
-    export LIBRARY_PATH="${local_pangolin_lib}${LIBRARY_PATH:+:${LIBRARY_PATH}}"
+    append_linker_search_dir "${local_pangolin_lib}"
+  fi
+  if [[ -d "${local_pangolin_sysroot_lib}" ]]; then
+    export CMAKE_PREFIX_PATH="${local_pangolin_sysroot_prefix}${CMAKE_PREFIX_PATH:+:${CMAKE_PREFIX_PATH}}"
+    export CMAKE_INCLUDE_PATH="${local_pangolin_sysroot_include}${CMAKE_INCLUDE_PATH:+:${CMAKE_INCLUDE_PATH}}"
+    export PKG_CONFIG_PATH="${local_pangolin_sysroot_pkgconfig}:${local_pangolin_sysroot_share_pkgconfig}${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}"
+    export CPATH="${local_pangolin_sysroot_include}${CPATH:+:${CPATH}}"
+    append_linker_search_dir "${local_pangolin_sysroot_lib}"
   fi
 
   run_component_build \
@@ -107,12 +163,33 @@ run_component_build() {
     tar -xf ORBvoc.txt.tar.gz
   )
 
-  printf 'Configuring and building ORB_SLAM3 ...\n'
+  python3 "${repo_root}/scripts/patch_orbslam3_baseline.py" \
+    --checkout-dir "${checkout_dir}"
+
+  printf 'Configuring ORB_SLAM3 ...\n'
   mkdir -p "${checkout_dir}/build"
   (
     cd "${checkout_dir}/build"
-    "${cmake_bin}" "${checkout_dir}" -DCMAKE_BUILD_TYPE=Release
-    make -j4
+    cmake_args=(
+      "${checkout_dir}"
+      -DCMAKE_BUILD_TYPE=Release
+      -DCMAKE_CXX_FLAGS_RELEASE=-march=native\ -std=gnu++14
+    )
+    if ((${#linker_search_dirs[@]})); then
+      linker_flag_text=""
+      for link_dir in "${linker_search_dirs[@]}"; do
+        linker_flag_text+=" -Wl,-rpath-link,${link_dir}"
+      done
+      linker_flag_text="${linker_flag_text# }"
+      cmake_args+=(
+        "-DCMAKE_EXE_LINKER_FLAGS=${linker_flag_text}"
+        "-DCMAKE_SHARED_LINKER_FLAGS=${linker_flag_text}"
+      )
+    fi
+    # Pangolin v0.8 installs sigslot headers that require C++14 aliases.
+    "${cmake_bin}" "${cmake_args[@]}"
+    printf 'Building ORB_SLAM3 target %s ...\n' "${build_target}"
+    "${cmake_bin}" --build . --parallel 4 --target "${build_target}"
   )
 )
 

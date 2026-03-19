@@ -103,6 +103,12 @@ class PreparedSequence:
     last_timestamp_ns: int
 
 
+@dataclass(frozen=True)
+class MonocularTrajectoryOutputs:
+    frame_trajectory: Path
+    keyframe_trajectory: Path
+
+
 DEFAULT_ORB = OrbParameters(
     n_features=1500,
     scale_factor=1.2,
@@ -287,6 +293,7 @@ def resolve_monocular_baseline_paths(
 
 def render_monocular_settings_yaml(calibration: MonocularCalibration) -> str:
     camera_rgb = 1 if calibration.color_order == "RGB" else 0
+    camera_fps = int(round(calibration.fps))
 
     return f"""%YAML:1.0
 
@@ -313,7 +320,7 @@ Camera.width: {calibration.image_width}
 Camera.height: {calibration.image_height}
 
 # Camera frames per second
-Camera.fps: {calibration.fps}
+Camera.fps: {camera_fps}
 
 # Color order of the images (0: BGR, 1: RGB. It is ignored if images are grayscale)
 Camera.RGB: {camera_rgb}
@@ -396,6 +403,17 @@ def prepare_monocular_sequence(
     )
 
 
+def resolve_monocular_trajectory_outputs(
+    resolved: ResolvedMonocularBaselinePaths,
+) -> MonocularTrajectoryOutputs:
+    output_dir = resolved.trajectory_stem.parent
+    stem_name = resolved.trajectory_stem.name
+    return MonocularTrajectoryOutputs(
+        frame_trajectory=output_dir / f"f_{stem_name}.txt",
+        keyframe_trajectory=output_dir / f"kf_{stem_name}.txt",
+    )
+
+
 def build_monocular_tum_vi_command(
     resolved: ResolvedMonocularBaselinePaths,
 ) -> list[str]:
@@ -405,5 +423,5 @@ def build_monocular_tum_vi_command(
         str(resolved.settings),
         str(resolved.image_dir),
         str(resolved.timestamps),
-        str(resolved.trajectory_stem),
+        resolved.trajectory_stem.name,
     ]
