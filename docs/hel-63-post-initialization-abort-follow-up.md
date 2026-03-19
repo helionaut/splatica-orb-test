@@ -61,16 +61,16 @@ The saved `logs/out/tum_rgbd_fr1_xyz.log` did not reach
 the public repro dies before `System::Shutdown()` or either trajectory-save
 call begins.
 
-A bounded rerun with:
+A bounded rerun with the default viewer setting:
 
 ```bash
 ./scripts/run_rgbd_tum_baseline.py \
   --manifest manifests/tum_rgbd_fr1_xyz_sanity.json \
-  --output-tag hel63_frame5 \
-  --max-frames 5
+  --output-tag max20_default \
+  --max-frames 20
 ```
 
-left a sharper boundary in `logs/out/tum_rgbd_fr1_xyz_hel63_frame5.log`:
+left a sharper boundary in `logs/out/tum_rgbd_fr1_xyz_max20_default.log`:
 
 - `HEL-63 diagnostic: frame 0 TrackRGBD completed`
 - `HEL-63 diagnostic: frame 1 TrackRGBD start timestamp=...`
@@ -79,6 +79,28 @@ left a sharper boundary in `logs/out/tum_rgbd_fr1_xyz_hel63_frame5.log`:
 That proves the public repro survives the first `TrackRGBD` call, creates the
 first map, and then aborts during or immediately after the second `TrackRGBD`
 call, still before shutdown/save begins.
+
+A second bounded rerun with the viewer explicitly disabled:
+
+```bash
+./scripts/run_rgbd_tum_baseline.py \
+  --manifest manifests/tum_rgbd_fr1_xyz_sanity.json \
+  --output-tag max20_no_viewer \
+  --max-frames 20 \
+  --disable-viewer
+```
+
+left the same boundary in `logs/out/tum_rgbd_fr1_xyz_max20_no_viewer.log`:
+
+- `HEL-63 diagnostic: rgbd_tum disable_viewer=1`
+- `HEL-63 diagnostic: frame 0 TrackRGBD completed`
+- `HEL-63 diagnostic: frame 1 TrackRGBD start timestamp=...`
+- `double free or corruption (out)`
+
+That rules Pangolin/viewer teardown out as the immediate cause on the public
+lane. The remaining public blocker is now narrowed to tracking-time allocator
+corruption during or immediately after the second `TrackRGBD` call, before
+shutdown or any trajectory-save function is reached.
 
 ## Diagnostic Baseline Commands
 
@@ -134,7 +156,16 @@ Public RGB-D bounded repro:
 ```bash
 ./scripts/run_rgbd_tum_baseline.py \
   --manifest manifests/tum_rgbd_fr1_xyz_sanity.json \
-  --max-frames 5
+  --max-frames 20
+```
+
+Public RGB-D bounded repro with viewer disabled:
+
+```bash
+./scripts/run_rgbd_tum_baseline.py \
+  --manifest manifests/tum_rgbd_fr1_xyz_sanity.json \
+  --max-frames 20 \
+  --disable-viewer
 ```
 
 Public RGB-D bounded repro with shutdown/save isolation toggles:
@@ -142,7 +173,7 @@ Public RGB-D bounded repro with shutdown/save isolation toggles:
 ```bash
 ./scripts/run_rgbd_tum_baseline.py \
   --manifest manifests/tum_rgbd_fr1_xyz_sanity.json \
-  --max-frames 5 \
+  --max-frames 20 \
   --skip-frame-trajectory-save \
   --skip-keyframe-trajectory-save
 ```
