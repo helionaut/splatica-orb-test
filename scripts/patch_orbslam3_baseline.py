@@ -114,10 +114,80 @@ def normalize_save_keyframe_trajectory_euroc(block: str) -> str:
     return block
 
 
+def normalize_shutdown(block: str) -> str:
+    block, count = re.subn(
+        r'    mpLocalMapper->RequestFinish\(\);\n'
+        r'    mpLoopCloser->RequestFinish\(\);\n'
+        r'    /\*if\(mpViewer\)\n'
+        r'    \{\n'
+        r'        mpViewer->RequestFinish\(\);\n'
+        r'        while\(!mpViewer->isFinished\(\)\)\n'
+        r'            usleep\(5000\);\n'
+        r'    \}\*/\n'
+        r'\n'
+        r'    // Wait until all thread have effectively stopped\n'
+        r'    /\*while\(!mpLocalMapper->isFinished\(\) \|\| !mpLoopCloser->isFinished\(\) \|\| mpLoopCloser->isRunningGBA\(\)\)\n'
+        r'    \{\n'
+        r'        if\(!mpLocalMapper->isFinished\(\)\)\n'
+        r'            cout << "mpLocalMapper is not finished" << endl;\*/\n'
+        r'        /\*if\(!mpLoopCloser->isFinished\(\)\)\n'
+        r'            cout << "mpLoopCloser is not finished" << endl;\n'
+        r'        if\(mpLoopCloser->isRunningGBA\(\)\)\{\n'
+        r'            cout << "mpLoopCloser is running GBA" << endl;\n'
+        r'            cout << "break anyway\.\.\." << endl;\n'
+        r'            break;\n'
+        r'        \}\*/\n'
+        r'        /\*usleep\(5000\);\n'
+        r'    \}\*/\n',
+        '    mpLocalMapper->RequestFinish();\n'
+        '    mpLoopCloser->RequestFinish();\n'
+        '    /*if(mpViewer)\n'
+        '    {\n'
+        '        mpViewer->RequestFinish();\n'
+        '        while(!mpViewer->isFinished())\n'
+        '            usleep(5000);\n'
+        '    }*/\n'
+        '\n'
+        '    int shutdown_wait_iterations = 0;\n'
+        '    while(!mpLocalMapper->isFinished() || !mpLoopCloser->isFinished() || mpLoopCloser->isRunningGBA())\n'
+        '    {\n'
+        '        if(shutdown_wait_iterations == 0)\n'
+        '            cout << "Waiting for ORB-SLAM3 worker shutdown before trajectory save..." << endl;\n'
+        '        if(shutdown_wait_iterations >= 6000)\n'
+        '        {\n'
+        '            cout << "Shutdown wait reached 30000 ms; continuing with current worker state." << endl;\n'
+        '            break;\n'
+        '        }\n'
+        '        usleep(5000);\n'
+        '        shutdown_wait_iterations++;\n'
+        '    }\n'
+        '\n'
+        '    cout << "Shutdown worker state before save: local_mapping_finished="\n'
+        '         << mpLocalMapper->isFinished()\n'
+        '         << ", loop_closing_finished=" << mpLoopCloser->isFinished()\n'
+        '         << ", loop_closing_running_gba=" << mpLoopCloser->isRunningGBA()\n'
+        '         << ", wait_iterations=" << shutdown_wait_iterations << endl;\n',
+        block,
+        count=1,
+    )
+    if count == 0:
+        if "Waiting for ORB-SLAM3 worker shutdown before trajectory save..." in block:
+            return block
+        raise ValueError("Failed to normalize Shutdown wait block")
+
+    return block
+
+
 def patch_system_cc(path: Path) -> bool:
     original = path.read_text(encoding="utf-8")
     updated = rewrite_function_block(
         original,
+        signature="void System::Shutdown()\n{",
+        next_signature="\nbool System::isShutDown()",
+        rewriter=normalize_shutdown,
+    )
+    updated = rewrite_function_block(
+        updated,
         signature="void System::SaveTrajectoryEuRoC(const string &filename)\n{",
         next_signature="\nvoid System::SaveTrajectoryEuRoC(const string &filename, Map* pMap)\n{",
         rewriter=normalize_save_trajectory_euroc,

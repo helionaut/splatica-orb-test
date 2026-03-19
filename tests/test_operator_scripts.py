@@ -47,6 +47,12 @@ class OperatorScriptTests(unittest.TestCase):
             encoding="utf-8"
         )
 
+        self.assertIn(
+            "Waiting for ORB-SLAM3 worker shutdown before trajectory save.", script
+        )
+        self.assertIn(
+            "Shutdown worker state before save: local_mapping_finished=", script
+        )
         self.assertIn("No keyframes were recorded; skipping trajectory save.", script)
         self.assertIn(
             "No keyframes were recorded; skipping keyframe trajectory save.", script
