@@ -63,6 +63,7 @@ class HarnessContractTests(unittest.TestCase):
                 "configs/calibration",
                 "configs/orbslam3",
                 "datasets/fixtures",
+                "datasets/public",
                 "datasets/user",
                 "logs/out",
                 "reports/out",

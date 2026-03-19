@@ -10,12 +10,16 @@ verifying it on the user's dataset.
 make build
 make smoke
 make calibration-smoke
+make fetch-tum-rgbd
+make rgbd-sanity
 make check
 ```
 
 - `make build` generates the current dry-run smoke plan in `build/smoke-plan.md`.
 - `make smoke` exercises the canonical dry-run launcher path and writes outputs to `logs/out/` and `reports/out/`.
 - `make calibration-smoke` generates and validates the checked-in shareable calibration settings bundles for the first monocular baseline.
+- `make fetch-tum-rgbd` downloads and extracts the public TUM RGB-D `fr1/xyz` dataset into `datasets/public/`.
+- `make rgbd-sanity` runs the clean-room public RGB-D sanity lane against upstream `rgbd_tum`.
 - `make check` runs tests, build, smoke, calibration-smoke, and normalization as one aggregate validation command.
 
 ## Current Project Docs
@@ -157,6 +161,31 @@ The baseline flow is:
 The repo still does not include the private calibration or user sequence
 payload, so the checked-in automation defines the reproducible contract and
 output layout rather than committing user-specific values.
+
+## Public RGB-D Sanity Lane
+
+`HEL-61` adds a clean-room upstream sanity path against the public TUM RGB-D
+`fr1/xyz` dataset. The checked-in manifest is
+`manifests/tum_rgbd_fr1_xyz_sanity.json`.
+
+Run the full public lane with:
+
+```bash
+make rgbd-sanity
+```
+
+That command:
+
+1. fetches a fresh upstream ORB-SLAM3 checkout at the pinned commit
+2. bootstraps repo-local `cmake`, `Eigen3`, OpenCV, Boost serialization, and
+   Pangolin prefixes
+3. downloads and extracts the TUM RGB-D `fr1/xyz` archive into
+   `datasets/public/tum_rgbd/`
+4. builds the upstream `rgbd_tum` target from scratch
+5. runs the public sequence with upstream `TUM1.yaml` and the upstream
+   `fr1_xyz.txt` association file
+6. writes trajectories, logs, a markdown report, an SVG trajectory plot, and a
+   visual HTML report under `build/`, `logs/out/`, and `reports/out/`
 
 For the final rerun order, auditable artifacts, and the reference-only
 historical paths that are no longer the canonical entrypoint, use

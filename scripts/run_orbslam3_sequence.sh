@@ -88,6 +88,16 @@ case "${launch_mode}" in
 
     PYTHONPATH="${repo_root}/src" python3 "${args[@]}"
     ;;
+  rgbd_tum)
+    if [[ "${prepare_only}" == "true" ]]; then
+      printf 'The RGB-D TUM mode does not support --prepare-only.\n' >&2
+      exit 1
+    fi
+
+    PYTHONPATH="${repo_root}/src" python3 \
+      "${repo_root}/scripts/run_rgbd_tum_baseline.py" \
+      --manifest "${manifest}"
+    ;;
   *)
     printf 'Unsupported launch.mode in manifest %s: %s\n' "${manifest}" "${launch_mode}" >&2
     exit 1
