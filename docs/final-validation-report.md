@@ -8,27 +8,23 @@ Last Updated: 2026-03-19
 
 - User rig verdict: `blocked`
 - Checked-in repo rerun verdict: `validated`
-- Next unresolved risk: the repo now defines the full post-HEL-52 private
-  input contract under
-  `datasets/user/insta360_x3_one_lens_baseline/`, but a real lens-10 user-rig
-  run still requires either the private raw assets under `raw/` to be imported
-  or an already prepared `lenses/10/` bundle to be present on the checkout.
-  Once those inputs exist, the repo can now bootstrap Pangolin, build
-  `Examples/Monocular/mono_tum_vi`, and execute the real monocular lane, but
-  the imported lens-10 sequence currently produces zero keyframes and no saved
-  trajectory artifacts.
-- Next follow-up task: on a host that has the private Insta360 exports, run
-  `./scripts/import_monocular_video_inputs.py` into
-  `datasets/user/insta360_x3_one_lens_baseline/` if `lenses/10/` is still
-  empty, rerun `make monocular-prereqs`, and then execute
-  `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json`.
-  If the resulting log still reports `Map 0 has 0 KFs`, investigate
-  calibration, frame selection, or ORB extractor tuning rather than native
-  dependency setup.
+- Next unresolved risk: the repo-local prerequisite lane is now proven on a
+  host that has the private Insta360 exports, but the canonical lens-10
+  manifest still reaches shutdown with `Map 0 has 0 KFs` and no saved
+  trajectory artifacts. An aggressive ORB rerun (`nFeatures: 4000`,
+  `iniThFAST: 8`, `minThFAST: 3`) plus a stride-3 frame-selection rerun both
+  cross the initialization barrier and create a first map, but each aborts
+  with `double free or corruption (out)` before the run can save trajectories.
+- Next follow-up task: start from the
+  [HEL-57 monocular follow-up report](hel-57-monocular-follow-up.md), reuse the
+  aggressive ORB path as the diagnostic baseline, and isolate the
+  post-initialization abort before promoting any tuned settings into the
+  canonical manifest.
 
-The repo now has one documented rerun path for the selected baseline and one
-final conclusion. Another engineer should start here instead of rediscovering
-the lane from old issue branches or generated reports.
+The repo now has one documented rerun path for the selected baseline plus one
+follow-up execution report for the private host run. Another engineer should
+start here instead of rediscovering the lane from old issue branches or
+generated reports.
 
 ## Selected Baseline And Config Bundle
 
@@ -319,6 +315,66 @@ private lens-10 bundle plus repo-local Pangolin/OpenCV/Boost support available:
     frame/keyframe trajectory files. The wrapper therefore returned exit code
     `2` even though the upstream process returned `0`.
 
+Executed on 2026-03-19 from the `HEL-57` worktree on a host with the private
+Insta360 exports available through the local download/media store:
+
+- `make bootstrap-local-ffmpeg`
+  - Result: passed
+  - Observed: bootstrapped repo-local `ffmpeg` and `ffprobe` so the importer
+    could run on a host with no system media tools
+- `./scripts/import_monocular_video_inputs.py --lenses 10`
+  - Result: passed
+  - Observed: imported the private lens-10 raw assets into
+    `datasets/user/insta360_x3_one_lens_baseline/`, extracted 270 PNG frames,
+    and refreshed the local ingest report
+- `./scripts/fetch_orbslam3_baseline.sh`
+  - Result: passed
+  - Observed: checked out the pinned upstream baseline and extracted
+    `Vocabulary/ORBvoc.txt`
+- `make bootstrap-local-cmake`
+  - Result: passed
+  - Observed: bootstrapped repo-local `cmake`
+- `make bootstrap-local-eigen`
+  - Result: passed
+  - Observed: bootstrapped repo-local `Eigen3`
+- `make bootstrap-local-opencv`
+  - Result: passed
+  - Observed: bootstrapped repo-local OpenCV plus its runtime dependency
+    closure
+- `make bootstrap-local-boost`
+  - Result: passed
+  - Observed: bootstrapped repo-local Boost serialization
+- `make bootstrap-local-pangolin`
+  - Result: passed
+  - Observed: bootstrapped repo-local Pangolin plus the GL/GLEW/X11 sysroot
+- `./scripts/build_orbslam3_baseline.sh`
+  - Result: passed
+  - Observed: built `Examples/Monocular/mono_tum_vi` on this host with the
+    repo-local dependency fallbacks
+- `make monocular-prereqs`
+  - Result: passed
+  - Observed: refreshed
+    `reports/out/insta360_x3_lens10_monocular_prereqs.md` with
+    `Ready for --prepare-only: true` and `Ready for full execution: true`
+- `./scripts/run_orbslam3_sequence.sh --manifest manifests/insta360_x3_lens10_monocular_baseline.json`
+  - Result: failed with auditable evidence
+  - Observed: reproduced the HEL-56 outcome on this host: the atlas reached
+    shutdown with `Map 0 has 0 KFs`, and no trajectory outputs were saved
+- Aggressive ORB tuning rerun (`nFeatures: 4000`, `iniThFAST: 8`,
+  `minThFAST: 3`)
+  - Result: failed with a different blocker
+  - Observed: ORB-SLAM3 printed `First KF:0; Map init KF:0`, then
+    `New Map created with 93 points`, and then aborted with
+    `double free or corruption (out)` before writing trajectories
+- Aggressive ORB tuning plus every-third-frame sampling (90 prepared frames)
+  - Result: failed with the same blocker
+  - Observed: ORB-SLAM3 again initialized the map, reported
+    `New Map created with 83 points`, and then aborted with
+    `double free or corruption (out)`
+
+The full step-by-step notes for that pass live in
+[hel-57-monocular-follow-up.md](hel-57-monocular-follow-up.md).
+
 ## What Worked
 
 - The repo has one pinned ORB-SLAM3 baseline, one checked-in monocular
@@ -342,10 +398,17 @@ private lens-10 bundle plus repo-local Pangolin/OpenCV/Boost support available:
   HEL-56 host that lane built `mono_tum_vi`, made `make monocular-prereqs`
   report full readiness, and executed the real user-rig command without hidden
   manual steps.
+- The HEL-57 host pass repeated that same import/bootstrap/build/run lane from
+  a fresh issue worktree and confirmed the full path is reproducible when the
+  private user exports are present.
 - The real monocular wrapper now leaves behind an auditable report even when
   ORB-SLAM3 fails to produce a savable trajectory. It records the working
   directory, expected `f_*.txt` and `kf_*.txt` outputs, raw process exit code,
   and the synthetic failure when those artifacts are missing.
+- The imported lens-10 sequence is not completely untrackable. Under
+  aggressive ORB settings, ORB-SLAM3 created a first keyframe and an initial
+  map with 83-93 points before aborting, which rules out "no detectable
+  initialization path at all" as the next bottleneck.
 
 ## What Failed Or Remains Blocked
 
@@ -360,6 +423,11 @@ private lens-10 bundle plus repo-local Pangolin/OpenCV/Boost support available:
   imported lens-10 user sequence still fails to initialize a track. The final
   log shows `Map 0 has 0 KFs`, and both expected trajectory outputs remain
   absent.
+- On the HEL-57 host, aggressive ORB tuning and stride-3 frame selection both
+  improved the behavior enough to create a first map, but each rerun aborted
+  with `double free or corruption (out)` immediately after initialization.
+  That makes post-initialization memory corruption the next blocker after the
+  default `0 KFs` failure, not missing native setup.
 - Full stereo+IMU validation remains blocked beyond this monocular lane because
   the shareable calibration subset still lacks `camera_to_imu`, IMU noise, IMU
   walk, IMU frequency, and overlapping-stereo geometry required for a credible

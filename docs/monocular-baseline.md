@@ -243,7 +243,14 @@ execution pass on a host with the imported lens-10 bundle plus repo-local
 OpenCV, Boost, and Pangolin support, the remaining blocker is no longer native
 setup: `reports/out/insta360_x3_lens10_monocular.md` and
 `logs/out/insta360_x3_lens10_monocular.log` show the full run completed but the
-atlas contained `0 KFs`, so no trajectory artifacts were written.
+atlas contained `0 KFs`, so no trajectory artifacts were written. The HEL-57
+follow-up pass reran that lane on a host with the private exports, then tried
+more aggressive ORB settings (`nFeatures: 4000`, `iniThFAST: 8`,
+`minThFAST: 3`) with both the full frame list and an every-third-frame replay.
+Those diagnostic reruns created a first keyframe and an initial map with 83-93
+points, but both aborted with `double free or corruption (out)` before saving
+any trajectory outputs. The current follow-up source of truth for that narrowed
+blocker is [hel-57-monocular-follow-up.md](hel-57-monocular-follow-up.md).
 
 See `docs/candidate-baseline-evaluation.md` for the HEL-48 candidate comparison
 and the explicit rationale for keeping upstream as the selected baseline.
