@@ -30,6 +30,7 @@ from splatica_orb_test.rgbd_tum_baseline import (  # noqa: E402
 
 DEFAULT_PROGRESS_ARTIFACT = REPO_ROOT / ".symphony/progress/HEL-61.json"
 DEFAULT_ORCHESTRATION_LOG = REPO_ROOT / "logs/out/tum_rgbd_fr1_xyz_orchestration.log"
+DEFAULT_BUILD_ATTEMPT_LATEST = REPO_ROOT / ".symphony/build-attempts/orbslam3-build-latest.json"
 PHASES: tuple[tuple[str, Sequence[str]], ...] = (
     (
         "fetching fresh upstream ORB-SLAM3 checkout",
@@ -66,6 +67,11 @@ PHASES: tuple[tuple[str, Sequence[str]], ...] = (
             "--manifest",
         ),
     ),
+)
+
+EXPECTED_BUILD_OUTPUTS = (
+    REPO_ROOT / "third_party/orbslam3/upstream/Examples/RGB-D/rgbd_tum",
+    REPO_ROOT / "third_party/orbslam3/upstream/lib/libORB_SLAM3.so",
 )
 
 
@@ -183,6 +189,7 @@ def main() -> int:
         "manifest": str(Path(args.manifest)),
         "runner": "scripts/run_clean_room_rgbd_sanity.sh",
         "orchestration_log": os.path.relpath(orchestration_log, REPO_ROOT),
+        "build_attempt_latest": os.path.relpath(DEFAULT_BUILD_ATTEMPT_LATEST, REPO_ROOT),
     }
 
     for path in fresh_execution_paths(
@@ -204,7 +211,22 @@ def main() -> int:
                 command = list(base_command)
                 env_overrides: dict[str, str] | None = None
                 if command[0].endswith("build_orbslam3_baseline.sh"):
-                    env_overrides = {"ORB_SLAM3_BUILD_TARGET": "rgbd_tum"}
+                    env_overrides = {
+                        "ORB_SLAM3_BUILD_TARGET": "rgbd_tum",
+                        "ORB_SLAM3_APPEND_MARCH_NATIVE": "OFF",
+                        "ORB_SLAM3_BUILD_EXPERIMENT": "clean-room-rgbd-portable-build",
+                        "ORB_SLAM3_BUILD_CHANGED_VARIABLE": (
+                            "disable -march=native and capture build-attempt signature"
+                        ),
+                        "ORB_SLAM3_BUILD_HYPOTHESIS": (
+                            "portable release flags plus explicit attempt metadata "
+                            "will either produce rgbd_tum/libORB_SLAM3.so or surface "
+                            "a concrete compiler or linker blocker"
+                        ),
+                        "ORB_SLAM3_BUILD_SUCCESS_CRITERION": (
+                            "rgbd_tum executable and libORB_SLAM3.so both exist after phase 7"
+                        ),
+                    }
                 if command[0].endswith("run_orbslam3_sequence.sh"):
                     command.append(args.manifest)
 
@@ -241,6 +263,18 @@ def main() -> int:
                     on_progress=on_progress,
                 )
 
+                if command[0].endswith("build_orbslam3_baseline.sh"):
+                    missing_outputs = [
+                        str(path.relative_to(REPO_ROOT))
+                        for path in EXPECTED_BUILD_OUTPUTS
+                        if not path.exists()
+                    ]
+                    if missing_outputs:
+                        raise RuntimeError(
+                            "build phase completed without expected outputs: "
+                            + ", ".join(missing_outputs)
+                        )
+
                 write_progress_artifact(
                     progress_artifact,
                     build_progress_payload(
@@ -251,10 +285,15 @@ def main() -> int:
                         metrics={"phase": phase_index, "result": "completed"},
                     ),
                 )
-        except subprocess.CalledProcessError as error:
-            failed_command = command_display(error.cmd)
+        except (subprocess.CalledProcessError, RuntimeError) as error:
+            if isinstance(error, subprocess.CalledProcessError):
+                failed_command = command_display(error.cmd)
+                exit_code = error.returncode
+            else:
+                failed_command = str(error)
+                exit_code = 1
             log_handle.write(
-                f"\nCommand failed with exit code {error.returncode}: {failed_command}\n"
+                f"\nCommand failed with exit code {exit_code}: {failed_command}\n"
             )
             log_handle.flush()
             write_progress_artifact(
@@ -266,12 +305,12 @@ def main() -> int:
                     status="failed",
                     metrics={
                         "phase": phase_index,
-                        "exit_code": error.returncode,
+                        "exit_code": exit_code,
                         "failed_command": failed_command,
                     },
                 ),
             )
-            return error.returncode
+            return exit_code
 
     write_progress_artifact(
         progress_artifact,
