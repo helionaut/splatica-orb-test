@@ -28,10 +28,10 @@ cmake_bin=""
 build_target="${ORB_SLAM3_BUILD_TARGET:-mono_tum_vi}"
 append_march_native="${ORB_SLAM3_APPEND_MARCH_NATIVE:-OFF}"
 build_parallelism="${ORB_SLAM3_BUILD_PARALLELISM:-1}"
-build_experiment="${ORB_SLAM3_BUILD_EXPERIMENT:-clean-room-rgbd-portable-build}"
+build_experiment="${ORB_SLAM3_BUILD_EXPERIMENT:-orbslam3-${build_target}-portable-build}"
 changed_variable="${ORB_SLAM3_BUILD_CHANGED_VARIABLE:-disable -march=native and capture build-attempt signature}"
-hypothesis="${ORB_SLAM3_BUILD_HYPOTHESIS:-portable release flags plus explicit attempt metadata will either produce rgbd_tum/libORB_SLAM3.so or surface a concrete compiler or linker blocker}"
-success_criterion="${ORB_SLAM3_BUILD_SUCCESS_CRITERION:-rgbd_tum executable and libORB_SLAM3.so both exist after phase 7}"
+hypothesis="${ORB_SLAM3_BUILD_HYPOTHESIS:-portable release flags plus explicit attempt metadata will either produce ${build_target}/libORB_SLAM3.so or surface a concrete compiler or linker blocker}"
+success_criterion="${ORB_SLAM3_BUILD_SUCCESS_CRITERION:-${build_target} executable and libORB_SLAM3.so both exist after phase 7}"
 allow_identical_retry="${ORB_SLAM3_ALLOW_IDENTICAL_RETRY:-0}"
 build_attempt_dir="${repo_root}/.symphony/build-attempts"
 build_attempt_latest="${build_attempt_dir}/orbslam3-build-latest.json"
@@ -45,6 +45,7 @@ build_started=0
 build_succeeded=0
 current_build_signature=""
 build_executable_path=""
+build_example_source_path=""
 build_library_path=""
 build_command_text=""
 build_command_workdir=""
@@ -103,7 +104,33 @@ if [[ ! -f "${checkout_dir}/CMakeLists.txt" ]]; then
   exit 1
 fi
 
-build_executable_path="${checkout_dir}/Examples/RGB-D/${build_target}"
+resolve_example_artifact_paths() {
+  case "$1" in
+    mono_inertial_* )
+      printf '%s\n' "${checkout_dir}/Examples/Monocular-Inertial/${1}" "${checkout_dir}/Examples/Monocular-Inertial/${1}.cc"
+      ;;
+    mono_* )
+      printf '%s\n' "${checkout_dir}/Examples/Monocular/${1}" "${checkout_dir}/Examples/Monocular/${1}.cc"
+      ;;
+    stereo_inertial_* )
+      printf '%s\n' "${checkout_dir}/Examples/Stereo-Inertial/${1}" "${checkout_dir}/Examples/Stereo-Inertial/${1}.cc"
+      ;;
+    stereo_* )
+      printf '%s\n' "${checkout_dir}/Examples/Stereo/${1}" "${checkout_dir}/Examples/Stereo/${1}.cc"
+      ;;
+    rgbd_* )
+      printf '%s\n' "${checkout_dir}/Examples/RGB-D/${1}" "${checkout_dir}/Examples/RGB-D/${1}.cc"
+      ;;
+    * )
+      printf 'Unsupported ORB-SLAM3 build target for artifact resolution: %s\n' "$1" >&2
+      exit 1
+      ;;
+  esac
+}
+
+mapfile -t build_example_artifacts < <(resolve_example_artifact_paths "${build_target}")
+build_executable_path="${build_example_artifacts[0]}"
+build_example_source_path="${build_example_artifacts[1]}"
 build_library_path="${checkout_dir}/lib/libORB_SLAM3.so"
 
 capture_dmesg_snapshot() {
@@ -134,7 +161,7 @@ write_build_attempt_metadata() {
 
   refresh_latest_diagnostics
 
-  python3 - "${repo_root}" "${checkout_dir}" "${build_attempt_current}" "${build_attempt_latest}" "${build_target}" "${append_march_native}" "${build_parallelism}" "${release_flags}" "${build_experiment}" "${changed_variable}" "${hypothesis}" "${success_criterion}" "${status}" "${failure_reason}" "${build_executable_path}" "${build_library_path}" "${allow_identical_retry}" "${current_build_signature}" "${build_log_current}" "${dmesg_current}" "${build_command_text}" "${build_command_workdir}" "${build_started_at}" "${build_finished_at}" "${build_pid}" "${build_exit_code}" "${build_exit_signal}" "${oom_detected}" <<'PY'
+  python3 - "${repo_root}" "${checkout_dir}" "${build_attempt_current}" "${build_attempt_latest}" "${build_target}" "${append_march_native}" "${build_parallelism}" "${release_flags}" "${build_experiment}" "${changed_variable}" "${hypothesis}" "${success_criterion}" "${status}" "${failure_reason}" "${build_executable_path}" "${build_example_source_path}" "${build_library_path}" "${allow_identical_retry}" "${current_build_signature}" "${build_log_current}" "${dmesg_current}" "${build_command_text}" "${build_command_workdir}" "${build_started_at}" "${build_finished_at}" "${build_pid}" "${build_exit_code}" "${build_exit_signal}" "${oom_detected}" <<'PY'
 import hashlib
 import json
 import subprocess
@@ -157,6 +184,7 @@ from pathlib import Path
     status,
     failure_reason,
     executable_path_text,
+    example_source_path_text,
     library_path_text,
     allow_identical_retry,
     current_build_signature,
@@ -177,6 +205,7 @@ checkout_dir = Path(checkout_dir_text)
 current_path = Path(current_path_text)
 latest_path = Path(latest_path_text)
 executable_path = Path(executable_path_text)
+example_source_path = Path(example_source_path_text)
 library_path = Path(library_path_text)
 build_log_path = Path(build_log_path_text)
 dmesg_path = Path(dmesg_path_text)
@@ -240,14 +269,16 @@ payload = {
     "patch_targets": {
         "CMakeLists.txt": sha256(checkout_dir / "CMakeLists.txt"),
         "src/System.cc": sha256(checkout_dir / "src/System.cc"),
-        "Examples/RGB-D/rgbd_tum.cc": sha256(checkout_dir / "Examples/RGB-D/rgbd_tum.cc"),
+        "example_entrypoint": sha256(example_source_path),
     },
     "artifacts": {
         "executable": str(executable_path.relative_to(repo_root)),
+        "example_source": str(example_source_path.relative_to(repo_root)),
         "library": str(library_path.relative_to(repo_root)),
     },
     "artifact_exists": {
         "executable": executable_path.exists(),
+        "example_source": example_source_path.exists(),
         "library": library_path.exists(),
     },
     "diagnostics": {
@@ -273,7 +304,7 @@ PY
 }
 
 compute_build_signature() {
-  python3 - "${checkout_dir}" "${build_target}" "${append_march_native}" "${release_flags}" "${build_experiment}" "${changed_variable}" "${hypothesis}" "${success_criterion}" <<'PY'
+  python3 - "${checkout_dir}" "${build_target}" "${append_march_native}" "${release_flags}" "${build_experiment}" "${changed_variable}" "${hypothesis}" "${success_criterion}" "${build_example_source_path}" <<'PY'
 import hashlib
 import json
 import subprocess
@@ -289,9 +320,11 @@ from pathlib import Path
     changed_variable,
     hypothesis,
     success_criterion,
+    example_source_path_text,
 ) = sys.argv[1:]
 
 checkout_dir = Path(checkout_dir_text)
+example_source_path = Path(example_source_path_text)
 
 def sha256(path: Path) -> str | None:
     if not path.exists():
@@ -321,7 +354,7 @@ signature_payload = {
     "patch_targets": {
         "CMakeLists.txt": sha256(checkout_dir / "CMakeLists.txt"),
         "src/System.cc": sha256(checkout_dir / "src/System.cc"),
-        "Examples/RGB-D/rgbd_tum.cc": sha256(checkout_dir / "Examples/RGB-D/rgbd_tum.cc"),
+        "example_entrypoint": sha256(example_source_path),
     },
 }
 print(hashlib.sha256(json.dumps(signature_payload, sort_keys=True).encode("utf-8")).hexdigest())
