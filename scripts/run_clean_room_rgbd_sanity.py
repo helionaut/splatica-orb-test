@@ -31,6 +31,7 @@ from splatica_orb_test.rgbd_tum_baseline import (  # noqa: E402
 DEFAULT_PROGRESS_ARTIFACT = REPO_ROOT / ".symphony/progress/HEL-61.json"
 DEFAULT_ORCHESTRATION_LOG = REPO_ROOT / "logs/out/tum_rgbd_fr1_xyz_orchestration.log"
 DEFAULT_BUILD_ATTEMPT_LATEST = REPO_ROOT / ".symphony/build-attempts/orbslam3-build-latest.json"
+DEFAULT_BUILD_LOG_LATEST = REPO_ROOT / ".symphony/build-attempts/orbslam3-build-latest.log"
 PHASES: tuple[tuple[str, Sequence[str]], ...] = (
     (
         "fetching fresh upstream ORB-SLAM3 checkout",
@@ -190,6 +191,7 @@ def main() -> int:
         "runner": "scripts/run_clean_room_rgbd_sanity.sh",
         "orchestration_log": os.path.relpath(orchestration_log, REPO_ROOT),
         "build_attempt_latest": os.path.relpath(DEFAULT_BUILD_ATTEMPT_LATEST, REPO_ROOT),
+        "build_log_latest": os.path.relpath(DEFAULT_BUILD_LOG_LATEST, REPO_ROOT),
     }
 
     for path in fresh_execution_paths(
@@ -214,14 +216,15 @@ def main() -> int:
                     env_overrides = {
                         "ORB_SLAM3_BUILD_TARGET": "rgbd_tum",
                         "ORB_SLAM3_APPEND_MARCH_NATIVE": "OFF",
+                        "ORB_SLAM3_BUILD_PARALLELISM": "1",
                         "ORB_SLAM3_BUILD_EXPERIMENT": "clean-room-rgbd-portable-build",
                         "ORB_SLAM3_BUILD_CHANGED_VARIABLE": (
-                            "disable -march=native and capture build-attempt signature"
+                            "capture full build diagnostics and limit ORB-SLAM3 compile parallelism to 1 job to avoid host OOM"
                         ),
                         "ORB_SLAM3_BUILD_HYPOTHESIS": (
-                            "portable release flags plus explicit attempt metadata "
-                            "will either produce rgbd_tum/libORB_SLAM3.so or surface "
-                            "a concrete compiler or linker blocker"
+                            "portable release flags plus a single-job build with "
+                            "explicit diagnostics will either produce rgbd_tum/libORB_SLAM3.so "
+                            "or surface a concrete compiler, linker, or host OOM blocker"
                         ),
                         "ORB_SLAM3_BUILD_SUCCESS_CRITERION": (
                             "rgbd_tum executable and libORB_SLAM3.so both exist after phase 7"

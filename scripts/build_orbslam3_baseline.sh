@@ -27,6 +27,7 @@ local_pangolin_sysroot_share_pkgconfig="${local_pangolin_sysroot_prefix}/share/p
 cmake_bin=""
 build_target="${ORB_SLAM3_BUILD_TARGET:-mono_tum_vi}"
 append_march_native="${ORB_SLAM3_APPEND_MARCH_NATIVE:-OFF}"
+build_parallelism="${ORB_SLAM3_BUILD_PARALLELISM:-1}"
 build_experiment="${ORB_SLAM3_BUILD_EXPERIMENT:-clean-room-rgbd-portable-build}"
 changed_variable="${ORB_SLAM3_BUILD_CHANGED_VARIABLE:-disable -march=native and capture build-attempt signature}"
 hypothesis="${ORB_SLAM3_BUILD_HYPOTHESIS:-portable release flags plus explicit attempt metadata will either produce rgbd_tum/libORB_SLAM3.so or surface a concrete compiler or linker blocker}"
@@ -36,11 +37,23 @@ build_attempt_dir="${repo_root}/.symphony/build-attempts"
 build_attempt_latest="${build_attempt_dir}/orbslam3-build-latest.json"
 build_attempt_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 build_attempt_current="${build_attempt_dir}/orbslam3-build-${build_attempt_stamp}.json"
+build_log_latest="${build_attempt_dir}/orbslam3-build-latest.log"
+build_log_current="${build_attempt_dir}/orbslam3-build-${build_attempt_stamp}.log"
+dmesg_latest="${build_attempt_dir}/orbslam3-build-dmesg-latest.log"
+dmesg_current="${build_attempt_dir}/orbslam3-build-dmesg-${build_attempt_stamp}.log"
 build_started=0
 build_succeeded=0
 current_build_signature=""
 build_executable_path=""
 build_library_path=""
+build_command_text=""
+build_command_workdir=""
+build_started_at=""
+build_finished_at=""
+build_pid=""
+build_exit_code=""
+build_exit_signal=""
+oom_detected=0
 local_opencv_link_dirs=(
   "${local_opencv_prefix}/lib"
   "${local_opencv_lib}"
@@ -62,6 +75,11 @@ if [[ "${append_march_native}" == "ON" ]]; then
 fi
 
 release_flags="${release_flag_parts[*]}"
+
+if [[ ! "${build_parallelism}" =~ ^[1-9][0-9]*$ ]]; then
+  printf 'ORB_SLAM3_BUILD_PARALLELISM must be a positive integer, got: %s\n' "${build_parallelism}" >&2
+  exit 1
+fi
 
 for tool in make; do
   if ! command -v "${tool}" >/dev/null 2>&1; then
@@ -88,11 +106,35 @@ fi
 build_executable_path="${checkout_dir}/Examples/RGB-D/${build_target}"
 build_library_path="${checkout_dir}/lib/libORB_SLAM3.so"
 
+capture_dmesg_snapshot() {
+  local destination="$1"
+
+  mkdir -p "$(dirname "${destination}")"
+  if command -v dmesg >/dev/null 2>&1; then
+    if ! dmesg -T >"${destination}" 2>&1; then
+      printf 'Unable to read dmesg for build diagnostics.\n' >"${destination}"
+    fi
+  else
+    printf 'dmesg is unavailable in this environment.\n' >"${destination}"
+  fi
+}
+
+refresh_latest_diagnostics() {
+  if [[ -f "${build_log_current}" ]]; then
+    cp "${build_log_current}" "${build_log_latest}"
+  fi
+  if [[ -f "${dmesg_current}" ]]; then
+    cp "${dmesg_current}" "${dmesg_latest}"
+  fi
+}
+
 write_build_attempt_metadata() {
   local status="$1"
   local failure_reason="${2:-}"
 
-  python3 - "${repo_root}" "${checkout_dir}" "${build_attempt_current}" "${build_attempt_latest}" "${build_target}" "${append_march_native}" "${release_flags}" "${build_experiment}" "${changed_variable}" "${hypothesis}" "${success_criterion}" "${status}" "${failure_reason}" "${build_executable_path}" "${build_library_path}" "${allow_identical_retry}" "${current_build_signature}" <<'PY'
+  refresh_latest_diagnostics
+
+  python3 - "${repo_root}" "${checkout_dir}" "${build_attempt_current}" "${build_attempt_latest}" "${build_target}" "${append_march_native}" "${build_parallelism}" "${release_flags}" "${build_experiment}" "${changed_variable}" "${hypothesis}" "${success_criterion}" "${status}" "${failure_reason}" "${build_executable_path}" "${build_library_path}" "${allow_identical_retry}" "${current_build_signature}" "${build_log_current}" "${dmesg_current}" "${build_command_text}" "${build_command_workdir}" "${build_started_at}" "${build_finished_at}" "${build_pid}" "${build_exit_code}" "${build_exit_signal}" "${oom_detected}" <<'PY'
 import hashlib
 import json
 import subprocess
@@ -106,6 +148,7 @@ from pathlib import Path
     latest_path_text,
     build_target,
     append_march_native,
+    build_parallelism,
     release_flags,
     build_experiment,
     changed_variable,
@@ -117,6 +160,16 @@ from pathlib import Path
     library_path_text,
     allow_identical_retry,
     current_build_signature,
+    build_log_path_text,
+    dmesg_path_text,
+    build_command_text,
+    build_command_workdir,
+    build_started_at,
+    build_finished_at,
+    build_pid,
+    build_exit_code,
+    build_exit_signal,
+    oom_detected,
 ) = sys.argv[1:]
 
 repo_root = Path(repo_root_text)
@@ -125,6 +178,8 @@ current_path = Path(current_path_text)
 latest_path = Path(latest_path_text)
 executable_path = Path(executable_path_text)
 library_path = Path(library_path_text)
+build_log_path = Path(build_log_path_text)
+dmesg_path = Path(dmesg_path_text)
 current_path.parent.mkdir(parents=True, exist_ok=True)
 
 def sha256(path: Path) -> str | None:
@@ -143,11 +198,36 @@ def git_head(path: Path) -> str | None:
     except Exception:
         return None
 
+def relative_text(path: Path) -> str | None:
+    if not path.exists():
+        return None
+    try:
+        return str(path.relative_to(repo_root))
+    except ValueError:
+        return str(path)
+
+def tail_lines(path: Path, limit: int = 40) -> list[str]:
+    if not path.exists():
+        return []
+    try:
+        return path.read_text(encoding="utf-8", errors="replace").splitlines()[-limit:]
+    except Exception:
+        return []
+
+def optional_int(text: str) -> int | None:
+    if not text:
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
 payload = {
     "kind": "orbslam3-build-attempt",
     "build_target": build_target,
     "checkout_head": git_head(checkout_dir),
     "append_march_native": append_march_native == "ON",
+    "build_parallelism": int(build_parallelism),
     "release_flags": release_flags,
     "experiment": build_experiment,
     "changed_variable": changed_variable,
@@ -169,6 +249,20 @@ payload = {
     "artifact_exists": {
         "executable": executable_path.exists(),
         "library": library_path.exists(),
+    },
+    "diagnostics": {
+        "build_command": build_command_text or None,
+        "build_working_directory": build_command_workdir or None,
+        "build_started_at": build_started_at or None,
+        "build_finished_at": build_finished_at or None,
+        "build_pid": optional_int(build_pid),
+        "build_exit_code": optional_int(build_exit_code),
+        "build_exit_signal": optional_int(build_exit_signal),
+        "build_log": relative_text(build_log_path),
+        "kernel_dmesg": relative_text(dmesg_path),
+        "oom_detected": oom_detected == "1",
+        "last_build_log_lines": tail_lines(build_log_path),
+        "last_dmesg_lines": tail_lines(dmesg_path),
     },
 }
 
@@ -282,6 +376,18 @@ finalize_build_attempt() {
     failure_reason="expected libORB_SLAM3.so missing after build"
   fi
 
+  if [[ -z "${build_finished_at}" ]]; then
+    build_finished_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  fi
+
+  if [[ "${oom_detected}" -eq 1 ]]; then
+    if [[ -n "${failure_reason}" ]]; then
+      failure_reason="${failure_reason}; kernel reported OOM kill during build"
+    else
+      failure_reason="kernel reported OOM kill during build"
+    fi
+  fi
+
   write_build_attempt_metadata "${status}" "${failure_reason}"
 }
 
@@ -332,7 +438,7 @@ append_linker_search_dir() {
   prepend_path_var CMAKE_LIBRARY_PATH "${dir}"
 }
 
-(
+{
   if [[ "${cmake_bin}" == "${local_cmake_bin}" ]]; then
     export PATH="$(dirname "${local_cmake_bin}"):${PATH}"
     export LD_LIBRARY_PATH="${local_cmake_lib}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
@@ -419,7 +525,51 @@ append_linker_search_dir() {
     # Pangolin v0.8 installs sigslot headers that require C++14 aliases.
     "${cmake_bin}" "${cmake_args[@]}"
     printf 'Building ORB_SLAM3 target %s ...\n' "${build_target}"
-    "${cmake_bin}" --build . --parallel 4 --target "${build_target}"
+    mkdir -p "${build_attempt_dir}"
+    : >"${build_log_current}"
+    build_command_workdir="$(pwd)"
+    build_started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    build_command=(
+      "${cmake_bin}"
+      --build
+      .
+      --parallel
+      "${build_parallelism}"
+      --verbose
+      --target
+      "${build_target}"
+    )
+    printf -v build_command_text '%q ' "${build_command[@]}"
+    build_command_text="${build_command_text% }"
+    printf 'Build command: %s\n' "${build_command_text}" | tee -a "${build_log_current}"
+    printf 'Build working directory: %s\n' "${build_command_workdir}" | tee -a "${build_log_current}"
+    printf 'Build started at: %s\n' "${build_started_at}" | tee -a "${build_log_current}"
+    set +e
+    "${build_command[@]}" > >(tee -a "${build_log_current}") 2>&1 &
+    build_pid="$!"
+    wait "${build_pid}"
+    build_exit_code="$?"
+    set -e
+    build_finished_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    if (( build_exit_code > 128 )); then
+      build_exit_signal="$((build_exit_code - 128))"
+    fi
+    capture_dmesg_snapshot "${dmesg_current}"
+    if grep -Eq "oom-kill|Out of memory: Killed process" "${dmesg_current}"; then
+      oom_detected=1
+    fi
+    printf 'Build finished at: %s\n' "${build_finished_at}" | tee -a "${build_log_current}"
+    printf 'Build PID: %s\n' "${build_pid}" | tee -a "${build_log_current}"
+    printf 'Build exit code: %s\n' "${build_exit_code}" | tee -a "${build_log_current}"
+    if [[ -n "${build_exit_signal}" ]]; then
+      printf 'Build exit signal: %s\n' "${build_exit_signal}" | tee -a "${build_log_current}"
+    fi
+    if [[ "${oom_detected}" -eq 1 ]]; then
+      printf 'Kernel OOM evidence detected in %s\n' "${dmesg_current}" | tee -a "${build_log_current}"
+    fi
+    if [[ "${build_exit_code}" -ne 0 ]]; then
+      exit "${build_exit_code}"
+    fi
   )
 
   if [[ ! -x "${build_executable_path}" ]]; then
@@ -433,6 +583,6 @@ append_linker_search_dir() {
   fi
 
   build_succeeded=1
-)
+}
 
 printf 'Built ORB-SLAM3 baseline in %s\n' "${checkout_dir}"
