@@ -26,6 +26,7 @@ make check
 
 - [Execution plan](docs/execution-plan.md)
 - [Final validation report](docs/final-validation-report.md)
+- [TUM RGB-D sanity run report](docs/tum-rgbd-sanity-report.md)
 - [HEL-63 post-initialization abort follow-up](docs/hel-63-post-initialization-abort-follow-up.md)
 - [Dataset normalization](docs/dataset-normalization.md)
 - [Calibration translation](docs/calibration-translation.md)
@@ -37,15 +38,14 @@ make check
 
 ## Publication Status
 
-`splatica-orb-test` does not currently publish a live artifact or site.
-`HEL-45` records the explicit no-deploy decision in
-[docs/publication-decision.md](docs/publication-decision.md). The current
-harness only produces local dry-run plans, logs, and reports. When a real
-validation bundle or report exists, prefer a downloadable results bundle,
-verify its published URL with
-`make verify-production ARTIFACT_URL=https://<published-artifact-url>`, and
-record that final location in both the PR summary and the Linear handoff or
-completion comment.
+`HEL-64` promotes the first concrete publishable artifact for this repo: the
+public TUM RGB-D sanity-run report bundle under
+`reports/published/tum_rgbd_fr1_xyz_sanity/`. The deploy target is now a
+static GitHub Pages publication of that bundle, while the versioned repo copy
+remains the audit source of truth. Use
+`make verify-production ARTIFACT_URL=https://<published-artifact-url>` against
+the published Pages root after deployment, and record the final URL in the PR
+summary plus the Linear handoff/completion comment.
 
 ## Current Status
 
@@ -187,10 +187,14 @@ That command:
    `fr1_xyz.txt` association file
 6. writes trajectories, logs, a markdown report, an SVG trajectory plot, and a
    visual HTML report under `build/`, `logs/out/`, and `reports/out/`
+7. promotes the inspectable published bundle with `make publish-rgbd-sanity`
+   under `reports/published/tum_rgbd_fr1_xyz_sanity/`
 
 For the final rerun order, auditable artifacts, and the reference-only
 historical paths that are no longer the canonical entrypoint, use
-[docs/final-validation-report.md](docs/final-validation-report.md).
+[docs/final-validation-report.md](docs/final-validation-report.md). For the
+actual public-run verdict and published artifact paths, use
+[docs/tum-rgbd-sanity-report.md](docs/tum-rgbd-sanity-report.md).
 
 ## Repository layout
 

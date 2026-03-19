@@ -65,6 +65,7 @@ def fresh_execution_paths(
         resolved.keyframe_trajectory,
         resolved.log,
         resolved.report,
+        resolved.summary_json,
         resolved.trajectory_plot,
         resolved.visual_report,
         orchestration_log,

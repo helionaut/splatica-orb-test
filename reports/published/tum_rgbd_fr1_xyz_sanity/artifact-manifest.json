@@ -1,0 +1,59 @@
+{
+  "source_summary_path": "reports/out/tum_rgbd_fr1_xyz_summary.json",
+  "published_entrypoint": "index.html",
+  "published_visual_report": "reports/out/tum_rgbd_fr1_xyz.html",
+  "artifacts": [
+    {
+      "label": "log",
+      "source_path": "logs/out/tum_rgbd_fr1_xyz.log",
+      "published_path": "logs/out/tum_rgbd_fr1_xyz.log",
+      "size_bytes": 3132
+    },
+    {
+      "label": "markdown_report",
+      "source_path": "reports/out/tum_rgbd_fr1_xyz.md",
+      "published_path": "reports/out/tum_rgbd_fr1_xyz.md",
+      "size_bytes": 3776
+    },
+    {
+      "label": "summary_json",
+      "source_path": "reports/out/tum_rgbd_fr1_xyz_summary.json",
+      "published_path": "reports/out/tum_rgbd_fr1_xyz_summary.json",
+      "size_bytes": 5820
+    },
+    {
+      "label": "trajectory_plot",
+      "source_path": "reports/out/tum_rgbd_fr1_xyz_trajectory.svg",
+      "published_path": "reports/out/tum_rgbd_fr1_xyz_trajectory.svg",
+      "size_bytes": 381
+    },
+    {
+      "label": "visual_report",
+      "source_path": "reports/out/tum_rgbd_fr1_xyz.html",
+      "published_path": "reports/out/tum_rgbd_fr1_xyz.html",
+      "size_bytes": 7309
+    },
+    {
+      "label": "sample_frame_1",
+      "source_path": "datasets/public/tum_rgbd/rgbd_dataset_freiburg1_xyz/rgb/1305031102.175304.png",
+      "published_path": "datasets/public/tum_rgbd/rgbd_dataset_freiburg1_xyz/rgb/1305031102.175304.png",
+      "size_bytes": 506503
+    },
+    {
+      "label": "sample_frame_2",
+      "source_path": "datasets/public/tum_rgbd/rgbd_dataset_freiburg1_xyz/rgb/1305031115.579315.png",
+      "published_path": "datasets/public/tum_rgbd/rgbd_dataset_freiburg1_xyz/rgb/1305031115.579315.png",
+      "size_bytes": 451208
+    }
+  ],
+  "missing_artifacts": [
+    {
+      "label": "camera_trajectory",
+      "source_path": "build/tum_rgbd_fr1_xyz/trajectory/CameraTrajectory.txt"
+    },
+    {
+      "label": "keyframe_trajectory",
+      "source_path": "build/tum_rgbd_fr1_xyz/trajectory/KeyFrameTrajectory.txt"
+    }
+  ]
+}

@@ -18,18 +18,17 @@ class PublicationDocsTests(unittest.TestCase):
         self.assertIn("(docs/publication-decision.md)", readme)
         self.assertIn("(docs/PRODUCTION_VERIFICATION.md)", readme)
 
-    def test_publication_decision_captures_current_no_deploy_policy(self) -> None:
+    def test_publication_decision_captures_current_publish_policy(self) -> None:
         decision = (REPO_ROOT / "docs/publication-decision.md").read_text(
             encoding="utf-8"
         )
 
-        self.assertIn("does not need a publishable artifact", decision)
-        self.assertIn("should not add a placeholder deployment target", decision)
-        self.assertIn("dry-run", decision)
-        self.assertIn("GitHub Release asset", decision)
+        self.assertIn("one concrete publishable artifact", decision)
+        self.assertIn("static GitHub Pages publication", decision)
+        self.assertIn("artifact-manifest.json", decision)
+        self.assertIn("not_useful", decision)
         self.assertIn("make verify-production", decision)
-        self.assertIn("## Handoff Update", decision)
-        self.assertIn("## Completion Update", decision)
+        self.assertIn("https://helionaut.github.io/splatica-orb-test/", decision)
 
     def test_relative_markdown_links_resolve(self) -> None:
         for relative_path in (

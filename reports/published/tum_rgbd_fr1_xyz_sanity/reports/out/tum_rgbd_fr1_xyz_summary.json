@@ -1,0 +1,139 @@
+{
+  "repo": {
+    "head_sha": "70f1990d869f7a5b26080a9f614b00fd00f2649f"
+  },
+  "baseline": {
+    "name": "orbslam3-upstream-master",
+    "repo_url": "https://github.com/UZ-SLAMLab/ORB_SLAM3",
+    "commit": "4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4",
+    "checkout_path": "third_party/orbslam3/upstream",
+    "executable_path": "third_party/orbslam3/upstream/Examples/RGB-D/rgbd_tum",
+    "vocabulary_path": "third_party/orbslam3/upstream/Vocabulary/ORBvoc.txt",
+    "settings_path": "third_party/orbslam3/upstream/Examples/RGB-D/TUM1.yaml"
+  },
+  "sequence": {
+    "name": "tum-rgbd-fr1-xyz-sanity",
+    "dataset_name": "rgbd_dataset_freiburg1_xyz",
+    "archive_url": "https://cvg.cit.tum.de/rgbd/dataset/freiburg1/rgbd_dataset_freiburg1_xyz.tgz",
+    "archive_path": "datasets/public/tum_rgbd/rgbd_dataset_freiburg1_xyz.tgz",
+    "dataset_root": "datasets/public/tum_rgbd/rgbd_dataset_freiburg1_xyz",
+    "association_path": "third_party/orbslam3/upstream/Examples/RGB-D/associations/fr1_xyz.txt",
+    "association_count": 792,
+    "sample_frame_paths": [
+      "datasets/public/tum_rgbd/rgbd_dataset_freiburg1_xyz/rgb/1305031102.175304.png",
+      "datasets/public/tum_rgbd/rgbd_dataset_freiburg1_xyz/rgb/1305031115.579315.png"
+    ]
+  },
+  "run": {
+    "manifest_path": "manifests/tum_rgbd_fr1_xyz_sanity.json",
+    "launch_script": "scripts/run_orbslam3_sequence.sh",
+    "command": [
+      "/usr/bin/xvfb-run",
+      "-a",
+      "/home/helionaut/workspaces/HEL-64/third_party/orbslam3/upstream/Examples/RGB-D/rgbd_tum",
+      "/home/helionaut/workspaces/HEL-64/third_party/orbslam3/upstream/Vocabulary/ORBvoc.txt",
+      "/home/helionaut/workspaces/HEL-64/third_party/orbslam3/upstream/Examples/RGB-D/TUM1.yaml",
+      "/home/helionaut/workspaces/HEL-64/datasets/public/tum_rgbd/rgbd_dataset_freiburg1_xyz",
+      "/home/helionaut/workspaces/HEL-64/third_party/orbslam3/upstream/Examples/RGB-D/associations/fr1_xyz.txt"
+    ],
+    "command_display": "/usr/bin/xvfb-run -a /home/helionaut/workspaces/HEL-64/third_party/orbslam3/upstream/Examples/RGB-D/rgbd_tum /home/helionaut/workspaces/HEL-64/third_party/orbslam3/upstream/Vocabulary/ORBvoc.txt /home/helionaut/workspaces/HEL-64/third_party/orbslam3/upstream/Examples/RGB-D/TUM1.yaml /home/helionaut/workspaces/HEL-64/datasets/public/tum_rgbd/rgbd_dataset_freiburg1_xyz /home/helionaut/workspaces/HEL-64/third_party/orbslam3/upstream/Examples/RGB-D/associations/fr1_xyz.txt",
+    "diagnostic_toggles": {
+      "max_frames": null,
+      "disable_viewer": false,
+      "skip_frame_trajectory_save": false,
+      "skip_keyframe_trajectory_save": false
+    }
+  },
+  "result": {
+    "raw_exit_code": 134,
+    "final_exit_code": 2,
+    "known_good_baseline_verdict": "not_useful",
+    "known_good_baseline_reason": "The run did not finish with the full non-empty trajectory evidence required for a known-good baseline.",
+    "details": [
+      "Raw process exit code: 134",
+      "Diagnostic toggles: max_frames=None, disable_viewer=False, skip_frame_save=False, skip_keyframe_save=False",
+      "Camera trajectory: missing at build/tum_rgbd_fr1_xyz/trajectory/CameraTrajectory.txt",
+      "Keyframe trajectory: missing at build/tum_rgbd_fr1_xyz/trajectory/KeyFrameTrajectory.txt",
+      "Camera trajectory points: 0",
+      "Keyframe trajectory points: 0",
+      "ORB-SLAM3 did not finish with both non-empty trajectory outputs."
+    ]
+  },
+  "metrics": {
+    "camera_trajectory": {
+      "point_count": 0,
+      "start_timestamp": null,
+      "end_timestamp": null,
+      "duration_seconds": 0.0,
+      "path_length_meters": 0.0,
+      "displacement_meters": 0.0,
+      "min_x": null,
+      "max_x": null,
+      "min_y": null,
+      "max_y": null,
+      "min_z": null,
+      "max_z": null
+    },
+    "keyframe_trajectory": {
+      "point_count": 0,
+      "start_timestamp": null,
+      "end_timestamp": null,
+      "duration_seconds": 0.0,
+      "path_length_meters": 0.0,
+      "displacement_meters": 0.0,
+      "min_x": null,
+      "max_x": null,
+      "min_y": null,
+      "max_y": null,
+      "min_z": null,
+      "max_z": null
+    },
+    "camera_to_association_ratio": 0.0,
+    "keyframe_to_association_ratio": 0.0
+  },
+  "artifacts": {
+    "camera_trajectory": {
+      "path": "build/tum_rgbd_fr1_xyz/trajectory/CameraTrajectory.txt",
+      "exists": false,
+      "size_bytes": 0,
+      "sha256": null
+    },
+    "keyframe_trajectory": {
+      "path": "build/tum_rgbd_fr1_xyz/trajectory/KeyFrameTrajectory.txt",
+      "exists": false,
+      "size_bytes": 0,
+      "sha256": null
+    },
+    "log": {
+      "path": "logs/out/tum_rgbd_fr1_xyz.log",
+      "exists": true,
+      "size_bytes": 3132,
+      "sha256": "569a475bfae0ef2c0b9e441f9968234cd9dbbf17574fcdfe47cb0f259a409311"
+    },
+    "markdown_report": {
+      "path": "reports/out/tum_rgbd_fr1_xyz.md",
+      "exists": true,
+      "size_bytes": 3776,
+      "sha256": "26b186679710300cc800e1e8c82c93a83888c110fcf29d73546e9817df47d9b5"
+    },
+    "summary_json": {
+      "path": "reports/out/tum_rgbd_fr1_xyz_summary.json",
+      "exists": true,
+      "size_bytes": 5628,
+      "sha256": "36ffb4144dc25fc9f62f7ba87b2be6b958f645c63a23dc5e824700c8e187f667"
+    },
+    "trajectory_plot": {
+      "path": "reports/out/tum_rgbd_fr1_xyz_trajectory.svg",
+      "exists": true,
+      "size_bytes": 381,
+      "sha256": "fc0bbea49d17cf0ba2aae797689aa1e6b18920efc5edfe92fea4b4f02c2ae6b3"
+    },
+    "visual_report": {
+      "path": "reports/out/tum_rgbd_fr1_xyz.html",
+      "exists": true,
+      "size_bytes": 7309,
+      "sha256": "50cb01e4f2f50e9ca1dec980622e2ead0b8bb07451f049918ef5757ae53dda50"
+    }
+  },
+  "notes": "Public clean-room sanity lane for upstream ORB-SLAM3 using the official TUM RGB-D fr1/xyz pinhole sequence, the upstream TUM1.yaml settings bundle, and the upstream fr1_xyz association file."
+}

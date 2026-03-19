@@ -123,7 +123,7 @@ class OperatorScriptTests(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn(".symphony/progress/HEL-61.json", script)
+        self.assertIn(".symphony/progress/HEL-64.json", script)
         self.assertIn(".symphony/build-attempts/orbslam3-build-latest.json", script)
         self.assertIn(".symphony/build-attempts/orbslam3-build-latest.log", script)
         self.assertIn("build_progress_payload", script)
@@ -134,3 +134,9 @@ class OperatorScriptTests(unittest.TestCase):
         self.assertIn("limit ORB-SLAM3 compile parallelism to 1 job", script)
         self.assertIn("build phase completed without expected outputs", script)
         self.assertIn("fresh_execution_paths", script)
+
+    def test_makefile_exposes_publish_rgbd_sanity_target(self) -> None:
+        makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+
+        self.assertIn("publish-rgbd-sanity", makefile)
+        self.assertIn("scripts/publish_rgbd_tum_sanity.py", makefile)

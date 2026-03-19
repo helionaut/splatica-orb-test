@@ -1,7 +1,7 @@
 PYTHON ?= python3
 export PYTHONPATH := $(CURDIR)/src
 
-.PHONY: help build smoke calibration-smoke fetch-tum-rgbd rgbd-sanity bootstrap-local-cmake bootstrap-local-eigen bootstrap-local-opencv bootstrap-local-boost bootstrap-local-ffmpeg bootstrap-local-pangolin monocular-prereqs normalize-fixture test check verify-production clean
+.PHONY: help build smoke calibration-smoke fetch-tum-rgbd rgbd-sanity publish-rgbd-sanity bootstrap-local-cmake bootstrap-local-eigen bootstrap-local-opencv bootstrap-local-boost bootstrap-local-ffmpeg bootstrap-local-pangolin monocular-prereqs normalize-fixture test check verify-production clean
 
 help:
 	@printf '%s\n' \
@@ -10,6 +10,7 @@ help:
 		'make calibration-smoke   Generate and validate the shareable calibration settings bundles' \
 		'make fetch-tum-rgbd      Download and extract the public TUM RGB-D fr1/xyz sanity dataset' \
 		'make rgbd-sanity         Run the clean-room TUM RGB-D fr1/xyz upstream sanity lane' \
+		'make publish-rgbd-sanity Promote the latest TUM RGB-D sanity artifacts into reports/published/' \
 		'make bootstrap-local-cmake Bootstrap a repo-local cmake toolchain under build/' \
 		'make bootstrap-local-eigen Bootstrap a repo-local Eigen3 prefix under build/' \
 		'make bootstrap-local-opencv Bootstrap a repo-local OpenCV prefix under build/' \
@@ -38,6 +39,9 @@ fetch-tum-rgbd:
 
 rgbd-sanity:
 	@./scripts/run_clean_room_rgbd_sanity.sh manifests/tum_rgbd_fr1_xyz_sanity.json
+
+publish-rgbd-sanity:
+	@PYTHONPATH="$(CURDIR)/src" python3 scripts/publish_rgbd_tum_sanity.py
 
 bootstrap-local-cmake:
 	@./scripts/bootstrap_local_cmake.sh

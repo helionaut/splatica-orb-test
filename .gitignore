@@ -12,4 +12,6 @@ node_modules/
 reports/out/*
 !reports/out/.gitkeep
 !reports/out/insta360_x3_shareable_calibration_smoke.md
+!reports/published/
+!reports/published/**
 third_party/orbslam3/upstream/
