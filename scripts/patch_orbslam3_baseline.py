@@ -274,6 +274,229 @@ def normalize_mono_tum_vi_main(block: str) -> str:
     return block
 
 
+def normalize_rgbd_tum_main(block: str) -> str:
+    block, count = re.subn(
+        r'    // Create SLAM system\. It initializes all system threads and gets ready to process frames\.\n'
+        r'    ORB_SLAM3::System SLAM\(argv\[1\],argv\[2\],ORB_SLAM3::System::RGBD,true\);\n'
+        r'    float imageScale = SLAM.GetImageScale\(\);\n',
+        '    const bool disable_viewer = std::getenv("ORB_SLAM3_DISABLE_VIEWER") != nullptr;\n'
+        '    cout << "HEL-63 diagnostic: rgbd_tum disable_viewer=" << disable_viewer << endl;\n'
+        '\n'
+        '    // Create SLAM system. It initializes all system threads and gets ready to process frames.\n'
+        '    ORB_SLAM3::System SLAM(argv[1],argv[2],ORB_SLAM3::System::RGBD,!disable_viewer);\n'
+        '    float imageScale = SLAM.GetImageScale();\n',
+        block,
+        count=1,
+    )
+    if count == 0 and 'HEL-63 diagnostic: rgbd_tum disable_viewer=' not in block:
+        raise ValueError("Failed to normalize rgbd_tum viewer toggle")
+
+    original_sequence = (
+        '    // Main loop\n'
+        '    cv::Mat imRGB, imD;\n'
+        '    for(int ni=0; ni<nImages; ni++)\n'
+        '    {\n'
+        '        // Read image and depthmap from file\n'
+        '        imRGB = cv::imread(string(argv[3])+"/"+vstrImageFilenamesRGB[ni],cv::IMREAD_UNCHANGED); //,cv::IMREAD_UNCHANGED);\n'
+        '        imD = cv::imread(string(argv[3])+"/"+vstrImageFilenamesD[ni],cv::IMREAD_UNCHANGED); //,cv::IMREAD_UNCHANGED);\n'
+        '        double tframe = vTimestamps[ni];\n'
+        '\n'
+        '        if(imRGB.empty())\n'
+        '        {\n'
+        '            cerr << endl << "Failed to load image at: "\n'
+        '                 << string(argv[3]) << "/" << vstrImageFilenamesRGB[ni] << endl;\n'
+        '            return 1;\n'
+        '        }\n'
+        '\n'
+        '        if(imageScale != 1.f)\n'
+        '        {\n'
+        '            int width = imRGB.cols * imageScale;\n'
+        '            int height = imRGB.rows * imageScale;\n'
+        '            cv::resize(imRGB, imRGB, cv::Size(width, height));\n'
+        '            cv::resize(imD, imD, cv::Size(width, height));\n'
+        '        }\n'
+        '\n'
+        '#ifdef COMPILEDWITHC11\n'
+        '        std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();\n'
+        '#else\n'
+        '        std::chrono::monotonic_clock::time_point t1 = std::chrono::monotonic_clock::now();\n'
+        '#endif\n'
+        '\n'
+        '        // Pass the image to the SLAM system\n'
+        '        SLAM.TrackRGBD(imRGB,imD,tframe);\n'
+        '\n'
+        '#ifdef COMPILEDWITHC11\n'
+        '        std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();\n'
+        '#else\n'
+        '        std::chrono::monotonic_clock::time_point t2 = std::chrono::monotonic_clock::now();\n'
+        '#endif\n'
+        '\n'
+        '        double ttrack= std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();\n'
+        '\n'
+        '        vTimesTrack[ni]=ttrack;\n'
+        '\n'
+        '        // Wait to load the next frame\n'
+        '        double T=0;\n'
+        '        if(ni<nImages-1)\n'
+        '            T = vTimestamps[ni+1]-tframe;\n'
+        '        else if(ni>0)\n'
+        '            T = tframe-vTimestamps[ni-1];\n'
+        '\n'
+        '        if(ttrack<T)\n'
+        '            usleep((T-ttrack)*1e6);\n'
+        '    }\n'
+        '\n'
+        '    // Stop all threads\n'
+        '    SLAM.Shutdown();\n'
+        '\n'
+        '    // Tracking time statistics\n'
+        '    sort(vTimesTrack.begin(),vTimesTrack.end());\n'
+        '    float totaltime = 0;\n'
+        '    for(int ni=0; ni<nImages; ni++)\n'
+        '    {\n'
+        '        totaltime+=vTimesTrack[ni];\n'
+        '    }\n'
+        '    cout << "-------" << endl << endl;\n'
+        '    cout << "median tracking time: " << vTimesTrack[nImages/2] << endl;\n'
+        '    cout << "mean tracking time: " << totaltime/nImages << endl;\n'
+        '\n'
+        '    // Save camera trajectory\n'
+        '    SLAM.SaveTrajectoryTUM("CameraTrajectory.txt");\n'
+        '    SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");   \n'
+    )
+    replacement_sequence = (
+        '    const char* hel63_max_frames_env = std::getenv("ORB_SLAM3_HEL63_MAX_FRAMES");\n'
+        '    const bool skip_frame_trajectory_save = std::getenv("ORB_SLAM3_SKIP_FRAME_TRAJECTORY_SAVE") != nullptr;\n'
+        '    const bool skip_keyframe_trajectory_save = std::getenv("ORB_SLAM3_SKIP_KEYFRAME_TRAJECTORY_SAVE") != nullptr;\n'
+        '    int hel63_max_frames = -1;\n'
+        '    if(hel63_max_frames_env)\n'
+        '    {\n'
+        '        hel63_max_frames = std::atoi(hel63_max_frames_env);\n'
+        '        cout << "HEL-63 diagnostic: rgbd_tum max frames=" << hel63_max_frames << endl;\n'
+        '    }\n'
+        '    if(skip_frame_trajectory_save || skip_keyframe_trajectory_save)\n'
+        '    {\n'
+        '        cout << "HEL-63 diagnostic: save toggles frame=" << skip_frame_trajectory_save\n'
+        '             << ", keyframe=" << skip_keyframe_trajectory_save << endl;\n'
+        '    }\n'
+        '\n'
+        '    int processed_images = 0;\n'
+        '\n'
+        '    // Main loop\n'
+        '    cv::Mat imRGB, imD;\n'
+        '    for(int ni=0; ni<nImages; ni++)\n'
+        '    {\n'
+        '        // Read image and depthmap from file\n'
+        '        imRGB = cv::imread(string(argv[3])+"/"+vstrImageFilenamesRGB[ni],cv::IMREAD_UNCHANGED); //,cv::IMREAD_UNCHANGED);\n'
+        '        imD = cv::imread(string(argv[3])+"/"+vstrImageFilenamesD[ni],cv::IMREAD_UNCHANGED); //,cv::IMREAD_UNCHANGED);\n'
+        '        double tframe = vTimestamps[ni];\n'
+        '\n'
+        '        if(imRGB.empty())\n'
+        '        {\n'
+        '            cerr << endl << "Failed to load image at: "\n'
+        '                 << string(argv[3]) << "/" << vstrImageFilenamesRGB[ni] << endl;\n'
+        '            return 1;\n'
+        '        }\n'
+        '\n'
+        '        if(imageScale != 1.f)\n'
+        '        {\n'
+        '            int width = imRGB.cols * imageScale;\n'
+        '            int height = imRGB.rows * imageScale;\n'
+        '            cv::resize(imRGB, imRGB, cv::Size(width, height));\n'
+        '            cv::resize(imD, imD, cv::Size(width, height));\n'
+        '        }\n'
+        '\n'
+        '#ifdef COMPILEDWITHC11\n'
+        '        std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();\n'
+        '#else\n'
+        '        std::chrono::monotonic_clock::time_point t1 = std::chrono::monotonic_clock::now();\n'
+        '#endif\n'
+        '\n'
+        '        // Pass the image to the SLAM system\n'
+        '        cout << "HEL-63 diagnostic: frame " << ni << " TrackRGBD start timestamp=" << tframe << endl;\n'
+        '        SLAM.TrackRGBD(imRGB,imD,tframe);\n'
+        '        cout << "HEL-63 diagnostic: frame " << ni << " TrackRGBD completed" << endl;\n'
+        '\n'
+        '#ifdef COMPILEDWITHC11\n'
+        '        std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();\n'
+        '#else\n'
+        '        std::chrono::monotonic_clock::time_point t2 = std::chrono::monotonic_clock::now();\n'
+        '#endif\n'
+        '\n'
+        '        double ttrack= std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();\n'
+        '\n'
+        '        vTimesTrack[ni]=ttrack;\n'
+        '        processed_images = ni + 1;\n'
+        '\n'
+        '        if(hel63_max_frames > 0 && processed_images >= hel63_max_frames)\n'
+        '        {\n'
+        '            cout << "HEL-63 diagnostic: stopping after " << processed_images\n'
+        '                 << " frames due to ORB_SLAM3_HEL63_MAX_FRAMES" << endl;\n'
+        '            break;\n'
+        '        }\n'
+        '\n'
+        '        // Wait to load the next frame\n'
+        '        double T=0;\n'
+        '        if(ni<nImages-1)\n'
+        '            T = vTimestamps[ni+1]-tframe;\n'
+        '        else if(ni>0)\n'
+        '            T = tframe-vTimestamps[ni-1];\n'
+        '\n'
+        '        if(ttrack<T)\n'
+        '            usleep((T-ttrack)*1e6);\n'
+        '    }\n'
+        '\n'
+        '    if(processed_images == 0)\n'
+        '        processed_images = nImages;\n'
+        '\n'
+        '    // Stop all threads\n'
+        '    cout << "HEL-63 diagnostic: entering SLAM shutdown" << endl;\n'
+        '    SLAM.Shutdown();\n'
+        '    cout << "HEL-63 diagnostic: SLAM shutdown completed" << endl;\n'
+        '\n'
+        '    // Tracking time statistics\n'
+        '    sort(vTimesTrack.begin(), vTimesTrack.begin() + processed_images);\n'
+        '    float totaltime = 0;\n'
+        '    for(int ni=0; ni<processed_images; ni++)\n'
+        '    {\n'
+        '        totaltime+=vTimesTrack[ni];\n'
+        '    }\n'
+        '    cout << "-------" << endl << endl;\n'
+        '    cout << "median tracking time: " << vTimesTrack[processed_images/2] << endl;\n'
+        '    cout << "mean tracking time: " << totaltime/processed_images << endl;\n'
+        '\n'
+        '    // Save camera trajectory\n'
+        '    if(skip_frame_trajectory_save)\n'
+        '        cout << "HEL-63 diagnostic: skipping SaveTrajectoryTUM for CameraTrajectory.txt" << endl;\n'
+        '    else\n'
+        '    {\n'
+        '        cout << "HEL-63 diagnostic: calling SaveTrajectoryTUM for CameraTrajectory.txt" << endl;\n'
+        '        SLAM.SaveTrajectoryTUM("CameraTrajectory.txt");\n'
+        '        cout << "HEL-63 diagnostic: SaveTrajectoryTUM completed" << endl;\n'
+        '    }\n'
+        '    if(skip_keyframe_trajectory_save)\n'
+        '        cout << "HEL-63 diagnostic: skipping SaveKeyFrameTrajectoryTUM for KeyFrameTrajectory.txt" << endl;\n'
+        '    else\n'
+        '    {\n'
+        '        cout << "HEL-63 diagnostic: calling SaveKeyFrameTrajectoryTUM for KeyFrameTrajectory.txt" << endl;\n'
+        '        SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");\n'
+        '        cout << "HEL-63 diagnostic: SaveKeyFrameTrajectoryTUM completed" << endl;\n'
+        '    }\n'
+    )
+    block, count = re.subn(
+        re.escape(original_sequence),
+        lambda _: replacement_sequence,
+        block,
+        count=1,
+    )
+    if count == 0:
+        if "HEL-63 diagnostic: frame " in block:
+            return block
+        raise ValueError("Failed to normalize rgbd_tum diagnostic flow")
+
+    return block
+
+
 def patch_system_cc(path: Path) -> bool:
     original = path.read_text(encoding="utf-8")
     updated = rewrite_function_block(
@@ -330,6 +553,34 @@ def patch_mono_tum_vi(path: Path) -> bool:
     return True
 
 
+def patch_rgbd_tum(path: Path) -> bool:
+    original = path.read_text(encoding="utf-8")
+    if "#include<cstdlib>\n" in original:
+        updated = original
+    else:
+        updated, count = re.subn(
+            r'#include<chrono>\n',
+            '#include<chrono>\n#include<cstdlib>\n',
+            original,
+            count=1,
+        )
+        if count == 0:
+            raise ValueError("Failed to normalize rgbd_tum includes")
+
+    updated = rewrite_function_block(
+        updated,
+        signature="int main(int argc, char **argv)\n{",
+        next_signature="\nvoid LoadImages(",
+        rewriter=normalize_rgbd_tum_main,
+    )
+
+    if updated == original:
+        return False
+
+    path.write_text(updated, encoding="utf-8")
+    return True
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkout-dir", required=True)
@@ -338,22 +589,26 @@ def main() -> int:
     checkout_dir = Path(args.checkout_dir).resolve()
     system_cc = checkout_dir / "src/System.cc"
     mono_tum_vi_cc = checkout_dir / "Examples/Monocular/mono_tum_vi.cc"
+    rgbd_tum_cc = checkout_dir / "Examples/RGB-D/rgbd_tum.cc"
     if not system_cc.exists():
         raise SystemExit(f"Missing ORB-SLAM3 source file: {system_cc}")
     if not mono_tum_vi_cc.exists():
         raise SystemExit(f"Missing ORB-SLAM3 source file: {mono_tum_vi_cc}")
+    if not rgbd_tum_cc.exists():
+        raise SystemExit(f"Missing ORB-SLAM3 source file: {rgbd_tum_cc}")
 
     changed = patch_system_cc(system_cc)
     mono_changed = patch_mono_tum_vi(mono_tum_vi_cc)
-    if changed or mono_changed:
+    rgbd_changed = patch_rgbd_tum(rgbd_tum_cc)
+    if changed or mono_changed or rgbd_changed:
         print(
             "Patched ORB-SLAM3 trajectory guards/diagnostics in "
-            f"{system_cc} and {mono_tum_vi_cc}"
+            f"{system_cc}, {mono_tum_vi_cc}, and {rgbd_tum_cc}"
         )
     else:
         print(
             "ORB-SLAM3 trajectory guards/diagnostics already present in "
-            f"{system_cc} and {mono_tum_vi_cc}"
+            f"{system_cc}, {mono_tum_vi_cc}, and {rgbd_tum_cc}"
         )
     return 0
 

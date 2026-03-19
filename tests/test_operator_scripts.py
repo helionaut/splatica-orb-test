@@ -64,6 +64,8 @@ class OperatorScriptTests(unittest.TestCase):
         )
         self.assertIn("Map* pBiggerMap = nullptr;", script)
         self.assertIn("HEL-63 diagnostic: entering SLAM shutdown", script)
+        self.assertIn("HEL-63 diagnostic: frame ", script)
+        self.assertIn("ORB_SLAM3_HEL63_MAX_FRAMES", script)
         self.assertIn("ORB_SLAM3_SKIP_FRAME_TRAJECTORY_SAVE", script)
         self.assertIn("ORB_SLAM3_SKIP_KEYFRAME_TRAJECTORY_SAVE", script)
 
@@ -79,6 +81,17 @@ class OperatorScriptTests(unittest.TestCase):
         self.assertIn("--output-tag", script)
         self.assertIn("--skip-frame-trajectory-save", script)
 
+    def test_rgbd_runner_supports_hel63_diagnostics(self) -> None:
+        script = (REPO_ROOT / "scripts/run_rgbd_tum_baseline.py").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("--max-frames", script)
+        self.assertIn("--disable-viewer", script)
+        self.assertIn("--skip-frame-trajectory-save", script)
+        self.assertIn("--skip-keyframe-trajectory-save", script)
+        self.assertIn("ORB_SLAM3_HEL63_MAX_FRAMES", script)
+
     def test_sequence_launcher_supports_rgbd_tum_mode(self) -> None:
         script = (REPO_ROOT / "scripts/run_orbslam3_sequence.sh").read_text(
             encoding="utf-8"
@@ -86,6 +99,17 @@ class OperatorScriptTests(unittest.TestCase):
 
         self.assertIn("rgbd_tum", script)
         self.assertIn("run_rgbd_tum_baseline.py", script)
+
+    def test_rgbd_runner_supports_diagnostic_toggles(self) -> None:
+        script = (REPO_ROOT / "scripts/run_rgbd_tum_baseline.py").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("--output-tag", script)
+        self.assertIn("--disable-viewer", script)
+        self.assertIn("--skip-frame-trajectory-save", script)
+        self.assertIn("--skip-keyframe-trajectory-save", script)
+        self.assertIn("ORB_SLAM3_DISABLE_VIEWER", script)
 
     def test_clean_room_rgbd_sanity_script_covers_fetch_build_and_run(self) -> None:
         script = (REPO_ROOT / "scripts/run_clean_room_rgbd_sanity.sh").read_text(

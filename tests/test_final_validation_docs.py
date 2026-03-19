@@ -91,7 +91,14 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("--frame-stride", follow_up)
         self.assertIn("--skip-frame-trajectory-save", follow_up)
         self.assertIn("--skip-keyframe-trajectory-save", follow_up)
+        self.assertIn("--max-frames", follow_up)
+        self.assertIn("rgbd_tum", follow_up)
+        self.assertIn("New Map created with 837 points", follow_up)
+        self.assertIn("frame 0 TrackRGBD completed", follow_up)
+        self.assertIn("frame 1 TrackRGBD start", follow_up)
+        self.assertIn("HEL-63 diagnostic: frame <n> TrackRGBD", follow_up)
         self.assertIn("HEL-63 diagnostic: entering SLAM shutdown", follow_up)
+        self.assertIn("ORB_SLAM3_HEL63_MAX_FRAMES=<N>", follow_up)
         self.assertIn(
             "ORB_SLAM3_SKIP_FRAME_TRAJECTORY_SAVE=1",
             follow_up,

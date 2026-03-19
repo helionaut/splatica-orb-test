@@ -6,6 +6,7 @@ import tempfile
 import unittest
 
 from splatica_orb_test.rgbd_tum_baseline import (
+    apply_rgbd_tum_output_tag,
     build_rgbd_tum_command,
     load_rgbd_tum_associations,
     load_rgbd_tum_baseline_manifest,
@@ -61,6 +62,28 @@ class RgbdTumBaselinePathTests(unittest.TestCase):
         self.assertEqual(
             resolved.camera_trajectory,
             REPO_ROOT / "build/tum_rgbd_fr1_xyz/trajectory/CameraTrajectory.txt",
+        )
+
+    def test_applies_output_tag_to_rgbd_artifacts(self) -> None:
+        manifest = load_rgbd_tum_baseline_manifest(
+            REPO_ROOT / "manifests/tum_rgbd_fr1_xyz_sanity.json"
+        )
+        resolved = apply_rgbd_tum_output_tag(
+            resolve_rgbd_tum_baseline_paths(REPO_ROOT, manifest),
+            "no_viewer",
+        )
+
+        self.assertEqual(
+            resolved.trajectory_dir,
+            REPO_ROOT / "build/tum_rgbd_fr1_xyz/trajectory_no_viewer",
+        )
+        self.assertEqual(
+            resolved.log,
+            REPO_ROOT / "logs/out/tum_rgbd_fr1_xyz_no_viewer.log",
+        )
+        self.assertEqual(
+            resolved.report,
+            REPO_ROOT / "reports/out/tum_rgbd_fr1_xyz_no_viewer.md",
         )
 
     def test_loads_associations_and_trajectory_points(self) -> None:

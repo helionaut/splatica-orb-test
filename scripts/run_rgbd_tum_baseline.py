@@ -21,6 +21,7 @@ from splatica_orb_test.local_tooling import (  # noqa: E402
     resolve_repo_local_pangolin_runtime_library_paths,
 )
 from splatica_orb_test.rgbd_tum_baseline import (  # noqa: E402
+    apply_rgbd_tum_output_tag,
     build_rgbd_tum_command,
     load_rgbd_tum_associations,
     load_rgbd_tum_baseline_manifest,
@@ -274,10 +275,20 @@ def render_visual_report(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", required=True)
+    parser.add_argument("--output-tag")
+    parser.add_argument("--max-frames", type=int)
+    parser.add_argument("--disable-viewer", action="store_true")
+    parser.add_argument("--skip-frame-trajectory-save", action="store_true")
+    parser.add_argument("--skip-keyframe-trajectory-save", action="store_true")
     args = parser.parse_args()
+    if args.max_frames is not None and args.max_frames <= 0:
+        raise SystemExit("--max-frames must be a positive integer.")
 
     manifest = load_rgbd_tum_baseline_manifest(resolve_repo_path(args.manifest))
-    resolved = resolve_rgbd_tum_baseline_paths(REPO_ROOT, manifest)
+    resolved = apply_rgbd_tum_output_tag(
+        resolve_rgbd_tum_baseline_paths(REPO_ROOT, manifest),
+        args.output_tag,
+    )
 
     if not resolved.dataset_root.exists():
         subprocess.run(
@@ -334,17 +345,40 @@ def main() -> int:
             f"Association file: {relative_to_repo(resolved.association)}\n"
         )
         log_handle.write(f"Command: {shlex.join(command)}\n\n")
+        log_handle.write(
+            "Diagnostic toggles: "
+            f"max_frames={args.max_frames}, "
+            f"disable_viewer={args.disable_viewer}, "
+            f"skip_frame_save={args.skip_frame_trajectory_save}, "
+            f"skip_keyframe_save={args.skip_keyframe_trajectory_save}\n\n"
+        )
+        run_env = build_runtime_environment()
+        if args.max_frames is not None:
+            run_env["ORB_SLAM3_HEL63_MAX_FRAMES"] = str(args.max_frames)
+        if args.disable_viewer:
+            run_env["ORB_SLAM3_DISABLE_VIEWER"] = "1"
+        if args.skip_frame_trajectory_save:
+            run_env["ORB_SLAM3_SKIP_FRAME_TRAJECTORY_SAVE"] = "1"
+        if args.skip_keyframe_trajectory_save:
+            run_env["ORB_SLAM3_SKIP_KEYFRAME_TRAJECTORY_SAVE"] = "1"
         result = subprocess.run(
             command,
             check=False,
             cwd=resolved.trajectory_dir,
             stdout=log_handle,
             stderr=subprocess.STDOUT,
-            env=build_runtime_environment(),
+            env=run_env,
             text=True,
         )
 
-    result_details = [f"Raw process exit code: {result.returncode}"]
+    result_details = [
+        f"Raw process exit code: {result.returncode}",
+        "Diagnostic toggles: "
+        f"max_frames={args.max_frames}, "
+        f"disable_viewer={args.disable_viewer}, "
+        f"skip_frame_save={args.skip_frame_trajectory_save}, "
+        f"skip_keyframe_save={args.skip_keyframe_trajectory_save}",
+    ]
     final_exit_code = result.returncode
     for label, trajectory_path in (
         ("Camera trajectory", resolved.camera_trajectory),

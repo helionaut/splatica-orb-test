@@ -13,6 +13,7 @@ separate:
 - frame-trajectory save caused the abort
 - keyframe-trajectory save caused the abort
 - the crash happens before any save call begins
+- the same abort reproduces on the public RGB-D sanity lane
 
 ## This Pass
 
@@ -20,7 +21,8 @@ The active `HEL-63` worktree did not contain the local-only lens-10 bundle
 under `datasets/user/insta360_x3_one_lens_baseline/`, so this pass could not
 re-execute the private aggressive-ORB lane directly from the current checkout.
 
-Instead, this follow-up codified the next crash-isolation step in repo code:
+Instead, this follow-up codified the next crash-isolation step in repo code
+and captured a public repro on the clean-room TUM RGB-D lane:
 
 - `scripts/run_monocular_baseline.py` now accepts:
   - `--output-tag`
@@ -35,6 +37,48 @@ Instead, this follow-up codified the next crash-isolation step in repo code:
   and honors:
   - `ORB_SLAM3_SKIP_FRAME_TRAJECTORY_SAVE=1`
   - `ORB_SLAM3_SKIP_KEYFRAME_TRAJECTORY_SAVE=1`
+- `scripts/patch_orbslam3_baseline.py` now also patches upstream
+  `Examples/RGB-D/rgbd_tum.cc` so the log prints per-frame `TrackRGBD`
+  boundaries, shutdown/save markers, and honors:
+  - `ORB_SLAM3_HEL63_MAX_FRAMES=<N>`
+  - `ORB_SLAM3_SKIP_FRAME_TRAJECTORY_SAVE=1`
+  - `ORB_SLAM3_SKIP_KEYFRAME_TRAJECTORY_SAVE=1`
+- `scripts/run_rgbd_tum_baseline.py` now accepts:
+  - `--max-frames`
+  - `--disable-viewer`
+  - `--skip-frame-trajectory-save`
+  - `--skip-keyframe-trajectory-save`
+
+The public clean-room rerun on `manifests/tum_rgbd_fr1_xyz_sanity.json`
+compiled and launched `rgbd_tum`, then reproduced the same post-map-creation
+abort:
+
+- `New Map created with 837 points`
+- `double free or corruption (out)`
+
+The saved `logs/out/tum_rgbd_fr1_xyz.log` did not reach
+`HEL-63 diagnostic: entering SLAM shutdown`, which narrows the blocker further:
+the public repro dies before `System::Shutdown()` or either trajectory-save
+call begins.
+
+A bounded rerun with:
+
+```bash
+./scripts/run_rgbd_tum_baseline.py \
+  --manifest manifests/tum_rgbd_fr1_xyz_sanity.json \
+  --output-tag hel63_frame5 \
+  --max-frames 5
+```
+
+left a sharper boundary in `logs/out/tum_rgbd_fr1_xyz_hel63_frame5.log`:
+
+- `HEL-63 diagnostic: frame 0 TrackRGBD completed`
+- `HEL-63 diagnostic: frame 1 TrackRGBD start timestamp=...`
+- `double free or corruption (out)`
+
+That proves the public repro survives the first `TrackRGBD` call, creates the
+first map, and then aborts during or immediately after the second `TrackRGBD`
+call, still before shutdown/save begins.
 
 ## Diagnostic Baseline Commands
 
@@ -85,6 +129,24 @@ Isolation rerun that skips only frame save:
   --skip-frame-trajectory-save
 ```
 
+Public RGB-D bounded repro:
+
+```bash
+./scripts/run_rgbd_tum_baseline.py \
+  --manifest manifests/tum_rgbd_fr1_xyz_sanity.json \
+  --max-frames 5
+```
+
+Public RGB-D bounded repro with shutdown/save isolation toggles:
+
+```bash
+./scripts/run_rgbd_tum_baseline.py \
+  --manifest manifests/tum_rgbd_fr1_xyz_sanity.json \
+  --max-frames 5 \
+  --skip-frame-trajectory-save \
+  --skip-keyframe-trajectory-save
+```
+
 ## Expected Evidence
 
 Each diagnostic rerun writes distinct artifacts keyed by `--output-tag`, so the
@@ -98,12 +160,18 @@ follow-up evidence no longer depends on overwritten canonical outputs:
 
 The patched upstream log now emits:
 
+- `HEL-63 diagnostic: frame <n> TrackRGBD start timestamp=...`
+- `HEL-63 diagnostic: frame <n> TrackRGBD completed`
 - `HEL-63 diagnostic: entering SLAM shutdown`
 - `HEL-63 diagnostic: SLAM shutdown completed`
 - `HEL-63 diagnostic: calling SaveTrajectoryEuRoC ...`
 - `HEL-63 diagnostic: SaveTrajectoryEuRoC completed`
 - `HEL-63 diagnostic: calling SaveKeyFrameTrajectoryEuRoC ...`
 - `HEL-63 diagnostic: SaveKeyFrameTrajectoryEuRoC completed`
+- `HEL-63 diagnostic: calling SaveTrajectoryTUM ...`
+- `HEL-63 diagnostic: SaveTrajectoryTUM completed`
+- `HEL-63 diagnostic: calling SaveKeyFrameTrajectoryTUM ...`
+- `HEL-63 diagnostic: SaveKeyFrameTrajectoryTUM completed`
 
 The first missing marker after map creation identifies the narrowed boundary for
 the remaining abort.
