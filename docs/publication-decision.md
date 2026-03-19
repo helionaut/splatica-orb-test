@@ -1,100 +1,69 @@
 # Publication Decision
 
 Status: Accepted
-Issue: HEL-45
-Last Updated: 2026-03-18
+Issue: HEL-64
+Last Updated: 2026-03-20
 
 ## Current Decision
 
-`splatica-orb-test` still does not need a publishable artifact, and this repo
-should not add a placeholder deployment target.
+`splatica-orb-test` now has one concrete publishable artifact: the public TUM
+RGB-D sanity-run report bundle generated from `manifests/tum_rgbd_fr1_xyz_sanity.json`.
 
-The repo can now generate local dry-run outputs through the harness:
+The canonical versioned bundle lives at:
 
-- `build/smoke-plan.md` from `make build`
-- dry-run logs under `logs/out/`
-- dry-run reports under `reports/out/`
-- a future URL verification command via `make verify-production`
+- `reports/published/tum_rgbd_fr1_xyz_sanity/index.html`
+- `reports/published/tum_rgbd_fr1_xyz_sanity/artifact-manifest.json`
 
-Those outputs are local validation scaffolding, not a release-grade
-deliverable. They do not yet capture a reviewed ORB-SLAM3 run against a pinned
-baseline and dataset snapshot, and they are intentionally disposable. Because
-no concrete validation report or results bundle is ready to distribute, the
-correct publication choice is still "no deployment for now."
+The deploy target is a static GitHub Pages publication of that same bundle on
+`main`. The repo copy remains the audit source of truth; Pages is the review
+surface.
 
 ## Why This Is The Right Call
 
-- The ticket explicitly warns against assuming a user-facing web app.
-- The current harness only produces dry-run scaffolding and placeholder
-  outputs, not a stable artifact worth distributing.
-- A fake GitHub Pages site or empty release would create a maintenance burden
-  without improving validation or review.
-- The repo now has enough structure to define a future publication path without
-  pretending that a publishable result already exists.
+- The repo now produces a real ORB-SLAM3 execution artifact rather than only
+  dry-run scaffolding.
+- The published index shows exactly what ran, what outputs were produced, what
+  trajectory artifacts were missing, and whether the lane is a useful
+  baseline.
+- A static report fits the review need better than a placeholder app or a
+  hidden local-only bundle.
+- The same checked-in bundle can drive both GitHub review and deployed review
+  without introducing a second artifact format.
 
-## Trigger To Revisit Publication
+## Scope Of The Published Artifact
 
-Open a follow-up publication change only after the repo can generate one of
-these concrete outputs from source control and a pinned run manifest:
+The published bundle includes:
 
-- a downloadable results bundle that contains logs, configs, and outcome data
-- a static validation report that summarizes a real ORB-SLAM3 evaluation run
-- both, if the report and raw bundle serve different review needs
+- the repo commit that produced the report
+- the pinned ORB-SLAM3 upstream commit under test
+- the exact manifest, dataset root, association file, and runtime command
+- the run verdict and summary metrics
+- the copied markdown report, HTML report, summary JSON, trajectory SVG, and
+  log
+- the sample RGB frames referenced by the published page
+- an artifact manifest that records which expected files were missing
 
-Until one of those exists, the release answer remains "no deployment."
+The current published verdict is still `not_useful`. Publication does not mean
+the underlying lane passed; it means the result is now inspectable and auditable.
 
-## Expected First Artifact
+## Deployment Shape
 
-If publication becomes necessary, prefer a downloadable results bundle as the
-primary artifact. Publish that bundle as a GitHub Release asset tied to the
-validating commit or release tag. A bundle is easier to version and review than
-a live site, and it matches the current repo goal better than an interactive
-deployment.
+- Source bundle: `reports/published/tum_rgbd_fr1_xyz_sanity/`
+- Expected deployed root URL:
+  `https://helionaut.github.io/splatica-orb-test/`
+- Expected secondary visual report URL:
+  `https://helionaut.github.io/splatica-orb-test/reports/out/tum_rgbd_fr1_xyz.html`
 
-The first publishable bundle should include at least:
+## Verification Path
 
-- the repo commit SHA that produced it
-- the ORB-SLAM3 source baseline or upstream commit under test
-- the dataset identifier or dataset snapshot reference
-- the settings/configuration files used for the run
-- the validation logs and a concise pass/fail summary
-- a manifest file with generation time and checksum data
+When the `main` branch bundle is deployed, verify all of the following:
 
-If reviewers need a more readable summary, add a static HTML or Markdown report
-alongside the same release asset set instead of replacing it. A dedicated
-static site should remain optional until repeated review needs justify it.
-
-## Release Verification Path
-
-Once a concrete artifact exists, verification should require all of the
-following:
-
-1. Regenerate the report or bundle from the documented command path on a clean
-   checkout.
-2. Confirm the manifest captures the producing repo SHA, dataset reference,
-   upstream baseline, and config version.
-3. Run `make verify-production ARTIFACT_URL=https://<published-artifact-url>`
-   against the published URL and confirm the expected marker resolves over
-   HTTPS.
-4. Verify the published artifact checksum matches the locally generated output.
-5. Confirm the PR summary and Linear handoff/completion comment both record the
-   exact final artifact URL or release-asset location.
-
-This ticket does not implement those publication steps yet because there is no
-artifact to verify.
-
-## Team Reporting Path
-
-For the current repo state, report the decision as "no publishable artifact
-yet" in:
-
-- this document
-- the `HEL-45` Linear update comments
-- the eventual PR that lands this decision
-
-When a concrete artifact is eventually published, record the final artifact
-location in both places:
-
-- the PR body or merge summary that introduced the artifact
-- a fresh `## Handoff Update` or `## Completion Update` comment on the Linear
-  issue, including the final URL or release-asset location
+1. Run `make verify-production ARTIFACT_URL=https://helionaut.github.io/splatica-orb-test/`.
+2. Confirm the deployed root still contains the expected `splatica-orb-test`
+   marker.
+3. Confirm the deployed page shows the published verdict and links to the
+   copied artifacts.
+4. Confirm `artifact-manifest.json` matches the checked-in bundle contents and
+   records the missing trajectory files when they are absent.
+5. Record the final URL in the PR summary and the Linear handoff/completion
+   comment.

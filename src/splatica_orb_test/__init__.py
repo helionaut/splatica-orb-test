@@ -72,11 +72,17 @@ from .orbslam3_baseline_assets import (
 )
 from .rgbd_tum_baseline import (
     build_rgbd_tum_command,
+    compute_tum_trajectory_metrics,
     load_rgbd_tum_associations,
     load_rgbd_tum_baseline_manifest,
     load_tum_trajectory_points,
     render_tum_trajectory_svg,
     resolve_rgbd_tum_baseline_paths,
+)
+from .rgbd_tum_publish import (
+    collect_publish_sources,
+    publish_rgbd_tum_bundle,
+    render_publish_index,
 )
 from .stereo_imu_normalization import (
     load_stereo_imu_normalization_manifest,
@@ -98,8 +104,10 @@ __all__ = [
     "build_monocular_tum_vi_command",
     "build_rgbd_tum_command",
     "build_smoke_command",
+    "compute_tum_trajectory_metrics",
     "compute_file_sha256",
     "copy_input_file",
+    "collect_publish_sources",
     "ensure_orbslam3_vocabulary_text",
     "extract_png_frames",
     "inspect_monocular_baseline_prerequisites",
@@ -124,6 +132,7 @@ __all__ = [
     "render_build_plan",
     "render_monocular_baseline_prerequisite_report",
     "render_monocular_settings_yaml",
+    "render_publish_index",
     "render_shareable_monocular_settings_yaml",
     "render_smoke_log",
     "render_smoke_report",
@@ -146,6 +155,7 @@ __all__ = [
     "resolve_repo_local_pangolin_paths",
     "resolve_rgbd_tum_baseline_paths",
     "run_calibration_config_smoke",
+    "publish_rgbd_tum_bundle",
     "resolve_monocular_baseline_paths",
     "resolve_manifest_paths",
     "resolve_stereo_imu_normalization_paths",

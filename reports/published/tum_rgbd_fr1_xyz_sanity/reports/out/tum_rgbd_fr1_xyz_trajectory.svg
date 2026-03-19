@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="640" viewBox="0 0 960 640">
+  <rect width="960" height="640" fill="#f6f2e8" />
+  <text x="70" y="70" font-family="monospace" font-size="28" fill="#1f1f1f">TUM RGB-D fr1/xyz camera trajectory</text>
+  <text x="70" y="118" font-family="monospace" font-size="22" fill="#4c4c4c">No trajectory points available.</text>
+</svg>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>TUM RGB-D published sanity run</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f6f2e8;
+      --ink: #1f1f1f;
+      --muted: #57534e;
+      --accent: #19647e;
+      --panel: #fffdf8;
+      --border: #d6d3d1;
+      --good: #2a9d8f;
+      --warn: #b7791f;
+      --bad: #c44536;
+    }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Helvetica Neue", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(25,100,126,0.18), transparent 32%),
+        linear-gradient(180deg, #f8f5ee 0%, var(--paper) 100%);
+      color: var(--ink);
+    }
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 24px 56px;
+    }
+    h1, h2 {
+      margin: 0 0 12px;
+      font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+    }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+      margin: 20px 0 28px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 12px 28px rgba(31,31,31,0.08);
+    }
+    .label {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .value {
+      font-size: 1.25rem;
+      font-weight: 600;
+      word-break: break-word;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    .media {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    img {
+      width: 100%;
+      display: block;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: #000;
+    }
+    .trajectory img {
+      background: var(--panel);
+      padding: 8px;
+    }
+    code {
+      font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+      word-break: break-all;
+    }
+    ul {
+      margin: 12px 0 0;
+      padding-left: 20px;
+    }
+    .verdict-useful {
+      color: var(--good);
+    }
+    .verdict-partial {
+      color: var(--warn);
+    }
+    .verdict-not_useful {
+      color: var(--bad);
+    }
+    @media (max-width: 860px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .media {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>splatica-orb-test TUM RGB-D published sanity run</h1>
+    <p>
+      Verdict:
+      <strong class="verdict-not_useful">
+        not_useful
+      </strong>.
+      The run did not finish with the full non-empty trajectory evidence required for a known-good baseline.
+    </p>
+    <section class="summary">
+      <div class="card"><div class="label">Final Exit Code</div><div class="value">2</div></div>
+      <div class="card"><div class="label">Associations</div><div class="value">792</div></div>
+      <div class="card"><div class="label">Camera Points</div><div class="value">0</div></div>
+      <div class="card"><div class="label">Keyframe Points</div><div class="value">0</div></div>
+      <div class="card"><div class="label">Camera Coverage</div><div class="value">0.0%</div></div>
+      <div class="card"><div class="label">Path Length</div><div class="value">0.000 m</div></div>
+    </section>
+    <section class="grid">
+      <div class="card">
+        <h2>Sample Frames</h2>
+        <div class="media">
+          <img alt="TUM RGB-D sample frame" src="datasets/public/tum_rgbd/rgbd_dataset_freiburg1_xyz/rgb/1305031102.175304.png" />
+<img alt="TUM RGB-D sample frame" src="datasets/public/tum_rgbd/rgbd_dataset_freiburg1_xyz/rgb/1305031115.579315.png" />
+        </div>
+      </div>
+      <div class="card trajectory">
+        <h2>Trajectory Plot</h2>
+        <img alt="Trajectory plot" src="reports/out/tum_rgbd_fr1_xyz_trajectory.svg" />
+      </div>
+    </section>
+    <section class="grid" style="margin-top: 20px;">
+      <div class="card">
+        <h2>Run Metadata</h2>
+        <ul>
+          <li><code>70f1990d869f7a5b26080a9f614b00fd00f2649f</code></li>
+          <li><code>manifests/tum_rgbd_fr1_xyz_sanity.json</code></li>
+          <li><code>4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4</code></li>
+          <li><code>third_party/orbslam3/upstream/Examples/RGB-D/TUM1.yaml</code></li>
+          <li><code>third_party/orbslam3/upstream/Examples/RGB-D/associations/fr1_xyz.txt</code></li>
+          <li><code>/usr/bin/xvfb-run -a /home/helionaut/workspaces/HEL-64/third_party/orbslam3/upstream/Examples/RGB-D/rgbd_tum /home/helionaut/workspaces/HEL-64/third_party/orbslam3/upstream/Vocabulary/ORBvoc.txt /home/helionaut/workspaces/HEL-64/third_party/orbslam3/upstream/Examples/RGB-D/TUM1.yaml /home/helionaut/workspaces/HEL-64/datasets/public/tum_rgbd/rgbd_dataset_freiburg1_xyz /home/helionaut/workspaces/HEL-64/third_party/orbslam3/upstream/Examples/RGB-D/associations/fr1_xyz.txt</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2>Metrics</h2>
+        <ul>
+          <li>Camera displacement: <strong>0.000 m</strong></li>
+          <li>Camera span: <strong>0.000 s</strong></li>
+          <li>Keyframe span: <strong>0.000 s</strong></li>
+          <li>X range: <strong>n/a .. n/a</strong></li>
+          <li>Y range: <strong>n/a .. n/a</strong></li>
+          <li>Z range: <strong>n/a .. n/a</strong></li>
+        </ul>
+      </div>
+    </section>
+    <section class="card" style="margin-top: 20px;">
+      <h2>Artifacts</h2>
+      <ul><li><code>build/tum_rgbd_fr1_xyz/trajectory/CameraTrajectory.txt</code> (exists: False, 0 bytes)</li>
+<li><code>build/tum_rgbd_fr1_xyz/trajectory/KeyFrameTrajectory.txt</code> (exists: False, 0 bytes)</li>
+<li><a href="logs/out/tum_rgbd_fr1_xyz.log"><code>logs/out/tum_rgbd_fr1_xyz.log</code></a> (exists: True, 3132 bytes)</li>
+<li><a href="reports/out/tum_rgbd_fr1_xyz.md"><code>reports/out/tum_rgbd_fr1_xyz.md</code></a> (exists: True, 3776 bytes)</li>
+<li><a href="reports/out/tum_rgbd_fr1_xyz_summary.json"><code>reports/out/tum_rgbd_fr1_xyz_summary.json</code></a> (exists: True, 5628 bytes)</li>
+<li><a href="reports/out/tum_rgbd_fr1_xyz_trajectory.svg"><code>reports/out/tum_rgbd_fr1_xyz_trajectory.svg</code></a> (exists: True, 381 bytes)</li>
+<li><a href="reports/out/tum_rgbd_fr1_xyz.html"><code>reports/out/tum_rgbd_fr1_xyz.html</code></a> (exists: True, 7309 bytes)</li></ul>
+      <p>
+        Secondary local visual report:
+        <a href="reports/out/tum_rgbd_fr1_xyz.html"><code>reports/out/tum_rgbd_fr1_xyz.html</code></a>
+      </p>
+    </section>
+  </main>
+</body>
+</html>

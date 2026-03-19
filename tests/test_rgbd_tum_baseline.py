@@ -8,6 +8,7 @@ import unittest
 from splatica_orb_test.rgbd_tum_baseline import (
     apply_rgbd_tum_output_tag,
     build_rgbd_tum_command,
+    compute_tum_trajectory_metrics,
     load_rgbd_tum_associations,
     load_rgbd_tum_baseline_manifest,
     load_tum_trajectory_points,
@@ -63,6 +64,10 @@ class RgbdTumBaselinePathTests(unittest.TestCase):
             resolved.camera_trajectory,
             REPO_ROOT / "build/tum_rgbd_fr1_xyz/trajectory/CameraTrajectory.txt",
         )
+        self.assertEqual(
+            resolved.summary_json,
+            REPO_ROOT / "reports/out/tum_rgbd_fr1_xyz_summary.json",
+        )
 
     def test_applies_output_tag_to_rgbd_artifacts(self) -> None:
         manifest = load_rgbd_tum_baseline_manifest(
@@ -84,6 +89,10 @@ class RgbdTumBaselinePathTests(unittest.TestCase):
         self.assertEqual(
             resolved.report,
             REPO_ROOT / "reports/out/tum_rgbd_fr1_xyz_no_viewer.md",
+        )
+        self.assertEqual(
+            resolved.summary_json,
+            REPO_ROOT / "reports/out/tum_rgbd_fr1_xyz_summary_no_viewer.json",
         )
 
     def test_loads_associations_and_trajectory_points(self) -> None:
@@ -131,6 +140,25 @@ class RgbdTumBaselinePathTests(unittest.TestCase):
 
         self.assertIn("<polyline", svg)
         self.assertIn("Trajectory", svg)
+
+    def test_computes_trajectory_metrics(self) -> None:
+        metrics = compute_tum_trajectory_metrics(
+            [
+                (1.0, 0.0, 0.0, 0.0),
+                (2.5, 3.0, 4.0, 0.0),
+                (3.0, 3.0, 4.0, 12.0),
+            ]
+        )
+
+        self.assertEqual(metrics["point_count"], 3)
+        self.assertEqual(metrics["start_timestamp"], 1.0)
+        self.assertEqual(metrics["end_timestamp"], 3.0)
+        self.assertEqual(metrics["duration_seconds"], 2.0)
+        self.assertEqual(metrics["path_length_meters"], 17.0)
+        self.assertEqual(metrics["displacement_meters"], 13.0)
+        self.assertEqual(metrics["min_x"], 0.0)
+        self.assertEqual(metrics["max_y"], 4.0)
+        self.assertEqual(metrics["max_z"], 12.0)
 
 
 class CleanRoomRgbdSanityTests(unittest.TestCase):

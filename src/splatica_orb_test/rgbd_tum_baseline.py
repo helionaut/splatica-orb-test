@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 import html
 import json
+import math
 from pathlib import Path
 
 
@@ -34,6 +35,7 @@ class RgbdTumBaselineManifest:
     report_path: str
     sequence_name: str
     settings_path: str
+    summary_json_path: str
     trajectory_dir: str
     trajectory_plot_path: str
     visual_report_path: str
@@ -52,6 +54,7 @@ class ResolvedRgbdTumBaselinePaths:
     log: Path
     report: Path
     settings: Path
+    summary_json: Path
     trajectory_dir: Path
     trajectory_plot: Path
     visual_report: Path
@@ -101,6 +104,7 @@ def load_rgbd_tum_baseline_manifest(path: Path) -> RgbdTumBaselineManifest:
         report_path=str(outputs["report_path"]),
         sequence_name=str(sequence["name"]),
         settings_path=str(sequence["settings_path"]),
+        summary_json_path=str(outputs["summary_json_path"]),
         trajectory_dir=str(outputs["trajectory_dir"]),
         trajectory_plot_path=str(outputs["trajectory_plot_path"]),
         visual_report_path=str(outputs["visual_report_path"]),
@@ -124,6 +128,7 @@ def resolve_rgbd_tum_baseline_paths(
         log=repo_root / manifest.log_path,
         report=repo_root / manifest.report_path,
         settings=repo_root / manifest.settings_path,
+        summary_json=repo_root / manifest.summary_json_path,
         trajectory_dir=repo_root / manifest.trajectory_dir,
         trajectory_plot=repo_root / manifest.trajectory_plot_path,
         visual_report=repo_root / manifest.visual_report_path,
@@ -153,6 +158,9 @@ def apply_rgbd_tum_output_tag(
             f"{resolved.report.stem}{suffix}{resolved.report.suffix}"
         ),
         trajectory_dir=trajectory_dir,
+        summary_json=resolved.summary_json.with_name(
+            f"{resolved.summary_json.stem}{suffix}{resolved.summary_json.suffix}"
+        ),
         trajectory_plot=resolved.trajectory_plot.with_name(
             f"{resolved.trajectory_plot.stem}{suffix}{resolved.trajectory_plot.suffix}"
         ),
@@ -209,6 +217,51 @@ def load_tum_trajectory_points(path: Path) -> list[tuple[float, float, float, fl
         timestamp, tx, ty, tz = parts[:4]
         points.append((float(timestamp), float(tx), float(ty), float(tz)))
     return points
+
+
+def compute_tum_trajectory_metrics(
+    points: list[tuple[float, float, float, float]],
+) -> dict[str, float | int | None]:
+    if not points:
+        return {
+            "point_count": 0,
+            "start_timestamp": None,
+            "end_timestamp": None,
+            "duration_seconds": 0.0,
+            "path_length_meters": 0.0,
+            "displacement_meters": 0.0,
+            "min_x": None,
+            "max_x": None,
+            "min_y": None,
+            "max_y": None,
+            "min_z": None,
+            "max_z": None,
+        }
+
+    xs = [point[1] for point in points]
+    ys = [point[2] for point in points]
+    zs = [point[3] for point in points]
+    path_length = 0.0
+    for start, end in zip(points, points[1:]):
+        path_length += math.dist(start[1:], end[1:])
+
+    displacement = math.dist(points[0][1:], points[-1][1:])
+    start_timestamp = points[0][0]
+    end_timestamp = points[-1][0]
+    return {
+        "point_count": len(points),
+        "start_timestamp": start_timestamp,
+        "end_timestamp": end_timestamp,
+        "duration_seconds": round(end_timestamp - start_timestamp, 6),
+        "path_length_meters": round(path_length, 6),
+        "displacement_meters": round(displacement, 6),
+        "min_x": min(xs),
+        "max_x": max(xs),
+        "min_y": min(ys),
+        "max_y": max(ys),
+        "min_z": min(zs),
+        "max_z": max(zs),
+    }
 
 
 def render_tum_trajectory_svg(

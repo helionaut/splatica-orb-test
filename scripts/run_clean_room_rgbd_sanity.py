@@ -28,7 +28,7 @@ from splatica_orb_test.rgbd_tum_baseline import (  # noqa: E402
 )
 
 
-DEFAULT_PROGRESS_ARTIFACT = REPO_ROOT / ".symphony/progress/HEL-61.json"
+DEFAULT_PROGRESS_ARTIFACT = REPO_ROOT / ".symphony/progress/HEL-64.json"
 DEFAULT_ORCHESTRATION_LOG = REPO_ROOT / "logs/out/tum_rgbd_fr1_xyz_orchestration.log"
 DEFAULT_BUILD_ATTEMPT_LATEST = REPO_ROOT / ".symphony/build-attempts/orbslam3-build-latest.json"
 DEFAULT_BUILD_LOG_LATEST = REPO_ROOT / ".symphony/build-attempts/orbslam3-build-latest.log"

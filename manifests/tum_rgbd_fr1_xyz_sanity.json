@@ -22,6 +22,7 @@
     "keyframe_trajectory_path": "build/tum_rgbd_fr1_xyz/trajectory/KeyFrameTrajectory.txt",
     "log_path": "logs/out/tum_rgbd_fr1_xyz.log",
     "report_path": "reports/out/tum_rgbd_fr1_xyz.md",
+    "summary_json_path": "reports/out/tum_rgbd_fr1_xyz_summary.json",
     "trajectory_plot_path": "reports/out/tum_rgbd_fr1_xyz_trajectory.svg",
     "visual_report_path": "reports/out/tum_rgbd_fr1_xyz.html"
   },
