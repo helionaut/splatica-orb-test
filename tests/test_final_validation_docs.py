@@ -22,6 +22,7 @@ class FinalValidationDocsTests(unittest.TestCase):
         )
         self.assertIn("(docs/hel-68-asan-crash-follow-up.md)", readme)
         self.assertIn("(docs/hel-69-worktree-containment-follow-up.md)", readme)
+        self.assertIn("(docs/hel-71-eigen-static-alignment-follow-up.md)", readme)
         self.assertIn("make check", readme)
 
     def test_final_report_records_canonical_baseline_and_verdict(self) -> None:
@@ -64,6 +65,7 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("./scripts/build_orbslam3_baseline.sh", report)
         self.assertIn("HEL-57 monocular follow-up report", report)
         self.assertIn("HEL-68 ASan crash follow-up", report)
+        self.assertIn("HEL-71 Eigen static-alignment follow-up", report)
         self.assertIn("double free or corruption", report)
         self.assertIn("nFeatures: 4000", report)
         self.assertIn(
@@ -167,6 +169,25 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("HEL-68-repo/third_party/orbslam3/upstream/build", follow_up)
         self.assertIn(".symphony/build-attempts/orbslam3-build-20260320T145253Z.log", follow_up)
         self.assertIn(".symphony/progress/HEL-69.json", follow_up)
+
+    def test_hel71_follow_up_doc_records_static_alignment_lane(self) -> None:
+        follow_up = (
+            REPO_ROOT / "docs/hel-71-eigen-static-alignment-follow-up.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("Issue: HEL-71", follow_up)
+        self.assertIn("ORB_SLAM3_DISABLE_EIGEN_STATIC_ALIGNMENT=1", follow_up)
+        self.assertIn("hel-71-eigen-static-alignment-public-tum-vi", follow_up)
+        self.assertIn("disable_eigen_static_alignment: true", follow_up)
+        self.assertIn("frame `93`", follow_up)
+        self.assertIn("New Map created with 375 points", follow_up)
+        self.assertIn("Segmentation fault (core dumped)", follow_up)
+        self.assertIn(".symphony/progress/HEL-71.json", follow_up)
+        self.assertIn("logs/out/tum_vi_room1_512_16_cam0.log", follow_up)
+        self.assertIn(
+            ".symphony/build-attempts/orbslam3-build-20260320T225148Z.json",
+            follow_up,
+        )
 
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"
