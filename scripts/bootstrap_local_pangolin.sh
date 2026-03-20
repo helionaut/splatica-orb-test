@@ -15,6 +15,13 @@ root_dir="${repo_root}/build/local-tools/pangolin-root"
 sysroot_dir="${root_dir}/sysroot"
 install_prefix="${root_dir}/usr/local"
 manifest_path="${root_dir}/bootstrap-manifest.txt"
+progress_artifact="${ORB_SLAM3_PROGRESS_ARTIFACT:-}"
+progress_issue_id="${ORB_SLAM3_PROGRESS_ISSUE_ID:-}"
+progress_heartbeat_seconds="${ORB_SLAM3_BOOTSTRAP_PROGRESS_HEARTBEAT_SECONDS:-60}"
+progress_total=6
+progress_heartbeat_pid=""
+bootstrap_started=0
+bootstrap_succeeded=0
 
 local_cmake_bin="${repo_root}/build/local-tools/cmake-root/usr/bin/cmake"
 local_cmake_lib="${repo_root}/build/local-tools/cmake-root/usr/lib/x86_64-linux-gnu"
@@ -56,8 +63,117 @@ if [[ ! -f "${local_eigen_config}" ]] && ! pkg-config --exists eigen3 2>/dev/nul
   "${script_dir}/bootstrap_local_eigen.sh"
 fi
 
+if [[ -n "${progress_artifact}" && "${progress_artifact}" != /* ]]; then
+  progress_artifact="${repo_root}/${progress_artifact}"
+fi
+
+if [[ ! "${progress_heartbeat_seconds}" =~ ^[1-9][0-9]*$ ]]; then
+  printf 'ORB_SLAM3_BOOTSTRAP_PROGRESS_HEARTBEAT_SECONDS must be a positive integer, got: %s\n' \
+    "${progress_heartbeat_seconds}" >&2
+  exit 1
+fi
+
+write_progress_artifact() {
+  local status="$1"
+  local current_step="$2"
+  local completed="$3"
+
+  if [[ -z "${progress_artifact}" ]]; then
+    return 0
+  fi
+
+  python3 - "${repo_root}" "${progress_artifact}" "${progress_issue_id}" "${status}" "${current_step}" "${completed}" "${progress_total}" "${install_prefix}" "${manifest_path}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+repo_root_text, artifact_text, issue_id, status, current_step, completed_text, total_text, install_prefix_text, manifest_path_text = sys.argv[1:]
+
+repo_root = Path(repo_root_text)
+artifact_path = Path(artifact_text)
+completed = int(completed_text)
+total = int(total_text)
+progress_percent = round((max(0, min(completed, total)) / total) * 100) if total else 100
+
+def rel(path_text: str) -> str:
+    path = Path(path_text)
+    try:
+        return str(path.resolve().relative_to(repo_root.resolve()))
+    except Exception:
+        return str(path)
+
+payload = {
+    "issue": issue_id,
+    "status": status,
+    "current_step": current_step,
+    "completed": completed,
+    "total": total,
+    "unit": "phases",
+    "progress_percent": progress_percent,
+    "eta_seconds": None,
+    "metrics": {
+        "bootstrap": "pangolin",
+        "install_prefix": rel(install_prefix_text),
+    },
+    "artifacts": [
+        {
+            "label": "pangolin_manifest",
+            "path": rel(manifest_path_text),
+        },
+        {
+            "label": "pangolin_cmake_config",
+            "path": rel(f"{install_prefix_text}/lib/cmake/Pangolin/PangolinConfig.cmake"),
+        },
+    ],
+}
+artifact_path.parent.mkdir(parents=True, exist_ok=True)
+artifact_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+PY
+}
+
+start_progress_heartbeat() {
+  local status="$1"
+  local current_step="$2"
+  local completed="$3"
+
+  stop_progress_heartbeat
+  if [[ -z "${progress_artifact}" ]]; then
+    return 0
+  fi
+
+  (
+    while true; do
+      sleep "${progress_heartbeat_seconds}"
+      write_progress_artifact "${status}" "${current_step}" "${completed}"
+    done
+  ) &
+  progress_heartbeat_pid=$!
+}
+
+stop_progress_heartbeat() {
+  if [[ -n "${progress_heartbeat_pid}" ]]; then
+    kill "${progress_heartbeat_pid}" >/dev/null 2>&1 || true
+    wait "${progress_heartbeat_pid}" >/dev/null 2>&1 || true
+    progress_heartbeat_pid=""
+  fi
+}
+
+cleanup() {
+  local exit_code=$?
+
+  stop_progress_heartbeat
+  if [[ "${bootstrap_started}" == "1" && "${bootstrap_succeeded}" != "1" ]]; then
+    write_progress_artifact "failed" "Pangolin bootstrap failed" 0
+  fi
+  exit "${exit_code}"
+}
+
+trap cleanup EXIT
+
 rm -rf "${source_dir}" "${build_dir}" "${root_dir}"
 mkdir -p "${packages_dir}" "${sysroot_dir}"
+bootstrap_started=1
+write_progress_artifact "in_progress" "Resolving Pangolin package closure" 0
 
 mapfile -t packages < <(
   {
@@ -81,6 +197,8 @@ mapfile -t packages < <(
   } | sort -u
 )
 
+write_progress_artifact "in_progress" "Downloading and extracting Pangolin dependency packages" 1
+start_progress_heartbeat "in_progress" "Downloading and extracting Pangolin dependency packages" 1
 (
   cd "${packages_dir}"
   apt download "${packages[@]}"
@@ -89,7 +207,9 @@ mapfile -t packages < <(
     dpkg-deb -x "${deb_path}" "${sysroot_dir}"
   done
 )
+stop_progress_heartbeat
 
+write_progress_artifact "in_progress" "Cloning pinned Pangolin source" 2
 git clone --depth 1 --branch "${pangolin_tag}" "${pangolin_repo_url}" "${source_dir}"
 
 resolved_commit="$(git -C "${source_dir}" rev-parse HEAD)"
@@ -109,6 +229,7 @@ sysroot_include="${sysroot_dir}/usr/include"
 sysroot_pkgconfig="${sysroot_lib}/pkgconfig"
 sysroot_share_pkgconfig="${sysroot_dir}/usr/share/pkgconfig"
 
+write_progress_artifact "in_progress" "Configuring Pangolin build" 3
 (
   export PATH="$(dirname "${cmake_bin}"):${PATH}"
   if [[ -n "${cmake_runtime_lib}" ]]; then
@@ -151,7 +272,12 @@ sysroot_share_pkgconfig="${sysroot_dir}/usr/share/pkgconfig"
     -DBUILD_PANGOLIN_LIBRAW=OFF \
     -DBUILD_PANGOLIN_PYTHON=OFF
 
+  write_progress_artifact "in_progress" "Building Pangolin libraries" 4
+  start_progress_heartbeat "in_progress" "Building Pangolin libraries" 4
   "${cmake_bin}" --build "${build_dir}" --parallel 4
+  stop_progress_heartbeat
+
+  write_progress_artifact "in_progress" "Installing Pangolin prefix" 5
   "${cmake_bin}" --install "${build_dir}"
 )
 
@@ -167,6 +293,9 @@ sysroot_share_pkgconfig="${sysroot_dir}/usr/share/pkgconfig"
   printf 'Resolved package closure:\n'
   printf '  - %s\n' "${packages[@]}"
 } > "${manifest_path}"
+
+bootstrap_succeeded=1
+write_progress_artifact "completed" "Pangolin bootstrap completed" 6
 
 printf 'Bootstrapped local Pangolin prefix: %s\n' "${install_prefix}"
 printf 'Pangolin CMake config: %s\n' \

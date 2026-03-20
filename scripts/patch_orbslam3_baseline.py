@@ -600,6 +600,45 @@ def normalize_rgbd_tum_main(block: str) -> str:
     return block
 
 
+def patch_optimizable_types(path: Path) -> bool:
+    original = path.read_text(encoding="utf-8")
+    updated = original
+    count = 0
+    for indent in ("        ", "    "):
+        original_sequence = (
+            f"{indent}auto projectJac = -pCamera->projectJac(xyz_trans);\n\n"
+            f"{indent}_jacobianOplusXi =  projectJac * T.rotation().toRotationMatrix();\n\n"
+            f"{indent}Eigen::Matrix<double,3,6> SE3deriv;\n"
+            f"{indent}SE3deriv << 0.f, z,   -y, 1.f, 0.f, 0.f,\n"
+            f"{indent}        -z , 0.f, x, 0.f, 1.f, 0.f,\n"
+            f"{indent}        y ,  -x , 0.f, 0.f, 0.f, 1.f;\n\n"
+            f"{indent}_jacobianOplusXj = projectJac * SE3deriv;\n"
+        )
+        replacement_sequence = (
+            f"{indent}const Eigen::Matrix<double, 2, 3> project_jac =\n"
+            f"{indent}    (-pCamera->projectJac(xyz_trans)).eval();\n\n"
+            f"{indent}_jacobianOplusXi = project_jac * T.rotation().toRotationMatrix();\n\n"
+            f"{indent}Eigen::Matrix<double,3,6> SE3deriv;\n"
+            f"{indent}SE3deriv << 0.f, z,   -y, 1.f, 0.f, 0.f,\n"
+            f"{indent}        -z , 0.f, x, 0.f, 1.f, 0.f,\n"
+            f"{indent}        y ,  -x , 0.f, 0.f, 0.f, 1.f;\n\n"
+            f"{indent}_jacobianOplusXj = project_jac * SE3deriv;\n"
+        )
+        updated = original.replace(original_sequence, replacement_sequence, 1)
+        count = int(updated != original)
+        if count:
+            break
+    if count == 0:
+        if "const Eigen::Matrix<double, 2, 3> project_jac =" in original:
+            return False
+        raise ValueError(
+            "Failed to normalize EdgeSE3ProjectXYZ Jacobian evaluation lifetime"
+        )
+
+    path.write_text(updated, encoding="utf-8")
+    return True
+
+
 def patch_cmakelists(path: Path) -> bool:
     original = path.read_text(encoding="utf-8")
     marker = (
@@ -715,12 +754,15 @@ def main() -> int:
     checkout_dir = Path(args.checkout_dir).resolve()
     cmake_lists = checkout_dir / "CMakeLists.txt"
     system_cc = checkout_dir / "src/System.cc"
+    optimizable_types_cc = checkout_dir / "src/OptimizableTypes.cpp"
     mono_tum_vi_cc = checkout_dir / "Examples/Monocular/mono_tum_vi.cc"
     rgbd_tum_cc = checkout_dir / "Examples/RGB-D/rgbd_tum.cc"
     if not cmake_lists.exists():
         raise SystemExit(f"Missing ORB-SLAM3 source file: {cmake_lists}")
     if not system_cc.exists():
         raise SystemExit(f"Missing ORB-SLAM3 source file: {system_cc}")
+    if not optimizable_types_cc.exists():
+        raise SystemExit(f"Missing ORB-SLAM3 source file: {optimizable_types_cc}")
     if not mono_tum_vi_cc.exists():
         raise SystemExit(f"Missing ORB-SLAM3 source file: {mono_tum_vi_cc}")
     if not rgbd_tum_cc.exists():
@@ -728,17 +770,28 @@ def main() -> int:
 
     cmake_changed = patch_cmakelists(cmake_lists)
     changed = patch_system_cc(system_cc)
+    optimizable_types_changed = patch_optimizable_types(optimizable_types_cc)
     mono_changed = patch_mono_tum_vi(mono_tum_vi_cc)
     rgbd_changed = patch_rgbd_tum(rgbd_tum_cc)
-    if cmake_changed or changed or mono_changed or rgbd_changed:
+    if (
+        cmake_changed
+        or changed
+        or optimizable_types_changed
+        or mono_changed
+        or rgbd_changed
+    ):
         print(
-            "Patched ORB-SLAM3 release-flag/trajectory guards in "
-            f"{cmake_lists}, {system_cc}, {mono_tum_vi_cc}, and {rgbd_tum_cc}"
+            "Patched ORB-SLAM3 release-flag/trajectory guards plus the "
+            "EdgeSE3ProjectXYZ Jacobian lifetime fix in "
+            f"{cmake_lists}, {system_cc}, {optimizable_types_cc}, "
+            f"{mono_tum_vi_cc}, and {rgbd_tum_cc}"
         )
     else:
         print(
-            "ORB-SLAM3 release-flag/trajectory guards already present in "
-            f"{cmake_lists}, {system_cc}, {mono_tum_vi_cc}, and {rgbd_tum_cc}"
+            "ORB-SLAM3 release-flag/trajectory guards and the "
+            "EdgeSE3ProjectXYZ Jacobian lifetime fix already present in "
+            f"{cmake_lists}, {system_cc}, {optimizable_types_cc}, "
+            f"{mono_tum_vi_cc}, and {rgbd_tum_cc}"
         )
     return 0
 

@@ -16,6 +16,79 @@ SPEC.loader.exec_module(PATCH_HELPER)
 
 
 class PatchOrbslam3BaselineTests(unittest.TestCase):
+    def test_rewrites_edge_se3_project_xyz_to_force_eigen_eval(self) -> None:
+        source = """void EdgeSE3ProjectXYZ::linearizeOplus() {
+    g2o::VertexSE3Expmap * vj = static_cast<g2o::VertexSE3Expmap *>(_vertices[1]);
+    g2o::SE3Quat T(vj->estimate());
+    g2o::VertexSBAPointXYZ* vi = static_cast<g2o::VertexSBAPointXYZ*>(_vertices[0]);
+    Eigen::Vector3d xyz = vi->estimate();
+    Eigen::Vector3d xyz_trans = T.map(xyz);
+
+    double x = xyz_trans[0];
+    double y = xyz_trans[1];
+    double z = xyz_trans[2];
+
+    auto projectJac = -pCamera->projectJac(xyz_trans);
+
+    _jacobianOplusXi =  projectJac * T.rotation().toRotationMatrix();
+
+    Eigen::Matrix<double,3,6> SE3deriv;
+    SE3deriv << 0.f, z,   -y, 1.f, 0.f, 0.f,
+            -z , 0.f, x, 0.f, 1.f, 0.f,
+            y ,  -x , 0.f, 0.f, 0.f, 1.f;
+
+    _jacobianOplusXj = projectJac * SE3deriv;
+}
+"""
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            source_path = Path(tmpdir) / "OptimizableTypes.cpp"
+            source_path.write_text(source, encoding="utf-8")
+            changed = PATCH_HELPER.patch_optimizable_types(source_path)
+            rewritten = source_path.read_text(encoding="utf-8")
+
+        self.assertTrue(changed)
+        self.assertIn("const Eigen::Matrix<double, 2, 3> project_jac =", rewritten)
+        self.assertIn("(-pCamera->projectJac(xyz_trans)).eval()", rewritten)
+        self.assertIn("_jacobianOplusXi = project_jac * T.rotation().toRotationMatrix();", rewritten)
+        self.assertIn("_jacobianOplusXj = project_jac * SE3deriv;", rewritten)
+        self.assertNotIn("auto projectJac = -pCamera->projectJac(xyz_trans);", rewritten)
+
+    def test_edge_se3_project_xyz_rewrite_is_idempotent(self) -> None:
+        source = """void EdgeSE3ProjectXYZ::linearizeOplus() {
+    g2o::VertexSE3Expmap * vj = static_cast<g2o::VertexSE3Expmap *>(_vertices[1]);
+    g2o::SE3Quat T(vj->estimate());
+    g2o::VertexSBAPointXYZ* vi = static_cast<g2o::VertexSBAPointXYZ*>(_vertices[0]);
+    Eigen::Vector3d xyz = vi->estimate();
+    Eigen::Vector3d xyz_trans = T.map(xyz);
+
+    double x = xyz_trans[0];
+    double y = xyz_trans[1];
+    double z = xyz_trans[2];
+
+    const Eigen::Matrix<double, 2, 3> project_jac =
+        (-pCamera->projectJac(xyz_trans)).eval();
+
+    _jacobianOplusXi = project_jac * T.rotation().toRotationMatrix();
+
+    Eigen::Matrix<double,3,6> SE3deriv;
+    SE3deriv << 0.f, z,   -y, 1.f, 0.f, 0.f,
+            -z , 0.f, x, 0.f, 1.f, 0.f,
+            y ,  -x , 0.f, 0.f, 0.f, 1.f;
+
+    _jacobianOplusXj = project_jac * SE3deriv;
+}
+"""
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            source_path = Path(tmpdir) / "OptimizableTypes.cpp"
+            source_path.write_text(source, encoding="utf-8")
+            changed = PATCH_HELPER.patch_optimizable_types(source_path)
+            rewritten = source_path.read_text(encoding="utf-8")
+
+        self.assertFalse(changed)
+        self.assertEqual(rewritten, source)
+
     def test_rewrites_shutdown_to_wait_for_worker_threads(self) -> None:
         source = """void System::Shutdown()
 {
