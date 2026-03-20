@@ -30,7 +30,9 @@ diagnostics are tracked in the
 the current sanitizer-backed allocator repro lane is tracked in the
 [HEL-68 ASan crash follow-up](hel-68-asan-crash-follow-up.md), and the current
 private-host rerun after applying that Jacobian fix is tracked in the
-[HEL-70 Eigen alignment follow-up](hel-70-eigen-alignment-follow-up.md).
+[HEL-70 Eigen alignment follow-up](hel-70-eigen-alignment-follow-up.md). The
+current public rerun with Eigen static alignment disabled is tracked in the
+[HEL-71 Eigen static-alignment follow-up](hel-71-eigen-static-alignment-follow-up.md).
 
 ## Selected Baseline And Config Bundle
 

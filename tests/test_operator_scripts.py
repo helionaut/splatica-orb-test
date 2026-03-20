@@ -49,6 +49,10 @@ class OperatorScriptTests(unittest.TestCase):
         self.assertIn('build_target="${ORB_SLAM3_BUILD_TARGET:-mono_tum_vi}"', script)
         self.assertIn('build_type="${requested_build_type:-Release}"', script)
         self.assertIn('enable_asan="${ORB_SLAM3_ENABLE_ASAN:-0}"', script)
+        self.assertIn(
+            'disable_eigen_static_alignment="${ORB_SLAM3_DISABLE_EIGEN_STATIC_ALIGNMENT:-0}"',
+            script,
+        )
         self.assertIn('append_march_native="${ORB_SLAM3_APPEND_MARCH_NATIVE:-OFF}"', script)
         self.assertIn('build_parallelism="${ORB_SLAM3_BUILD_PARALLELISM:-1}"', script)
         self.assertIn('build_experiment="${ORB_SLAM3_BUILD_EXPERIMENT:-orbslam3-${build_target}-portable-build}"', script)
@@ -69,6 +73,14 @@ class OperatorScriptTests(unittest.TestCase):
         self.assertIn('cmake_cxx_flags+="${asan_compile_flags}"', script)
         self.assertIn('cmake_c_flags+="${asan_compile_flags}"', script)
         self.assertIn('cmake_linker_flags+=" -fsanitize=address"', script)
+        self.assertIn(
+            'cmake_cxx_flags+=" -DEIGEN_MAX_STATIC_ALIGN_BYTES=0 -DEIGEN_DONT_ALIGN_STATICALLY"',
+            script,
+        )
+        self.assertIn(
+            'cmake_c_flags+=" -DEIGEN_MAX_STATIC_ALIGN_BYTES=0 -DEIGEN_DONT_ALIGN_STATICALLY"',
+            script,
+        )
         self.assertIn('"example_entrypoint": sha256(example_source_path)', script)
         self.assertIn(".symphony/build-attempts", script)
         self.assertIn("orbslam3-build-latest.log", script)
@@ -83,6 +95,10 @@ class OperatorScriptTests(unittest.TestCase):
         self.assertIn("Kernel OOM evidence detected", script)
         self.assertIn("Identical retry rejected", script)
         self.assertIn("write_progress_artifact()", script)
+        self.assertIn(
+            '"disable_eigen_static_alignment": disable_eigen_static_alignment == "1"',
+            script,
+        )
         self.assertIn('"expected_artifact": relative_text(build_executable_path)', script)
         self.assertIn('update_progress_phase 7 "in_progress" "Root ORB_SLAM3 build is running for ${build_target} (pid ${build_pid})"', script)
         self.assertIn("--target", script)
@@ -234,6 +250,10 @@ class OperatorScriptTests(unittest.TestCase):
         self.assertIn("ORB_SLAM3_BUILD_TARGET", script)
         self.assertIn("ORB_SLAM3_APPEND_MARCH_NATIVE", script)
         self.assertIn("ORB_SLAM3_BUILD_PARALLELISM", script)
+        self.assertIn("ORB_SLAM3_DISABLE_EIGEN_STATIC_ALIGNMENT", script)
         self.assertIn("ORB_SLAM3_BUILD_CHANGED_VARIABLE", script)
+        self.assertIn('"ORB_SLAM3_BUILD_CHANGED_VARIABLE": os.environ.get(', script)
+        self.assertIn('"ORB_SLAM3_BUILD_HYPOTHESIS": os.environ.get(', script)
+        self.assertIn('"ORB_SLAM3_BUILD_SUCCESS_CRITERION": os.environ.get(', script)
         self.assertIn("public TUM-VI room1_512_16 archive", script)
         self.assertIn("fresh_execution_paths", script)

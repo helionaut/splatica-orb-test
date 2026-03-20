@@ -29,6 +29,7 @@ build_target="${ORB_SLAM3_BUILD_TARGET:-mono_tum_vi}"
 requested_build_type="${ORB_SLAM3_BUILD_TYPE:-}"
 build_type="${requested_build_type:-Release}"
 enable_asan="${ORB_SLAM3_ENABLE_ASAN:-0}"
+disable_eigen_static_alignment="${ORB_SLAM3_DISABLE_EIGEN_STATIC_ALIGNMENT:-0}"
 append_march_native="${ORB_SLAM3_APPEND_MARCH_NATIVE:-OFF}"
 build_parallelism="${ORB_SLAM3_BUILD_PARALLELISM:-1}"
 build_experiment="${ORB_SLAM3_BUILD_EXPERIMENT:-orbslam3-${build_target}-portable-build}"
@@ -100,6 +101,11 @@ if [[ "${enable_asan}" != "0" && "${enable_asan}" != "1" ]]; then
   exit 1
 fi
 
+if [[ "${disable_eigen_static_alignment}" != "0" && "${disable_eigen_static_alignment}" != "1" ]]; then
+  printf 'ORB_SLAM3_DISABLE_EIGEN_STATIC_ALIGNMENT must be either 0 or 1, got: %s\n' "${disable_eigen_static_alignment}" >&2
+  exit 1
+fi
+
 if [[ "${enable_asan}" == "1" && -z "${requested_build_type}" ]]; then
   # AddressSanitizer diagnostic builds default to RelWithDebInfo.
   build_type="RelWithDebInfo"
@@ -108,6 +114,11 @@ fi
 if [[ -n "${extra_compile_flags}" ]]; then
   cmake_cxx_flags+=" ${extra_compile_flags}"
   cmake_c_flags+=" ${extra_compile_flags}"
+fi
+
+if [[ "${disable_eigen_static_alignment}" == "1" ]]; then
+  cmake_cxx_flags+=" -DEIGEN_MAX_STATIC_ALIGN_BYTES=0 -DEIGEN_DONT_ALIGN_STATICALLY"
+  cmake_c_flags+=" -DEIGEN_MAX_STATIC_ALIGN_BYTES=0 -DEIGEN_DONT_ALIGN_STATICALLY"
 fi
 
 if [[ "${enable_asan}" == "1" ]]; then
@@ -212,7 +223,7 @@ write_progress_artifact() {
     return 0
   fi
 
-  python3 - "${repo_root}" "${progress_artifact}" "${progress_issue_id}" "${status}" "${current_step}" "${progress_completed}" "${build_target}" "${build_type}" "${enable_asan}" "${build_parallelism}" "${changed_variable}" "${hypothesis}" "${success_criterion}" "${current_build_signature}" "${failure_reason}" "${build_started_at}" "${build_finished_at}" "${build_pid}" "${build_exit_code}" "${build_exit_signal}" "${oom_detected}" "${build_command_text}" "${build_command_workdir}" "${build_log_current}" "${build_executable_path}" "${build_library_path}" "${build_attempt_current}" <<'PY'
+  python3 - "${repo_root}" "${progress_artifact}" "${progress_issue_id}" "${status}" "${current_step}" "${progress_completed}" "${build_target}" "${build_type}" "${enable_asan}" "${disable_eigen_static_alignment}" "${build_parallelism}" "${changed_variable}" "${hypothesis}" "${success_criterion}" "${current_build_signature}" "${failure_reason}" "${build_started_at}" "${build_finished_at}" "${build_pid}" "${build_exit_code}" "${build_exit_signal}" "${oom_detected}" "${build_command_text}" "${build_command_workdir}" "${build_log_current}" "${build_executable_path}" "${build_library_path}" "${build_attempt_current}" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -227,6 +238,7 @@ from pathlib import Path
     build_target,
     build_type,
     enable_asan,
+    disable_eigen_static_alignment,
     build_parallelism,
     changed_variable,
     hypothesis,
@@ -281,6 +293,7 @@ payload = {
         "build_target": build_target,
         "build_type": build_type,
         "enable_asan": enable_asan == "1",
+        "disable_eigen_static_alignment": disable_eigen_static_alignment == "1",
         "build_parallelism": optional_int(build_parallelism),
         "changed_variable": changed_variable,
         "hypothesis": hypothesis,
@@ -325,7 +338,7 @@ write_build_attempt_metadata() {
 
   refresh_latest_diagnostics
 
-  python3 - "${repo_root}" "${checkout_dir}" "${build_attempt_current}" "${build_attempt_latest}" "${build_target}" "${build_type}" "${enable_asan}" "${append_march_native}" "${build_parallelism}" "${release_flags}" "${cmake_cxx_flags}" "${cmake_c_flags}" "${cmake_linker_flags}" "${build_experiment}" "${changed_variable}" "${hypothesis}" "${success_criterion}" "${status}" "${failure_reason}" "${build_executable_path}" "${build_example_source_path}" "${build_library_path}" "${allow_identical_retry}" "${current_build_signature}" "${build_log_current}" "${dmesg_current}" "${build_command_text}" "${build_command_workdir}" "${build_started_at}" "${build_finished_at}" "${build_pid}" "${build_exit_code}" "${build_exit_signal}" "${oom_detected}" <<'PY'
+  python3 - "${repo_root}" "${checkout_dir}" "${build_attempt_current}" "${build_attempt_latest}" "${build_target}" "${build_type}" "${enable_asan}" "${disable_eigen_static_alignment}" "${append_march_native}" "${build_parallelism}" "${release_flags}" "${cmake_cxx_flags}" "${cmake_c_flags}" "${cmake_linker_flags}" "${build_experiment}" "${changed_variable}" "${hypothesis}" "${success_criterion}" "${status}" "${failure_reason}" "${build_executable_path}" "${build_example_source_path}" "${build_library_path}" "${allow_identical_retry}" "${current_build_signature}" "${build_log_current}" "${dmesg_current}" "${build_command_text}" "${build_command_workdir}" "${build_started_at}" "${build_finished_at}" "${build_pid}" "${build_exit_code}" "${build_exit_signal}" "${oom_detected}" <<'PY'
 import hashlib
 import json
 import subprocess
@@ -340,6 +353,7 @@ from pathlib import Path
     build_target,
     build_type,
     enable_asan,
+    disable_eigen_static_alignment,
     append_march_native,
     build_parallelism,
     release_flags,
@@ -425,6 +439,7 @@ payload = {
     "build_target": build_target,
     "build_type": build_type,
     "enable_asan": enable_asan == "1",
+    "disable_eigen_static_alignment": disable_eigen_static_alignment == "1",
     "checkout_head": git_head(checkout_dir),
     "append_march_native": append_march_native == "ON",
     "build_parallelism": int(build_parallelism),

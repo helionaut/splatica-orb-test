@@ -225,16 +225,29 @@ def main() -> int:
                 if command[0].endswith("build_orbslam3_baseline.sh"):
                     env_overrides = {
                         "ORB_SLAM3_BUILD_TARGET": "mono_tum_vi",
-                        "ORB_SLAM3_APPEND_MARCH_NATIVE": "OFF",
-                        "ORB_SLAM3_BUILD_PARALLELISM": "1",
-                        "ORB_SLAM3_BUILD_EXPERIMENT": "clean-room-tum-vi-room1-portable-build",
-                        "ORB_SLAM3_BUILD_CHANGED_VARIABLE": (
+                        "ORB_SLAM3_APPEND_MARCH_NATIVE": os.environ.get(
+                            "ORB_SLAM3_APPEND_MARCH_NATIVE", "OFF"
+                        ),
+                        "ORB_SLAM3_BUILD_PARALLELISM": os.environ.get(
+                            "ORB_SLAM3_BUILD_PARALLELISM", "1"
+                        ),
+                        "ORB_SLAM3_DISABLE_EIGEN_STATIC_ALIGNMENT": os.environ.get(
+                            "ORB_SLAM3_DISABLE_EIGEN_STATIC_ALIGNMENT", "0"
+                        ),
+                        "ORB_SLAM3_BUILD_EXPERIMENT": os.environ.get(
+                            "ORB_SLAM3_BUILD_EXPERIMENT",
+                            "clean-room-tum-vi-room1-portable-build",
+                        ),
+                        "ORB_SLAM3_BUILD_CHANGED_VARIABLE": os.environ.get(
+                            "ORB_SLAM3_BUILD_CHANGED_VARIABLE",
                             "prove the public mono_tum_vi lane on room1_512_16 with a fresh checkout, repo-local bootstraps, and a single-job build"
                         ),
-                        "ORB_SLAM3_BUILD_HYPOTHESIS": (
+                        "ORB_SLAM3_BUILD_HYPOTHESIS": os.environ.get(
+                            "ORB_SLAM3_BUILD_HYPOTHESIS",
                             "the pinned upstream checkout plus repo-local dependency prefixes will either build mono_tum_vi for a public room1_512_16 replay or surface a concrete compiler/linker blocker"
                         ),
-                        "ORB_SLAM3_BUILD_SUCCESS_CRITERION": (
+                        "ORB_SLAM3_BUILD_SUCCESS_CRITERION": os.environ.get(
+                            "ORB_SLAM3_BUILD_SUCCESS_CRITERION",
                             "mono_tum_vi and libORB_SLAM3.so both exist after the build phase"
                         ),
                     }
