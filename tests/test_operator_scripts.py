@@ -52,6 +52,15 @@ class OperatorScriptTests(unittest.TestCase):
             encoding="utf-8"
         )
 
+        self.assertIn("patch_cmakelists", script)
+        self.assertIn(
+            "wrapper-controlled release flags instead of",
+            script,
+        )
+        self.assertIn(
+            'set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native")',
+            script,
+        )
         self.assertIn(
             "Waiting for ORB-SLAM3 worker shutdown before trajectory save.", script
         )
@@ -140,3 +149,27 @@ class OperatorScriptTests(unittest.TestCase):
 
         self.assertIn("publish-rgbd-sanity", makefile)
         self.assertIn("scripts/publish_rgbd_tum_sanity.py", makefile)
+
+    def test_makefile_exposes_public_tum_vi_sanity_targets(self) -> None:
+        makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+
+        self.assertIn("fetch-tum-vi", makefile)
+        self.assertIn("tum-vi-sanity", makefile)
+        self.assertIn("scripts/fetch_tum_vi_dataset.py", makefile)
+        self.assertIn("scripts/run_clean_room_public_tum_vi_sanity.sh", makefile)
+
+    def test_clean_room_public_tum_vi_python_runner_tracks_progress(self) -> None:
+        script = (
+            REPO_ROOT / "scripts/run_clean_room_public_tum_vi_sanity.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn(".symphony/progress/HEL-67.json", script)
+        self.assertIn(".symphony/build-attempts/orbslam3-build-latest.json", script)
+        self.assertIn(".symphony/build-attempts/orbslam3-build-latest.log", script)
+        self.assertIn("build_progress_payload", script)
+        self.assertIn("ORB_SLAM3_BUILD_TARGET", script)
+        self.assertIn("ORB_SLAM3_APPEND_MARCH_NATIVE", script)
+        self.assertIn("ORB_SLAM3_BUILD_PARALLELISM", script)
+        self.assertIn("ORB_SLAM3_BUILD_CHANGED_VARIABLE", script)
+        self.assertIn("public TUM-VI room1_512_16 archive", script)
+        self.assertIn("fresh_execution_paths", script)

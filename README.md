@@ -11,7 +11,9 @@ make build
 make smoke
 make calibration-smoke
 make fetch-tum-rgbd
+make fetch-tum-vi
 make rgbd-sanity
+make tum-vi-sanity
 make check
 ```
 
@@ -19,7 +21,9 @@ make check
 - `make smoke` exercises the canonical dry-run launcher path and writes outputs to `logs/out/` and `reports/out/`.
 - `make calibration-smoke` generates and validates the checked-in shareable calibration settings bundles for the first monocular baseline.
 - `make fetch-tum-rgbd` downloads and extracts the public TUM RGB-D `fr1/xyz` dataset into `datasets/public/`.
+- `make fetch-tum-vi` downloads and extracts the public TUM-VI `room1_512_16` dataset into `datasets/public/`.
 - `make rgbd-sanity` runs the clean-room public RGB-D sanity lane against upstream `rgbd_tum`.
+- `make tum-vi-sanity` runs the clean-room public TUM-VI monocular sanity lane against upstream `mono_tum_vi`.
 - `make check` runs tests, build, smoke, calibration-smoke, and normalization as one aggregate validation command.
 
 ## Current Project Docs
@@ -27,6 +31,7 @@ make check
 - [Execution plan](docs/execution-plan.md)
 - [Final validation report](docs/final-validation-report.md)
 - [TUM RGB-D sanity run report](docs/tum-rgbd-sanity-report.md)
+- [TUM-VI monocular sanity run report](docs/tum-vi-sanity-report.md)
 - [HEL-63 post-initialization abort follow-up](docs/hel-63-post-initialization-abort-follow-up.md)
 - [Dataset normalization](docs/dataset-normalization.md)
 - [Calibration translation](docs/calibration-translation.md)
@@ -195,6 +200,36 @@ historical paths that are no longer the canonical entrypoint, use
 [docs/final-validation-report.md](docs/final-validation-report.md). For the
 actual public-run verdict and published artifact paths, use
 [docs/tum-rgbd-sanity-report.md](docs/tum-rgbd-sanity-report.md).
+
+## Public TUM-VI Monocular Sanity Lane
+
+`HEL-67` extends the same clean-room baseline proof into the public TUM-VI
+`room1_512_16` monocular fisheye lane. The checked-in manifest is
+`manifests/tum_vi_room1_512_16_cam0_sanity.json`.
+
+Run the full public lane with:
+
+```bash
+make tum-vi-sanity
+```
+
+That command:
+
+1. fetches a fresh upstream ORB-SLAM3 checkout at the pinned commit
+2. bootstraps repo-local `cmake`, `Eigen3`, OpenCV, Boost serialization, and
+   Pangolin prefixes
+3. downloads and extracts the public TUM-VI `room1_512_16` archive into
+   `datasets/public/tum_vi/`
+4. materializes `cam0` into the repo's monocular calibration and frame-index
+   contract from `dso/cam0/camera.txt` and `mav0/cam0/data.csv`
+5. builds the upstream `mono_tum_vi` target from scratch
+6. runs the public sequence under `xvfb-run -a`
+7. writes the orchestration log, runtime log, and markdown report under
+   `logs/out/`, `reports/out/`, and `.symphony/`
+
+For the final public-run verdict and the exact runtime blocker that remains on
+this host, use
+[docs/tum-vi-sanity-report.md](docs/tum-vi-sanity-report.md).
 
 ## Repository layout
 
