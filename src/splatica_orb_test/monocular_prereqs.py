@@ -58,6 +58,14 @@ def _detect_tool(name: str) -> PrerequisiteCheck:
     )
 
 
+def _is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
 def _read_baseline_commit(checkout_path: Path) -> str | None:
     if not (checkout_path / ".git").exists():
         return None
@@ -217,6 +225,84 @@ def _detect_pangolin_prerequisite(repo_root: Path) -> PrerequisiteCheck:
     )
 
 
+def _detect_runner_library_linkage(
+    executable_path: Path,
+    baseline_root: Path,
+) -> PrerequisiteCheck:
+    label = "Runner libORB_SLAM3 linkage"
+    if not executable_path.exists():
+        return PrerequisiteCheck(
+            label=label,
+            ready=False,
+            detail=f"runner missing at {executable_path}",
+        )
+
+    ldd = shutil.which("ldd")
+    if ldd is None:
+        return PrerequisiteCheck(
+            label=label,
+            ready=False,
+            detail="ldd not found on PATH",
+        )
+
+    result = subprocess.run(
+        [ldd, str(executable_path)],
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or "ldd failed"
+        return PrerequisiteCheck(
+            label=label,
+            ready=False,
+            detail=stderr,
+        )
+
+    for raw_line in result.stdout.splitlines():
+        if "libORB_SLAM3.so" not in raw_line:
+            continue
+        if "=>" not in raw_line:
+            return PrerequisiteCheck(
+                label=label,
+                ready=False,
+                detail=f"unparseable ldd line: {raw_line.strip()}",
+            )
+
+        resolved_text = raw_line.split("=>", 1)[1].strip().split(" (", 1)[0].strip()
+        if not resolved_text or resolved_text == "not found":
+            return PrerequisiteCheck(
+                label=label,
+                ready=False,
+                detail="libORB_SLAM3.so not found by ldd",
+            )
+
+        resolved_path = Path(resolved_text)
+        return PrerequisiteCheck(
+            label=label,
+            ready=_is_relative_to(resolved_path, baseline_root),
+            detail=str(resolved_path),
+        )
+
+    return PrerequisiteCheck(
+        label=label,
+        ready=False,
+        detail="libORB_SLAM3.so not listed by ldd",
+    )
+
+
+def _detect_checkout_ownership(
+    checkout_path: Path,
+    repo_root: Path,
+) -> PrerequisiteCheck:
+    resolved_checkout = checkout_path.resolve()
+    return PrerequisiteCheck(
+        label="Baseline checkout ownership",
+        ready=_is_relative_to(resolved_checkout, repo_root),
+        detail=str(resolved_checkout),
+    )
+
+
 def inspect_monocular_baseline_prerequisites(
     repo_root: Path,
     manifest_path: Path,
@@ -244,7 +330,8 @@ def inspect_monocular_baseline_prerequisites(
             label="Baseline checkout",
             ready=checkout_exists,
             detail=checkout_detail,
-        )
+        ),
+        _detect_checkout_ownership(resolved.baseline_root, repo_root),
     ]
 
     checkout_commit = _read_baseline_commit(resolved.baseline_root)
@@ -297,6 +384,10 @@ def inspect_monocular_baseline_prerequisites(
                 label="Built monocular runner",
                 ready=resolved.executable.exists(),
                 detail=str(resolved.executable),
+            ),
+            _detect_runner_library_linkage(
+                resolved.executable,
+                resolved.baseline_root,
             ),
         ]
     )

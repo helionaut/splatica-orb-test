@@ -34,6 +34,7 @@ make check
 - [HEL-67 public TUM-VI sanity report](docs/reports/hel-67-public-tum-vi-room1-cam0.md)
 - [HEL-63 post-initialization abort follow-up](docs/hel-63-post-initialization-abort-follow-up.md)
 - [HEL-68 ASan crash follow-up](docs/hel-68-asan-crash-follow-up.md)
+- [HEL-69 worktree containment follow-up](docs/hel-69-worktree-containment-follow-up.md)
 - [Dataset normalization](docs/dataset-normalization.md)
 - [Calibration translation](docs/calibration-translation.md)
 - [Monocular baseline](docs/monocular-baseline.md)
@@ -68,6 +69,11 @@ prefix carries the transitive Qt/TBB/media libraries needed by the ORB-SLAM3
 example link step. On a host with the imported lens-10 bundle and the repo-local
 native toolchain in place, the baseline now executes end-to-end, but the current
 user sequence still produces zero keyframes and no saved trajectory artifacts.
+The latest follow-up in
+[docs/hel-69-worktree-containment-follow-up.md](docs/hel-69-worktree-containment-follow-up.md)
+adds one more blocker ahead of the next private ASan rerun: the active `HEL-69`
+worktree must stop reusing symlinked ORB-SLAM3/local-tool paths from older
+workspaces before any new private crash evidence can be treated as trustworthy.
 
 ## Stereo + IMU Normalization Lane
 
