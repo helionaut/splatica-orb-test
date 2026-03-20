@@ -123,6 +123,39 @@ bool System::isShutDown() { return false; }
 
 int main(int argc, char **argv)
 {
+    int seq = 0;
+    int num_seq = 1;
+    vector<float> vTimesTrack;
+    vector<int> nImages;
+    nImages.push_back(1);
+    ORB_SLAM3::System SLAM(argv[1],argv[2],ORB_SLAM3::System::MONOCULAR,false, 0, "");
+    float imageScale = SLAM.GetImageScale();
+    double t_resize = 0.f;
+    double t_track = 0.f;
+
+    int proccIm = 0;
+    for (seq = 0; seq<num_seq; seq++)
+    {
+        for(int ni=0; ni<nImages[seq]; ni++, proccIm++)
+        {
+            double tframe = 0;
+
+            // Pass the image to the SLAM system
+            SLAM.TrackMonocular(im,tframe); // TODO change to monocular_inertial
+
+            double ttrack= 0;
+            vTimesTrack[ni]=ttrack;
+
+            // Wait to load the next frame
+        }
+        if(seq < num_seq - 1)
+        {
+            cout << "Changing the dataset" << endl;
+
+            SLAM.ChangeDataset();
+        }
+    }
+
     bool bFileName = true;
 
     // Stop all threads
@@ -146,6 +179,16 @@ int main(int argc, char **argv)
         SLAM.SaveKeyFrameTrajectoryEuRoC("KeyFrameTrajectory.txt");
     }
 
+    sort(vTimesTrack.begin(),vTimesTrack.end());
+    float totaltime = 0;
+    for(int ni=0; ni<nImages[0]; ni++)
+    {
+        totaltime+=vTimesTrack[ni];
+    }
+    cout << "-------" << endl << endl;
+    cout << "median tracking time: " << vTimesTrack[nImages[0]/2] << endl;
+    cout << "mean tracking time: " << totaltime/proccIm << endl;
+
     return 0;
 }
 
@@ -159,6 +202,10 @@ void LoadImages() {}
 
         self.assertTrue(changed)
         self.assertIn("#include <cstdlib>", rewritten)
+        self.assertIn('std::getenv("ORB_SLAM3_HEL68_MAX_FRAMES")', rewritten)
+        self.assertIn("HEL-68 diagnostic: mono_tum_vi max frames=", rewritten)
+        self.assertIn("HEL-68 diagnostic: frame ", rewritten)
+        self.assertIn("TrackMonocular completed", rewritten)
         self.assertIn('std::getenv("ORB_SLAM3_SKIP_FRAME_TRAJECTORY_SAVE")', rewritten)
         self.assertIn("HEL-63 diagnostic: entering SLAM shutdown", rewritten)
         self.assertIn("HEL-63 diagnostic: SaveTrajectoryEuRoC completed", rewritten)
@@ -173,6 +220,67 @@ void LoadImages() {}
 
 int main(int argc, char **argv)
 {
+    int seq = 0;
+    int num_seq = 1;
+    vector<float> vTimesTrack;
+    vector<int> nImages;
+    nImages.push_back(1);
+    ORB_SLAM3::System SLAM(argv[1],argv[2],ORB_SLAM3::System::MONOCULAR,false, 0, "");
+    float imageScale = SLAM.GetImageScale();
+    double t_resize = 0.f;
+    double t_track = 0.f;
+
+    const char* hel68_max_frames_env = std::getenv("ORB_SLAM3_HEL68_MAX_FRAMES");
+    int hel68_max_frames = -1;
+    if(hel68_max_frames_env)
+    {
+        hel68_max_frames = std::atoi(hel68_max_frames_env);
+        cout << "HEL-68 diagnostic: mono_tum_vi max frames=" << hel68_max_frames << endl;
+    }
+
+    int proccIm = 0;
+    int hel68_processed_frames = 0;
+    bool hel68_stop_requested = false;
+    for (seq = 0; seq<num_seq; seq++)
+    {
+        for(int ni=0; ni<nImages[seq]; ni++, proccIm++)
+        {
+            double tframe = 0;
+
+            // Pass the image to the SLAM system
+            cout << "HEL-68 diagnostic: frame " << hel68_processed_frames
+                 << " TrackMonocular start timestamp=" << tframe << endl;
+            SLAM.TrackMonocular(im,tframe); // TODO change to monocular_inertial
+            cout << "HEL-68 diagnostic: frame " << hel68_processed_frames
+                 << " TrackMonocular completed" << endl;
+
+            double ttrack= 0;
+            vTimesTrack[hel68_processed_frames]=ttrack;
+            hel68_processed_frames++;
+
+            if(hel68_max_frames > 0 && hel68_processed_frames >= hel68_max_frames)
+            {
+                cout << "HEL-68 diagnostic: stopping after " << hel68_processed_frames
+                     << " frames due to ORB_SLAM3_HEL68_MAX_FRAMES" << endl;
+                hel68_stop_requested = true;
+                break;
+            }
+
+            // Wait to load the next frame
+        }
+        if(hel68_stop_requested)
+        {
+            break;
+        }
+
+        if(seq < num_seq - 1)
+        {
+            cout << "Changing the dataset" << endl;
+
+            SLAM.ChangeDataset();
+        }
+    }
+
     bool bFileName = true;
 
     // Stop all threads
@@ -232,6 +340,17 @@ int main(int argc, char **argv)
             cout << "HEL-63 diagnostic: SaveKeyFrameTrajectoryEuRoC completed" << endl;
         }
     }
+
+    const int hel68_stats_count = hel68_processed_frames > 0 ? hel68_processed_frames : nImages[0];
+    sort(vTimesTrack.begin(), vTimesTrack.begin() + hel68_stats_count);
+    float totaltime = 0;
+    for(int ni=0; ni<hel68_stats_count; ni++)
+    {
+        totaltime+=vTimesTrack[ni];
+    }
+    cout << "-------" << endl << endl;
+    cout << "median tracking time: " << vTimesTrack[hel68_stats_count/2] << endl;
+    cout << "mean tracking time: " << totaltime/hel68_stats_count << endl;
 
     return 0;
 }

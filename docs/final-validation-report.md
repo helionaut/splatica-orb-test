@@ -26,7 +26,9 @@ follow-up execution report for the private host run. Another engineer should
 start here instead of rediscovering the lane from old issue branches or
 generated reports. The current crash-isolation commands and save-phase
 diagnostics are tracked in the
-[HEL-63 post-initialization abort follow-up](hel-63-post-initialization-abort-follow-up.md).
+[HEL-63 post-initialization abort follow-up](hel-63-post-initialization-abort-follow-up.md),
+and the current sanitizer-backed allocator repro lane is tracked in the
+[HEL-68 ASan crash follow-up](hel-68-asan-crash-follow-up.md).
 
 ## Selected Baseline And Config Bundle
 
