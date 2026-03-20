@@ -497,6 +497,29 @@ def normalize_rgbd_tum_main(block: str) -> str:
     return block
 
 
+def patch_cmakelists(path: Path) -> bool:
+    original = path.read_text(encoding="utf-8")
+    marker = (
+        "# HEL-67: rely on the wrapper-controlled release flags instead of\n"
+        "# forcing -march=native in the fetched upstream checkout.\n"
+    )
+    if marker in original:
+        return False
+
+    updated, count = re.subn(
+        r'set\(CMAKE_C_FLAGS_RELEASE "\$\{CMAKE_C_FLAGS_RELEASE\} -march=native"\)\n'
+        r'set\(CMAKE_CXX_FLAGS_RELEASE "\$\{CMAKE_CXX_FLAGS_RELEASE\} -march=native"\)\n',
+        marker,
+        original,
+        count=1,
+    )
+    if count == 0:
+        raise ValueError("Failed to normalize upstream -march=native release flags")
+
+    path.write_text(updated, encoding="utf-8")
+    return True
+
+
 def patch_system_cc(path: Path) -> bool:
     original = path.read_text(encoding="utf-8")
     updated = rewrite_function_block(
@@ -587,9 +610,12 @@ def main() -> int:
     args = parser.parse_args()
 
     checkout_dir = Path(args.checkout_dir).resolve()
+    cmake_lists = checkout_dir / "CMakeLists.txt"
     system_cc = checkout_dir / "src/System.cc"
     mono_tum_vi_cc = checkout_dir / "Examples/Monocular/mono_tum_vi.cc"
     rgbd_tum_cc = checkout_dir / "Examples/RGB-D/rgbd_tum.cc"
+    if not cmake_lists.exists():
+        raise SystemExit(f"Missing ORB-SLAM3 source file: {cmake_lists}")
     if not system_cc.exists():
         raise SystemExit(f"Missing ORB-SLAM3 source file: {system_cc}")
     if not mono_tum_vi_cc.exists():
@@ -597,18 +623,19 @@ def main() -> int:
     if not rgbd_tum_cc.exists():
         raise SystemExit(f"Missing ORB-SLAM3 source file: {rgbd_tum_cc}")
 
+    cmake_changed = patch_cmakelists(cmake_lists)
     changed = patch_system_cc(system_cc)
     mono_changed = patch_mono_tum_vi(mono_tum_vi_cc)
     rgbd_changed = patch_rgbd_tum(rgbd_tum_cc)
-    if changed or mono_changed or rgbd_changed:
+    if cmake_changed or changed or mono_changed or rgbd_changed:
         print(
-            "Patched ORB-SLAM3 trajectory guards/diagnostics in "
-            f"{system_cc}, {mono_tum_vi_cc}, and {rgbd_tum_cc}"
+            "Patched ORB-SLAM3 release-flag/trajectory guards in "
+            f"{cmake_lists}, {system_cc}, {mono_tum_vi_cc}, and {rgbd_tum_cc}"
         )
     else:
         print(
-            "ORB-SLAM3 trajectory guards/diagnostics already present in "
-            f"{system_cc}, {mono_tum_vi_cc}, and {rgbd_tum_cc}"
+            "ORB-SLAM3 release-flag/trajectory guards already present in "
+            f"{cmake_lists}, {system_cc}, {mono_tum_vi_cc}, and {rgbd_tum_cc}"
         )
     return 0
 

@@ -111,6 +111,23 @@ class FinalValidationDocsTests(unittest.TestCase):
             follow_up,
         )
 
+    def test_hel67_public_tum_vi_doc_records_runtime_blocker(self) -> None:
+        report = (
+            REPO_ROOT / "docs/reports/hel-67-public-tum-vi-room1-cam0.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("Issue: HEL-67", report)
+        self.assertIn("dataset-room1_512_16", report)
+        self.assertIn("room1_512_16", report)
+        self.assertIn("mono_tum_vi", report)
+        self.assertIn("2821", report)
+        self.assertIn("New Map created with 375 points", report)
+        self.assertIn("double free or corruption (out)", report)
+        self.assertIn("exit code `134`", report)
+        self.assertIn("No frame or keyframe trajectory files", report)
+        self.assertIn("-march=native", report)
+        self.assertIn("ulimit -c", report)
+
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"
         text = source.read_text(encoding="utf-8")

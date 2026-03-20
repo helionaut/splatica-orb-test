@@ -58,7 +58,7 @@ class OperatorScriptTests(unittest.TestCase):
             script,
         )
         self.assertIn(
-            'set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=native")',
+            "Failed to normalize upstream -march=native release flags",
             script,
         )
         self.assertIn(
