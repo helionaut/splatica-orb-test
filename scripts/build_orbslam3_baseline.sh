@@ -80,6 +80,7 @@ local_opencv_link_dirs=(
   "${local_opencv_prefix}/lib/x86_64-linux-gnu/openblas-serial"
 )
 linker_search_dirs=()
+build_rpath_dirs=()
 release_flag_parts=("-std=gnu++14")
 
 if [[ "${append_march_native}" == "ON" ]]; then
@@ -745,6 +746,23 @@ append_linker_search_dir() {
   prepend_path_var CMAKE_LIBRARY_PATH "${dir}"
 }
 
+append_build_rpath_dir() {
+  local dir="$1"
+  local existing_dir=""
+
+  if [[ ! -d "${dir}" ]]; then
+    return 0
+  fi
+
+  for existing_dir in "${build_rpath_dirs[@]}"; do
+    if [[ "${existing_dir}" == "${dir}" ]]; then
+      return 0
+    fi
+  done
+
+  build_rpath_dirs+=("${dir}")
+}
+
 {
   if [[ "${cmake_bin}" == "${local_cmake_bin}" ]]; then
     export PATH="$(dirname "${local_cmake_bin}"):${PATH}"
@@ -819,6 +837,12 @@ append_linker_search_dir() {
   mkdir -p "${checkout_dir}/build"
   (
     cd "${checkout_dir}/build"
+    append_build_rpath_dir "${checkout_dir}/lib"
+    append_build_rpath_dir "${checkout_dir}/Thirdparty/DBoW2/lib"
+    append_build_rpath_dir "${checkout_dir}/Thirdparty/g2o/lib"
+    for link_dir in "${linker_search_dirs[@]}"; do
+      append_build_rpath_dir "${link_dir}"
+    done
     cmake_args=(
       "${checkout_dir}"
       "-DCMAKE_BUILD_TYPE=${build_type}"
@@ -827,6 +851,10 @@ append_linker_search_dir() {
       "-D${cmake_cxx_flag_name}=${cmake_cxx_flags}"
       "-D${cmake_c_flag_name}=${cmake_c_flags}"
     )
+    if ((${#build_rpath_dirs[@]})); then
+      build_rpath_text="$(IFS=';'; printf '%s' "${build_rpath_dirs[*]}")"
+      cmake_args+=("-DCMAKE_BUILD_RPATH=${build_rpath_text}")
+    fi
     linker_flag_text=""
     if ((${#linker_search_dirs[@]})); then
       for link_dir in "${linker_search_dirs[@]}"; do

@@ -101,6 +101,16 @@ class MonocularPrerequisiteTests(unittest.TestCase):
                     "rev-parse",
                 ]:
                     return mock.Mock(returncode=0, stdout=f"{BASELINE_COMMIT}\n", stderr="")
+                if cmd[:1] == ["/usr/bin/ldd"]:
+                    return mock.Mock(
+                        returncode=0,
+                        stdout=(
+                            "libORB_SLAM3.so => "
+                            f"{repo_root / 'third_party/orbslam3/upstream/lib/libORB_SLAM3.so'}"
+                            " (0x0000)\n"
+                        ),
+                        stderr="",
+                    )
                 if cmd[:2] == ["pkg-config", "--modversion"]:
                     package = cmd[2]
                     versions = {
@@ -117,6 +127,7 @@ class MonocularPrerequisiteTests(unittest.TestCase):
                 "splatica_orb_test.monocular_prereqs.shutil.which",
                 side_effect=lambda name: {
                     "cmake": "/tmp/cmake",
+                    "ldd": "/usr/bin/ldd",
                     "make": "/usr/bin/make",
                     "pkg-config": "/usr/bin/pkg-config",
                 }.get(name),
@@ -171,6 +182,12 @@ class MonocularPrerequisiteTests(unittest.TestCase):
             def fake_run(cmd: list[str], **_kwargs: object) -> mock.Mock:
                 if cmd[:2] == ["pkg-config", "--modversion"]:
                     return mock.Mock(returncode=0, stdout="1.0\n", stderr="")
+                if cmd[:1] == ["/usr/bin/fake"]:
+                    return mock.Mock(
+                        returncode=0,
+                        stdout="libORB_SLAM3.so => not found\n",
+                        stderr="",
+                    )
                 if cmd[:4] == [
                     "git",
                     "-C",
@@ -249,6 +266,16 @@ class MonocularPrerequisiteTests(unittest.TestCase):
                     "rev-parse",
                 ]:
                     return mock.Mock(returncode=0, stdout=f"{BASELINE_COMMIT}\n", stderr="")
+                if cmd[:1] == ["/usr/bin/ldd"]:
+                    return mock.Mock(
+                        returncode=0,
+                        stdout=(
+                            "libORB_SLAM3.so => "
+                            f"{repo_root / 'third_party/orbslam3/upstream/lib/libORB_SLAM3.so'}"
+                            " (0x0000)\n"
+                        ),
+                        stderr="",
+                    )
                 if cmd[:2] == ["pkg-config", "--modversion"]:
                     package = cmd[2]
                     versions = {
@@ -264,6 +291,7 @@ class MonocularPrerequisiteTests(unittest.TestCase):
                 "splatica_orb_test.monocular_prereqs.shutil.which",
                 side_effect=lambda name: {
                     "cmake": "/tmp/cmake",
+                    "ldd": "/usr/bin/ldd",
                     "make": "/usr/bin/make",
                     "pkg-config": "/usr/bin/pkg-config",
                 }.get(name),
@@ -338,6 +366,16 @@ class MonocularPrerequisiteTests(unittest.TestCase):
                     "rev-parse",
                 ]:
                     return mock.Mock(returncode=0, stdout=f"{BASELINE_COMMIT}\n", stderr="")
+                if cmd[:1] == ["/usr/bin/ldd"]:
+                    return mock.Mock(
+                        returncode=0,
+                        stdout=(
+                            "libORB_SLAM3.so => "
+                            f"{repo_root / 'third_party/orbslam3/upstream/lib/libORB_SLAM3.so'}"
+                            " (0x0000)\n"
+                        ),
+                        stderr="",
+                    )
                 if cmd[:2] == ["pkg-config", "--modversion"]:
                     package = cmd[2]
                     versions = {
@@ -353,6 +391,7 @@ class MonocularPrerequisiteTests(unittest.TestCase):
                 "splatica_orb_test.monocular_prereqs.shutil.which",
                 side_effect=lambda name: {
                     "cmake": "/tmp/cmake",
+                    "ldd": "/usr/bin/ldd",
                     "make": "/usr/bin/make",
                     "pkg-config": "/usr/bin/pkg-config",
                 }.get(name),
@@ -370,3 +409,170 @@ class MonocularPrerequisiteTests(unittest.TestCase):
         self.assertIn("OpenCV development package: **ready**", report)
         self.assertIn("Boost serialization development package: **ready**", report)
         self.assertIn("repo-local bootstrap", report)
+
+    def test_rejects_runner_linked_to_another_checkout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+            manifest_path = (
+                repo_root / "manifests/insta360_x3_lens10_monocular_baseline.json"
+            )
+            write_file(manifest_path, MANIFEST_PATH.read_text(encoding="utf-8"))
+            write_file(repo_root / LENS10_ROOT / "monocular_calibration.json", "{}")
+            write_file(repo_root / LENS10_ROOT / "frame_index.csv", "timestamp_ns,source_path\n")
+            write_file(repo_root / "third_party/orbslam3/upstream/.git", "gitdir")
+            write_file(
+                repo_root / "third_party/orbslam3/upstream/Vocabulary/ORBvoc.txt.tar.gz",
+                "archive",
+            )
+            write_file(repo_root / "third_party/orbslam3/upstream/Vocabulary/ORBvoc.txt", "text")
+            write_file(
+                repo_root
+                / "build/local-tools/boost-root/usr/include/boost/serialization/serialization.hpp",
+                "header",
+            )
+            write_file(
+                repo_root
+                / "build/local-tools/boost-root/usr/lib/x86_64-linux-gnu/libboost_serialization.so",
+                "library",
+            )
+            executable = (
+                repo_root
+                / "third_party/orbslam3/upstream/Examples/Monocular/mono_tum_vi"
+            )
+            write_file(executable, "binary")
+            executable.chmod(0o755)
+
+            def fake_run(cmd: list[str], **_kwargs: object) -> mock.Mock:
+                if cmd[:4] == [
+                    "git",
+                    "-C",
+                    str(repo_root / "third_party/orbslam3/upstream"),
+                    "rev-parse",
+                ]:
+                    return mock.Mock(returncode=0, stdout=f"{BASELINE_COMMIT}\n", stderr="")
+                if cmd[:1] == ["/usr/bin/ldd"]:
+                    return mock.Mock(
+                        returncode=0,
+                        stdout=(
+                            "libORB_SLAM3.so => "
+                            "/tmp/HEL-68-restacked/third_party/orbslam3/upstream/lib/libORB_SLAM3.so"
+                            " (0x0000)\n"
+                        ),
+                        stderr="",
+                    )
+                if cmd[:2] == ["pkg-config", "--modversion"]:
+                    package = cmd[2]
+                    versions = {
+                        "opencv4": "4.6.0\n",
+                        "eigen3": "3.4.0\n",
+                        "pangolin": "0.8\n",
+                    }
+                    if package in versions:
+                        return mock.Mock(returncode=0, stdout=versions[package], stderr="")
+                    return mock.Mock(returncode=1, stdout="", stderr="")
+                raise AssertionError(f"Unexpected command: {cmd}")
+
+            with mock.patch(
+                "splatica_orb_test.monocular_prereqs.shutil.which",
+                side_effect=lambda name: {
+                    "cmake": "/tmp/cmake",
+                    "ldd": "/usr/bin/ldd",
+                    "make": "/usr/bin/make",
+                    "pkg-config": "/usr/bin/pkg-config",
+                }.get(name),
+            ), mock.patch(
+                "splatica_orb_test.monocular_prereqs.subprocess.run",
+                side_effect=fake_run,
+            ):
+                prerequisites = inspect_monocular_baseline_prerequisites(
+                    repo_root,
+                    manifest_path,
+                )
+
+        report = render_monocular_baseline_prerequisite_report(prerequisites)
+        self.assertFalse(prerequisites.ready_for_execute)
+        self.assertIn("Runner libORB_SLAM3 linkage: **missing**", report)
+        self.assertIn("/tmp/HEL-68-restacked", report)
+
+    def test_rejects_checkout_symlinked_to_another_workspace(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir, tempfile.TemporaryDirectory() as otherdir:
+            repo_root = Path(tmpdir)
+            other_root = Path(otherdir)
+            manifest_path = (
+                repo_root / "manifests/insta360_x3_lens10_monocular_baseline.json"
+            )
+            write_file(manifest_path, MANIFEST_PATH.read_text(encoding="utf-8"))
+            write_file(repo_root / LENS10_ROOT / "monocular_calibration.json", "{}")
+            write_file(repo_root / LENS10_ROOT / "frame_index.csv", "timestamp_ns,source_path\n")
+            upstream_target = other_root / "third_party/orbslam3/upstream"
+            upstream_target.mkdir(parents=True, exist_ok=True)
+            write_file(upstream_target / ".git", "gitdir")
+            write_file(upstream_target / "Vocabulary/ORBvoc.txt.tar.gz", "archive")
+            write_file(upstream_target / "Vocabulary/ORBvoc.txt", "text")
+            executable = upstream_target / "Examples/Monocular/mono_tum_vi"
+            write_file(executable, "binary")
+            executable.chmod(0o755)
+            (repo_root / "third_party/orbslam3").mkdir(parents=True, exist_ok=True)
+            (repo_root / "third_party/orbslam3/upstream").symlink_to(upstream_target)
+            write_file(
+                repo_root
+                / "build/local-tools/boost-root/usr/include/boost/serialization/serialization.hpp",
+                "header",
+            )
+            write_file(
+                repo_root
+                / "build/local-tools/boost-root/usr/lib/x86_64-linux-gnu/libboost_serialization.so",
+                "library",
+            )
+
+            def fake_run(cmd: list[str], **_kwargs: object) -> mock.Mock:
+                if cmd[:4] == [
+                    "git",
+                    "-C",
+                    str(repo_root / "third_party/orbslam3/upstream"),
+                    "rev-parse",
+                ]:
+                    return mock.Mock(returncode=0, stdout=f"{BASELINE_COMMIT}\n", stderr="")
+                if cmd[:1] == ["/usr/bin/ldd"]:
+                    return mock.Mock(
+                        returncode=0,
+                        stdout=(
+                            "libORB_SLAM3.so => "
+                            f"{upstream_target / 'lib/libORB_SLAM3.so'}"
+                            " (0x0000)\n"
+                        ),
+                        stderr="",
+                    )
+                if cmd[:2] == ["pkg-config", "--modversion"]:
+                    package = cmd[2]
+                    versions = {
+                        "opencv4": "4.6.0\n",
+                        "eigen3": "3.4.0\n",
+                        "pangolin": "0.8\n",
+                    }
+                    if package in versions:
+                        return mock.Mock(returncode=0, stdout=versions[package], stderr="")
+                    return mock.Mock(returncode=1, stdout="", stderr="")
+                raise AssertionError(f"Unexpected command: {cmd}")
+
+            with mock.patch(
+                "splatica_orb_test.monocular_prereqs.shutil.which",
+                side_effect=lambda name: {
+                    "cmake": "/tmp/cmake",
+                    "ldd": "/usr/bin/ldd",
+                    "make": "/usr/bin/make",
+                    "pkg-config": "/usr/bin/pkg-config",
+                }.get(name),
+            ), mock.patch(
+                "splatica_orb_test.monocular_prereqs.subprocess.run",
+                side_effect=fake_run,
+            ):
+                prerequisites = inspect_monocular_baseline_prerequisites(
+                    repo_root,
+                    manifest_path,
+                )
+
+        report = render_monocular_baseline_prerequisite_report(prerequisites)
+        self.assertFalse(prerequisites.ready_for_execute)
+        self.assertIn("Baseline checkout ownership: **missing**", report)
+        self.assertIn(str(upstream_target), report)

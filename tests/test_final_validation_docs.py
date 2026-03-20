@@ -21,6 +21,7 @@ class FinalValidationDocsTests(unittest.TestCase):
             readme,
         )
         self.assertIn("(docs/hel-68-asan-crash-follow-up.md)", readme)
+        self.assertIn("(docs/hel-69-worktree-containment-follow-up.md)", readme)
         self.assertIn("make check", readme)
 
     def test_final_report_records_canonical_baseline_and_verdict(self) -> None:
@@ -153,6 +154,19 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("EdgeSE3ProjectXYZ::linearizeOplus()", follow_up)
         self.assertIn("OptimizableTypes.cpp:152", follow_up)
         self.assertIn("frame `93`", follow_up)
+
+    def test_hel69_follow_up_doc_records_checkout_containment_blocker(self) -> None:
+        follow_up = (
+            REPO_ROOT / "docs/hel-69-worktree-containment-follow-up.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("Issue: HEL-69", follow_up)
+        self.assertIn("Runner libORB_SLAM3 linkage", follow_up)
+        self.assertIn("HEL-68-restacked", follow_up)
+        self.assertIn("third_party/orbslam3/upstream", follow_up)
+        self.assertIn("HEL-68-repo/third_party/orbslam3/upstream/build", follow_up)
+        self.assertIn(".symphony/build-attempts/orbslam3-build-20260320T145253Z.log", follow_up)
+        self.assertIn(".symphony/progress/HEL-69.json", follow_up)
 
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"
