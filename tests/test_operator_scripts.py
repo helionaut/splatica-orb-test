@@ -18,6 +18,28 @@ class OperatorScriptTests(unittest.TestCase):
         self.assertIn("Seed packages", script)
         self.assertIn("Resolved package closure", script)
         self.assertIn("bootstrap-manifest.txt", script)
+        self.assertIn('progress_artifact="${ORB_SLAM3_PROGRESS_ARTIFACT:-}"', script)
+        self.assertIn('progress_issue_id="${ORB_SLAM3_PROGRESS_ISSUE_ID:-}"', script)
+        self.assertIn("ORB_SLAM3_BOOTSTRAP_PROGRESS_HEARTBEAT_SECONDS", script)
+        self.assertIn("write_progress_artifact()", script)
+        self.assertIn("start_progress_heartbeat()", script)
+        self.assertIn("stop_progress_heartbeat()", script)
+        self.assertIn("OpenCV bootstrap failed", script)
+        self.assertIn("OpenCV bootstrap completed", script)
+
+    def test_pangolin_bootstrap_emits_progress_artifacts(self) -> None:
+        script = (REPO_ROOT / "scripts/bootstrap_local_pangolin.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('progress_artifact="${ORB_SLAM3_PROGRESS_ARTIFACT:-}"', script)
+        self.assertIn('progress_issue_id="${ORB_SLAM3_PROGRESS_ISSUE_ID:-}"', script)
+        self.assertIn("ORB_SLAM3_BOOTSTRAP_PROGRESS_HEARTBEAT_SECONDS", script)
+        self.assertIn("write_progress_artifact()", script)
+        self.assertIn("start_progress_heartbeat()", script)
+        self.assertIn("stop_progress_heartbeat()", script)
+        self.assertIn("Pangolin bootstrap failed", script)
+        self.assertIn("Pangolin bootstrap completed", script)
 
     def test_orbslam3_build_targets_mono_tum_vi(self) -> None:
         script = (REPO_ROOT / "scripts/build_orbslam3_baseline.sh").read_text(
@@ -108,6 +130,9 @@ class OperatorScriptTests(unittest.TestCase):
         self.assertIn("ORB_SLAM3_HEL63_MAX_FRAMES", script)
         self.assertIn("ORB_SLAM3_SKIP_FRAME_TRAJECTORY_SAVE", script)
         self.assertIn("ORB_SLAM3_SKIP_KEYFRAME_TRAJECTORY_SAVE", script)
+        self.assertIn("patch_optimizable_types", script)
+        self.assertIn("EdgeSE3ProjectXYZ Jacobian lifetime fix", script)
+        self.assertIn("const Eigen::Matrix<double, 2, 3> project_jac =", script)
 
     def test_monocular_runner_uses_trajectory_workdir_and_validates_outputs(self) -> None:
         script = (REPO_ROOT / "scripts/run_monocular_baseline.py").read_text(

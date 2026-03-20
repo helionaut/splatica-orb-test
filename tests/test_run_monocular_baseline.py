@@ -17,6 +17,31 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RunMonocularBaselineTests(unittest.TestCase):
+    def test_render_runtime_progress_includes_experiment_contract(self) -> None:
+        payload = MODULE.render_runtime_progress(
+            artifacts={"report_path": "reports/out/example.md"},
+            issue="HEL-70",
+            status="in_progress",
+            current_step="frame 93 TrackMonocular start",
+            completed=93,
+            total=270,
+            metrics={"command": "./scripts/run_monocular_baseline.py"},
+            experiment={
+                "changed_variable": "apply the HEL-68 Jacobian lifetime fix",
+                "hypothesis": "the aggressive lane will survive first-map creation",
+                "success_criterion": "trajectory artifacts are written",
+                "abort_condition": "the process aborts again before save",
+                "expected_artifact": "build/insta360_x3_lens10/monocular/trajectory/f_insta360_x3_lens10.txt",
+            },
+        )
+
+        self.assertEqual(payload["progress_percent"], 34)
+        self.assertEqual(payload["experiment"]["changed_variable"], "apply the HEL-68 Jacobian lifetime fix")
+        self.assertEqual(
+            payload["experiment"]["expected_artifact"],
+            "build/insta360_x3_lens10/monocular/trajectory/f_insta360_x3_lens10.txt",
+        )
+
     def test_skipped_trajectory_outputs_are_not_treated_as_missing(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)

@@ -42,6 +42,11 @@ FRAME_COMPLETED_PATTERN = re.compile(
 )
 DEFAULT_PROGRESS_ARTIFACT = os.environ.get("ORB_SLAM3_PROGRESS_ARTIFACT", "")
 DEFAULT_PROGRESS_ISSUE = os.environ.get("ORB_SLAM3_PROGRESS_ISSUE_ID", "")
+DEFAULT_CHANGED_VARIABLE = os.environ.get("ORB_SLAM3_RUN_CHANGED_VARIABLE", "")
+DEFAULT_HYPOTHESIS = os.environ.get("ORB_SLAM3_RUN_HYPOTHESIS", "")
+DEFAULT_SUCCESS_CRITERION = os.environ.get("ORB_SLAM3_RUN_SUCCESS_CRITERION", "")
+DEFAULT_ABORT_CONDITION = os.environ.get("ORB_SLAM3_RUN_ABORT_CONDITION", "")
+DEFAULT_EXPECTED_ARTIFACT = os.environ.get("ORB_SLAM3_RUN_EXPECTED_ARTIFACT", "")
 
 
 def resolve_repo_path(path_text: str) -> Path:
@@ -182,10 +187,11 @@ def render_runtime_progress(
     completed: int,
     total: int,
     metrics: dict[str, object],
+    experiment: dict[str, object],
 ) -> dict[str, object]:
     clamped_completed = max(0, min(completed, total))
     progress_percent = round((clamped_completed / total) * 100) if total else 100
-    return {
+    payload = {
         "status": status,
         "current_step": current_step,
         "progress_percent": progress_percent,
@@ -196,6 +202,9 @@ def render_runtime_progress(
         "metrics": metrics,
         "artifacts": artifacts,
     }
+    if experiment:
+        payload["experiment"] = experiment
+    return payload
 
 
 def inspect_trajectory_outputs(
@@ -252,6 +261,11 @@ def main() -> int:
     parser.add_argument("--max-frames", type=int)
     parser.add_argument("--progress-artifact", default=DEFAULT_PROGRESS_ARTIFACT)
     parser.add_argument("--progress-issue", default=DEFAULT_PROGRESS_ISSUE)
+    parser.add_argument("--changed-variable", default=DEFAULT_CHANGED_VARIABLE)
+    parser.add_argument("--hypothesis", default=DEFAULT_HYPOTHESIS)
+    parser.add_argument("--success-criterion", default=DEFAULT_SUCCESS_CRITERION)
+    parser.add_argument("--abort-condition", default=DEFAULT_ABORT_CONDITION)
+    parser.add_argument("--expected-artifact", default=DEFAULT_EXPECTED_ARTIFACT)
     parser.add_argument("--orb-n-features", type=int)
     parser.add_argument("--orb-ini-fast", type=int)
     parser.add_argument("--orb-min-fast", type=int)
@@ -298,6 +312,31 @@ def main() -> int:
         "settings_path": relative_to_repo(resolved.settings),
         "trajectory_stem": relative_to_repo(resolved.trajectory_stem),
     }
+    expected_artifact = args.expected_artifact or relative_to_repo(
+        trajectory_outputs.frame_trajectory
+    )
+    experiment = {
+        key: value
+        for key, value in {
+            "changed_variable": args.changed_variable,
+            "hypothesis": args.hypothesis,
+            "success_criterion": args.success_criterion,
+            "abort_condition": args.abort_condition,
+            "expected_artifact": expected_artifact,
+        }.items()
+        if value
+    }
+    experiment_details = [
+        detail
+        for detail in [
+            f"Changed variable: {args.changed_variable}",
+            f"Hypothesis: {args.hypothesis}",
+            f"Success criterion: {args.success_criterion}",
+            f"Abort condition: {args.abort_condition}",
+            f"Expected artifact: {expected_artifact}",
+        ]
+        if not detail.endswith(": ")
+    ]
     command = [
         *resolve_headless_display_prefix(),
         *build_monocular_tum_vi_command(resolved),
@@ -333,6 +372,7 @@ def main() -> int:
                     "Save skip toggles: "
                     f"frame={args.skip_frame_trajectory_save}, "
                     f"keyframe={args.skip_keyframe_trajectory_save}",
+                    *experiment_details,
                 ],
                 run_workdir=run_workdir,
                 resolved=resolved,
@@ -388,6 +428,8 @@ def main() -> int:
             f"frame={args.skip_frame_trajectory_save}, "
             f"keyframe={args.skip_keyframe_trajectory_save}\n\n"
         )
+        if experiment_details:
+            log_handle.write("\n".join(experiment_details) + "\n\n")
         run_env = build_runtime_environment()
         if args.max_frames is not None:
             run_env["ORB_SLAM3_HEL68_MAX_FRAMES"] = str(args.max_frames)
@@ -415,6 +457,7 @@ def main() -> int:
                         "skip_keyframe_trajectory_save": args.skip_keyframe_trajectory_save,
                         "command": shlex.join(command),
                     },
+                    experiment=experiment,
                 ),
             )
         process = subprocess.Popen(
@@ -458,6 +501,7 @@ def main() -> int:
                             "skip_keyframe_trajectory_save": args.skip_keyframe_trajectory_save,
                             "command": shlex.join(command),
                         },
+                        experiment=experiment,
                     ),
                 )
         result = process.wait()
@@ -474,6 +518,7 @@ def main() -> int:
         "Save skip toggles: "
         f"frame={args.skip_frame_trajectory_save}, "
         f"keyframe={args.skip_keyframe_trajectory_save}",
+        *experiment_details,
     ]
     trajectory_result_details, missing_or_empty_outputs = inspect_trajectory_outputs(
         trajectory_outputs,
@@ -517,6 +562,7 @@ def main() -> int:
                     "skip_keyframe_trajectory_save": args.skip_keyframe_trajectory_save,
                     "command": shlex.join(command),
                 },
+                experiment=experiment,
             ),
         )
 
