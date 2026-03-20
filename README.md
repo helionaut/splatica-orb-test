@@ -31,7 +31,7 @@ make check
 - [Execution plan](docs/execution-plan.md)
 - [Final validation report](docs/final-validation-report.md)
 - [TUM RGB-D sanity run report](docs/tum-rgbd-sanity-report.md)
-- [TUM-VI monocular sanity run report](docs/tum-vi-sanity-report.md)
+- [HEL-67 public TUM-VI sanity report](docs/reports/hel-67-public-tum-vi-room1-cam0.md)
 - [HEL-63 post-initialization abort follow-up](docs/hel-63-post-initialization-abort-follow-up.md)
 - [Dataset normalization](docs/dataset-normalization.md)
 - [Calibration translation](docs/calibration-translation.md)
@@ -229,7 +229,7 @@ That command:
 
 For the final public-run verdict and the exact runtime blocker that remains on
 this host, use
-[docs/tum-vi-sanity-report.md](docs/tum-vi-sanity-report.md).
+[docs/reports/hel-67-public-tum-vi-room1-cam0.md](docs/reports/hel-67-public-tum-vi-room1-cam0.md).
 
 ## Repository layout
 

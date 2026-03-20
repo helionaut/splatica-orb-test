@@ -9,7 +9,7 @@ Last Updated: 2026-03-20
 The upstream ORB-SLAM3 monocular fisheye lane does not complete a real public
 TUM-VI sanity run on this host. A fresh clean-room replay of the official
 `dataset-room1_512_16` EuRoC export for `cam0` reached map initialization,
-created a first map with 375 points, and then aborted with
+created a first map with `375` points, and then aborted with
 `double free or corruption (out)` before any trajectory save path ran.
 
 This issue is therefore no longer blocked on compile-only setup. The minimal
@@ -29,6 +29,8 @@ or keyframe trajectory files are written.
   `/home/helionaut/workspaces/HEL-67/datasets/public/tum_vi/dataset-room1_512_16`
 - Camera lane:
   `mav0/cam0`
+- Camera model source:
+  `dso/cam0/camera.txt`
 - Materialized frame index:
   `/home/helionaut/workspaces/HEL-67/build/tum_vi_room1_512_16/materialized/cam0_frame_index.csv`
 - Materialized frame count:
@@ -63,11 +65,9 @@ with full motion-capture ground truth, and `cam0` matches the single-camera
 - Build log:
   `/home/helionaut/workspaces/HEL-67/.symphony/build-attempts/orbslam3-build-20260320T103009Z.log`
 
-Provenance caveat: this HEL-67 run was launched with
-`ORB_SLAM3_APPEND_MARCH_NATIVE=OFF`, but the actual compile and link commands in
-the build log still included `-march=native`. The checked-in patcher now strips
-that hard-coded upstream release-flag mutation for future runs, but the binary
-used in this report was compiled before that fix was applied.
+Build caveat: the HEL-67 wrapper requested `ORB_SLAM3_APPEND_MARCH_NATIVE=OFF`,
+but the saved compile and link commands still include `-march=native`. Treat
+the resulting binary as host-specific provenance, not a portable artifact.
 
 ## Exact Launch Command
 
@@ -103,7 +103,7 @@ Runtime command emitted by the runner:
   `failed`
 - Failed phase:
   `10/10`
-- Runtime exit code `134`
+- Runtime exit code: `134`
 - Runtime log:
   `/home/helionaut/workspaces/HEL-67/logs/out/tum_vi_room1_512_16_cam0.log`
 - Orchestration log:
@@ -142,13 +142,14 @@ monocular lane on this host.
 
 - `ulimit -c` was `0`, so no local core file was retained.
 - `coredumpctl` was unavailable in this environment.
-- The build wrapper also printed a stale `Kernel OOM evidence detected` note,
-  but the saved dmesg tail for this pass only showed WSL relay noise and memory
-  pressure cache flushes, not a matching OOM kill for the successful build.
+- `gdb`, `valgrind`, `lldb`, `catchsegv`, and `eu-stack` were also unavailable.
+- The build wrapper printed a stale `Kernel OOM evidence detected` note, but
+  the saved dmesg tail for this pass only showed WSL relay noise and not a
+  matching OOM kill for the successful build.
 
 ## Verdict
 
-The upstream public `mono_tum_vi` sanity lane is not healthy on this host as of
-2026-03-20. It compiles and launches, but the first real public replay aborts
-with a deterministic heap-corruption boundary immediately after first-map
-creation and before any trajectory output is saved.
+The upstream public `mono_tum_vi` sanity lane is not healthy on this host as
+of 2026-03-20. It compiles and launches, but the first real public replay
+aborts with a deterministic heap-corruption boundary immediately after
+first-map creation and before any trajectory output is saved.
