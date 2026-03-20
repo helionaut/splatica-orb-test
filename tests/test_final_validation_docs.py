@@ -20,6 +20,7 @@ class FinalValidationDocsTests(unittest.TestCase):
             "(docs/hel-63-post-initialization-abort-follow-up.md)",
             readme,
         )
+        self.assertIn("(docs/hel-68-asan-crash-follow-up.md)", readme)
         self.assertIn("make check", readme)
 
     def test_final_report_records_canonical_baseline_and_verdict(self) -> None:
@@ -61,6 +62,7 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("./scripts/import_monocular_video_inputs.py", report)
         self.assertIn("./scripts/build_orbslam3_baseline.sh", report)
         self.assertIn("HEL-57 monocular follow-up report", report)
+        self.assertIn("HEL-68 ASan crash follow-up", report)
         self.assertIn("double free or corruption", report)
         self.assertIn("nFeatures: 4000", report)
         self.assertIn(
@@ -127,6 +129,30 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("No frame or keyframe trajectory files", report)
         self.assertIn("-march=native", report)
         self.assertIn("ulimit -c", report)
+
+    def test_hel68_follow_up_doc_records_asan_lane(self) -> None:
+        follow_up = (REPO_ROOT / "docs/hel-68-asan-crash-follow-up.md").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("Issue: HEL-68", follow_up)
+        self.assertIn("AddressSanitizer", follow_up)
+        self.assertIn("ORB_SLAM3_ENABLE_ASAN=1", follow_up)
+        self.assertIn("ORB_SLAM3_BUILD_TARGET=mono_tum_vi", follow_up)
+        self.assertIn("ORB_SLAM3_ASAN_COMPILE_FLAGS", follow_up)
+        self.assertIn("manifests/tum_vi_room1_512_16_cam0_sanity.json", follow_up)
+        self.assertIn("run_monocular_baseline.py", follow_up)
+        self.assertIn("--max-frames 20", follow_up)
+        self.assertIn("ORB_SLAM3_HEL68_MAX_FRAMES", follow_up)
+        self.assertIn("TrackMonocular", follow_up)
+        self.assertIn("--skip-frame-trajectory-save", follow_up)
+        self.assertIn("private lens-10 bundle", follow_up)
+        self.assertIn("Out of memory: Killed process", follow_up)
+        self.assertIn("asan_full_skip_save_r1", follow_up)
+        self.assertIn("AddressSanitizer: stack-use-after-scope", follow_up)
+        self.assertIn("EdgeSE3ProjectXYZ::linearizeOplus()", follow_up)
+        self.assertIn("OptimizableTypes.cpp:152", follow_up)
+        self.assertIn("frame `93`", follow_up)
 
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"

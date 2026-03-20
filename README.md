@@ -33,6 +33,7 @@ make check
 - [TUM RGB-D sanity run report](docs/tum-rgbd-sanity-report.md)
 - [HEL-67 public TUM-VI sanity report](docs/reports/hel-67-public-tum-vi-room1-cam0.md)
 - [HEL-63 post-initialization abort follow-up](docs/hel-63-post-initialization-abort-follow-up.md)
+- [HEL-68 ASan crash follow-up](docs/hel-68-asan-crash-follow-up.md)
 - [Dataset normalization](docs/dataset-normalization.md)
 - [Calibration translation](docs/calibration-translation.md)
 - [Monocular baseline](docs/monocular-baseline.md)

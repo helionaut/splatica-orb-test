@@ -179,6 +179,83 @@ def normalize_shutdown(block: str) -> str:
 
 
 def normalize_mono_tum_vi_main(block: str) -> str:
+    block, count = re.subn(
+        r'    double t_resize = 0\.f;\n'
+        r'    double t_track = 0\.f;\n'
+        r'\n'
+        r'    int proccIm = 0;\n',
+        '    double t_resize = 0.f;\n'
+        '    double t_track = 0.f;\n'
+        '\n'
+        '    const char* hel68_max_frames_env = std::getenv("ORB_SLAM3_HEL68_MAX_FRAMES");\n'
+        '    int hel68_max_frames = -1;\n'
+        '    if(hel68_max_frames_env)\n'
+        '    {\n'
+        '        hel68_max_frames = std::atoi(hel68_max_frames_env);\n'
+        '        cout << "HEL-68 diagnostic: mono_tum_vi max frames=" << hel68_max_frames << endl;\n'
+        '    }\n'
+        '\n'
+        '    int proccIm = 0;\n'
+        '    int hel68_processed_frames = 0;\n'
+        '    bool hel68_stop_requested = false;\n',
+        block,
+        count=1,
+    )
+    if count == 0 and 'HEL-68 diagnostic: mono_tum_vi max frames=' not in block:
+        raise ValueError("Failed to normalize mono_tum_vi max-frame configuration")
+
+    block, count = re.subn(
+        r'            // Pass the image to the SLAM system\n'
+        r'            SLAM.TrackMonocular\(im,tframe\); // TODO change to monocular_inertial\n',
+        '            // Pass the image to the SLAM system\n'
+        '            cout << "HEL-68 diagnostic: frame " << hel68_processed_frames\n'
+        '                 << " TrackMonocular start timestamp=" << tframe << endl;\n'
+        '            SLAM.TrackMonocular(im,tframe); // TODO change to monocular_inertial\n'
+        '            cout << "HEL-68 diagnostic: frame " << hel68_processed_frames\n'
+        '                 << " TrackMonocular completed" << endl;\n',
+        block,
+        count=1,
+    )
+    if count == 0 and 'HEL-68 diagnostic: frame " << hel68_processed_frames' not in block:
+        raise ValueError("Failed to normalize mono_tum_vi TrackMonocular diagnostics")
+
+    block, count = re.subn(
+        r'            vTimesTrack\[ni\]=ttrack;\n'
+        r'\n'
+        r'            // Wait to load the next frame\n',
+        '            vTimesTrack[hel68_processed_frames]=ttrack;\n'
+        '            hel68_processed_frames++;\n'
+        '\n'
+        '            if(hel68_max_frames > 0 && hel68_processed_frames >= hel68_max_frames)\n'
+        '            {\n'
+        '                cout << "HEL-68 diagnostic: stopping after " << hel68_processed_frames\n'
+        '                     << " frames due to ORB_SLAM3_HEL68_MAX_FRAMES" << endl;\n'
+        '                hel68_stop_requested = true;\n'
+        '                break;\n'
+        '            }\n'
+        '\n'
+        '            // Wait to load the next frame\n',
+        block,
+        count=1,
+    )
+    if count == 0 and 'ORB_SLAM3_HEL68_MAX_FRAMES' not in block:
+        raise ValueError("Failed to normalize mono_tum_vi max-frame stop boundary")
+
+    if 'if(hel68_stop_requested)' not in block:
+        block, count = re.subn(
+            r'        if\(seq < num_seq - 1\)\n',
+            '        if(hel68_stop_requested)\n'
+            '        {\n'
+            '            break;\n'
+            '        }\n'
+            '\n'
+            '        if(seq < num_seq - 1)\n',
+            block,
+            count=1,
+        )
+        if count == 0:
+            raise ValueError("Failed to normalize mono_tum_vi early-stop outer loop")
+
     original_sequence = (
         '    // Stop all threads\n'
         '    SLAM.Shutdown();\n'
@@ -270,6 +347,32 @@ def normalize_mono_tum_vi_main(block: str) -> str:
         if "HEL-63 diagnostic: entering SLAM shutdown" in block:
             return block
         raise ValueError("Failed to normalize mono_tum_vi save flow")
+
+    block, count = re.subn(
+        r'    sort\(vTimesTrack.begin\(\),vTimesTrack.end\(\)\);\n'
+        r'    float totaltime = 0;\n'
+        r'    for\(int ni=0; ni<nImages\[0\]; ni\+\+\)\n'
+        r'    \{\n'
+        r'        totaltime\+=vTimesTrack\[ni\];\n'
+        r'    \}\n'
+        r'    cout << "-------" << endl << endl;\n'
+        r'    cout << "median tracking time: " << vTimesTrack\[nImages\[0\]/2\] << endl;\n'
+        r'    cout << "mean tracking time: " << totaltime/proccIm << endl;\n',
+        '    const int hel68_stats_count = hel68_processed_frames > 0 ? hel68_processed_frames : nImages[0];\n'
+        '    sort(vTimesTrack.begin(), vTimesTrack.begin() + hel68_stats_count);\n'
+        '    float totaltime = 0;\n'
+        '    for(int ni=0; ni<hel68_stats_count; ni++)\n'
+        '    {\n'
+        '        totaltime+=vTimesTrack[ni];\n'
+        '    }\n'
+        '    cout << "-------" << endl << endl;\n'
+        '    cout << "median tracking time: " << vTimesTrack[hel68_stats_count/2] << endl;\n'
+        '    cout << "mean tracking time: " << totaltime/hel68_stats_count << endl;\n',
+        block,
+        count=1,
+    )
+    if count == 0 and 'const int hel68_stats_count =' not in block:
+        raise ValueError("Failed to normalize mono_tum_vi timing statistics")
 
     return block
 
