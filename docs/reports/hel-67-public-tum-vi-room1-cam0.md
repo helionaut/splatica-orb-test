@@ -104,6 +104,7 @@ Runtime command emitted by the runner:
 - Failed phase:
   `10/10`
 - Runtime exit code: `134`
+- The public replay failed with exit code `134`.
 - Runtime log:
   `/home/helionaut/workspaces/HEL-67/logs/out/tum_vi_room1_512_16_cam0.log`
 - Orchestration log:
