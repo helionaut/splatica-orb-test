@@ -1,0 +1,39 @@
+{
+  "baseline": {
+    "name": "orbslam3-upstream-master",
+    "repo_url": "https://github.com/UZ-SLAMLab/ORB_SLAM3",
+    "commit": "4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4",
+    "checkout_path": "third_party/orbslam3/upstream",
+    "executable_path": "Examples/Monocular/mono_tum_vi",
+    "vocabulary_path": "Vocabulary/ORBvoc.txt"
+  },
+  "sequence": {
+    "name": "tum-vi-room1-512-16-cam0-sanity",
+    "camera_label": "tum_vi_room1_512_16_cam0",
+    "calibration_path": "build/tum_vi_room1_512_16/materialized/cam0_calibration.json",
+    "frame_index_path": "build/tum_vi_room1_512_16/materialized/cam0_frame_index.csv"
+  },
+  "public_dataset": {
+    "archive_url": "https://vision.in.tum.de/tumvi/exported/euroc/512_16/dataset-room1_512_16.tar",
+    "archive_path": "datasets/public/tum_vi/dataset-room1_512_16.tar",
+    "dataset_name": "dataset-room1_512_16",
+    "dataset_root": "datasets/public/tum_vi/dataset-room1_512_16",
+    "camera": "cam0"
+  },
+  "outputs": {
+    "image_dir": "build/tum_vi_room1_512_16/monocular/images",
+    "log_path": "logs/out/tum_vi_room1_512_16_cam0.log",
+    "report_path": "reports/out/tum_vi_room1_512_16_cam0.md",
+    "settings_path": "build/tum_vi_room1_512_16/monocular/TUM-VI-room1-512-16-cam0.yaml",
+    "summary_json_path": "reports/out/tum_vi_room1_512_16_cam0_summary.json",
+    "timestamps_path": "build/tum_vi_room1_512_16/monocular/timestamps.txt",
+    "trajectory_plot_path": "reports/out/tum_vi_room1_512_16_cam0_trajectory.svg",
+    "trajectory_stem": "build/tum_vi_room1_512_16/monocular/trajectory/tum_vi_room1_512_16_cam0",
+    "visual_report_path": "reports/out/tum_vi_room1_512_16_cam0.html"
+  },
+  "launch": {
+    "mode": "monocular_tum_vi",
+    "script": "scripts/run_orbslam3_sequence.sh"
+  },
+  "notes": "Public TUM-VI sanity lane for the upstream monocular fisheye path using the official EuRoC export of room1 at 512x512/16-bit. room1 was chosen because the room sequences publish full motion-capture ground truth for the entire trajectory, the 512_16 export is smaller than the 1024_16 variant for a practical clean-room rerun, and cam0 matches the single-camera upstream mono_tum_vi contract."
+}
