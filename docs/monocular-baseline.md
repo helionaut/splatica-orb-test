@@ -125,6 +125,8 @@ the required `mono_tum_vi` target directly instead of blocking on unrelated
 upstream example binaries. The build wrapper also patches the upstream
 trajectory-save path so an empty-keyframe monocular run reports a clean failure
 instead of segfaulting during shutdown.
+For one concrete compile-only provenance capture of this flow on a fresh
+workspace host, see [hel-66-mono-tum-vi-build-provenance.md](hel-66-mono-tum-vi-build-provenance.md).
 The fetch helper already unpacks `Vocabulary/ORBvoc.txt` from the upstream
 archive, so a missing extracted vocabulary file after fetch is now a concrete
 baseline checkout problem rather than an expected pre-build state.
