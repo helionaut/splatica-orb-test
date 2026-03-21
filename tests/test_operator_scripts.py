@@ -274,6 +274,8 @@ class OperatorScriptTests(unittest.TestCase):
         self.assertIn("--poll-seconds", script)
         self.assertIn("summarize_monocular_runtime_log", script)
         self.assertIn("write_progress_snapshot", script)
+        self.assertIn('"local_map_failure_count": summary.local_map_failure_count', script)
+        self.assertIn('"latest_map_points": summary.latest_map_points', script)
         self.assertIn(
             'status = "completed" if summary.shutdown_completed else "failed"',
             script,

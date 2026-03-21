@@ -113,6 +113,14 @@ The runtime side has already crossed the old HEL-71 boundary:
   - `.symphony/progress/HEL-72.jsonl` reached `completed: 638`
   - `progress_percent: 23`
   - `trajectory_files: []`
+- A later instability window no longer crashes immediately:
+  - repeated `Fail to track local map!` messages appeared through roughly
+    frames `746-796`
+  - the same run then rolled over into `Creation of new map with id: 1`
+  - ORB-SLAM3 stored map `0`, reinitialized with `last KF id: 69`, and
+    reported `New Map created with 157 points` at frame `799`
+  - the raw log later continued through frame `809` and beyond instead of
+    aborting at that second-map boundary
 - No AddressSanitizer abort has appeared at the old first-map boundary
 
 ## Narrowed Blocker So Far
@@ -124,6 +132,8 @@ It does prove a materially narrower and more actionable state than HEL-71:
 
 - the combined ASan plus no-static-alignment lane clears the old frame-93
   first-map crash boundary
+- the same lane now also survives a later tracking-loss and second-map
+  reinitialization boundary on the public replay
 - the remaining risk is now a later-runtime or save-phase outcome, not the
   immediate post-initialization segfault seen in HEL-71
 - the private aggressive lens-10 rerun is still blocked in this checkout by

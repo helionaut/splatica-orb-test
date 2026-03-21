@@ -210,6 +210,9 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("10.mp4", follow_up)
         self.assertIn("AddressSanitizer", follow_up)
         self.assertIn("frame 638", follow_up)
+        self.assertIn("Fail to track local map!", follow_up)
+        self.assertIn("Creation of new map with id: 1", follow_up)
+        self.assertIn("157 points", follow_up)
 
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"

@@ -13,6 +13,12 @@ FRAME_START_PATTERN = re.compile(
 FRAME_COMPLETED_PATTERN = re.compile(
     r"HEL-68 diagnostic: frame (\d+) TrackMonocular completed"
 )
+MAP_CREATION_PATTERN = re.compile(r"Creation of new map with id: (\d+)")
+STORED_MAP_PATTERN = re.compile(r"Stored map with ID: (\d+)")
+MAP_LAST_KF_PATTERN = re.compile(r"Creation of new map with last KF id: (\d+)")
+MAP_INIT_PATTERN = re.compile(r"First KF:(\d+); Map init KF:(\d+)")
+MAP_POINTS_PATTERN = re.compile(r"New Map created with (\d+) points")
+LOCAL_MAP_FAILURE_MARKER = "Fail to track local map!"
 SHUTDOWN_START_MARKER = "HEL-63 diagnostic: entering SLAM shutdown"
 SHUTDOWN_COMPLETED_MARKER = "HEL-63 diagnostic: SLAM shutdown completed"
 
@@ -27,6 +33,15 @@ class MonocularRuntimeSummary:
     last_line: str
     shutdown_started: bool
     shutdown_completed: bool
+    local_map_failure_count: int
+    map_creation_count: int
+    stored_map_count: int
+    latest_map_id: int | None
+    latest_stored_map_id: int | None
+    latest_map_last_kf_id: int | None
+    latest_map_first_kf: int | None
+    latest_map_init_kf: int | None
+    latest_map_points: int | None
 
 
 def summarize_monocular_runtime_log(
@@ -40,6 +55,15 @@ def summarize_monocular_runtime_log(
     current_step = "launching mono_tum_vi"
     shutdown_started = False
     shutdown_completed = False
+    local_map_failure_count = 0
+    map_creation_count = 0
+    stored_map_count = 0
+    latest_map_id: int | None = None
+    latest_stored_map_id: int | None = None
+    latest_map_last_kf_id: int | None = None
+    latest_map_first_kf: int | None = None
+    latest_map_init_kf: int | None = None
+    latest_map_points: int | None = None
 
     for raw_line in lines:
         stripped = raw_line.strip()
@@ -47,6 +71,11 @@ def summarize_monocular_runtime_log(
             continue
 
         last_line = stripped
+        if stripped == LOCAL_MAP_FAILURE_MARKER:
+            local_map_failure_count += 1
+            current_step = stripped
+            continue
+
         if match := FRAME_START_PATTERN.search(stripped):
             latest_started_frame = int(match.group(1))
             current_step = f"frame {latest_started_frame} TrackMonocular start"
@@ -58,6 +87,34 @@ def summarize_monocular_runtime_log(
                 int(match.group(1)),
             )
             current_step = f"completed frame {latest_completed_frame + 1}"
+            continue
+
+        if match := MAP_CREATION_PATTERN.search(stripped):
+            map_creation_count += 1
+            latest_map_id = int(match.group(1))
+            current_step = stripped
+            continue
+
+        if match := STORED_MAP_PATTERN.search(stripped):
+            stored_map_count += 1
+            latest_stored_map_id = int(match.group(1))
+            current_step = stripped
+            continue
+
+        if match := MAP_LAST_KF_PATTERN.search(stripped):
+            latest_map_last_kf_id = int(match.group(1))
+            current_step = stripped
+            continue
+
+        if match := MAP_INIT_PATTERN.search(stripped):
+            latest_map_first_kf = int(match.group(1))
+            latest_map_init_kf = int(match.group(2))
+            current_step = stripped
+            continue
+
+        if match := MAP_POINTS_PATTERN.search(stripped):
+            latest_map_points = int(match.group(1))
+            current_step = stripped
             continue
 
         if SHUTDOWN_START_MARKER in stripped:
@@ -88,6 +145,15 @@ def summarize_monocular_runtime_log(
         last_line=last_line,
         shutdown_started=shutdown_started,
         shutdown_completed=shutdown_completed,
+        local_map_failure_count=local_map_failure_count,
+        map_creation_count=map_creation_count,
+        stored_map_count=stored_map_count,
+        latest_map_id=latest_map_id,
+        latest_stored_map_id=latest_stored_map_id,
+        latest_map_last_kf_id=latest_map_last_kf_id,
+        latest_map_first_kf=latest_map_first_kf,
+        latest_map_init_kf=latest_map_init_kf,
+        latest_map_points=latest_map_points,
     )
 
 

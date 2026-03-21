@@ -37,6 +37,37 @@ class MonocularRuntimeProgressTests(unittest.TestCase):
         self.assertTrue(summary.shutdown_started)
         self.assertTrue(summary.shutdown_completed)
 
+    def test_summarize_log_tracks_map_failures_and_reinitialization(self) -> None:
+        summary = summarize_monocular_runtime_log(
+            [
+                "HEL-68 diagnostic: frame 746 TrackMonocular start timestamp=1.0",
+                "Fail to track local map!",
+                "HEL-68 diagnostic: frame 746 TrackMonocular completed",
+                "HEL-68 diagnostic: frame 747 TrackMonocular start timestamp=2.0",
+                "Fail to track local map!",
+                "Creation of new map with id: 1",
+                "Stored map with ID: 0",
+                "Creation of new map with last KF id: 69",
+                "HEL-68 diagnostic: frame 747 TrackMonocular completed",
+                "HEL-68 diagnostic: frame 748 TrackMonocular start timestamp=3.0",
+                "First KF:69; Map init KF:69",
+                "New Map created with 157 points",
+                "HEL-68 diagnostic: frame 748 TrackMonocular completed",
+            ],
+            total_frames=1000,
+        )
+
+        self.assertEqual(summary.completed_frames, 749)
+        self.assertEqual(summary.local_map_failure_count, 2)
+        self.assertEqual(summary.map_creation_count, 1)
+        self.assertEqual(summary.stored_map_count, 1)
+        self.assertEqual(summary.latest_map_id, 1)
+        self.assertEqual(summary.latest_stored_map_id, 0)
+        self.assertEqual(summary.latest_map_last_kf_id, 69)
+        self.assertEqual(summary.latest_map_first_kf, 69)
+        self.assertEqual(summary.latest_map_init_kf, 69)
+        self.assertEqual(summary.latest_map_points, 157)
+
     def test_build_payload_uses_frame_progress(self) -> None:
         summary = summarize_monocular_runtime_log(
             [
