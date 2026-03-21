@@ -292,6 +292,20 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("7152947 byte(s) leaked in 16038 allocation(s).", follow_up)
         self.assertIn("private-lane-specific", follow_up)
 
+    def test_hel76_follow_up_doc_records_private_save_comparison_lane(self) -> None:
+        follow_up = (
+            REPO_ROOT / "docs/hel-76-private-save-comparison-follow-up.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("Issue: HEL-76", follow_up)
+        self.assertIn("run_private_save_comparison_followup.py", follow_up)
+        self.assertIn("make monocular-save-compare-followup", follow_up)
+        self.assertIn(".symphony/progress/HEL-76.json", follow_up)
+        self.assertIn("5437", follow_up)
+        self.assertIn("924", follow_up)
+        self.assertIn("insta360-b87308a3/00.mp4", follow_up)
+        self.assertIn("insta360_x3_extr_rigs_calib.json", follow_up)
+
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"
         text = source.read_text(encoding="utf-8")
