@@ -38,6 +38,7 @@ make check
 - [HEL-71 Eigen static-alignment follow-up](docs/hel-71-eigen-static-alignment-follow-up.md)
 - [HEL-72 ASan plus no-static-alignment follow-up](docs/hel-72-asan-static-alignment-follow-up.md)
 - [HEL-73 private aggressive follow-up](docs/hel-73-private-aggressive-follow-up.md)
+- [HEL-74 private ASan leak follow-up](docs/hel-74-private-asan-leak-follow-up.md)
 - [Dataset normalization](docs/dataset-normalization.md)
 - [Calibration translation](docs/calibration-translation.md)
 - [Monocular baseline](docs/monocular-baseline.md)
@@ -93,6 +94,12 @@ turns that blocker into a dedicated repo entrypoint,
 `scripts/run_private_monocular_followup.py`, which now fails fast with an
 auditable report and `.symphony/progress/HEL-73.json` until the missing
 calibration/extrinsics sidecars are restored.
+The current HEL-74 follow-up in
+[docs/hel-74-private-asan-leak-follow-up.md](docs/hel-74-private-asan-leak-follow-up.md)
+shows that once those sidecars are restored, the private aggressive lane can
+run all 270 frames, initialize twice, and reach `SaveTrajectoryEuRoC`, but the
+expected frame trajectory is still missing and LeakSanitizer returns non-zero at
+shutdown because ORB-SLAM3 leaves large persistent allocations behind.
 
 ## Stereo + IMU Normalization Lane
 

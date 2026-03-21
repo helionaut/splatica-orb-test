@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 
@@ -13,6 +14,7 @@ SCRIPT_PATH = REPO_ROOT / "scripts" / "run_monocular_baseline.py"
 SPEC = importlib.util.spec_from_file_location("run_monocular_baseline", SCRIPT_PATH)
 assert SPEC is not None and SPEC.loader is not None
 MODULE = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
 
 
@@ -81,3 +83,47 @@ class RunMonocularBaselineTests(unittest.TestCase):
         self.assertEqual(missing, [outputs.frame_trajectory])
         self.assertIn("Frame trajectory: missing at", details[0])
         self.assertIn("Keyframe trajectory:", details[1])
+
+    def test_runtime_log_summary_records_maps_resets_and_asan_exit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log_path = Path(tmpdir) / "run.log"
+            log_path.write_text(
+                "\n".join(
+                    [
+                        "New Map created with 93 points",
+                        "SYSTEM-> Reseting active map in monocular case",
+                        "Saving trajectory to f_example.txt ...",
+                        "HEL-63 diagnostic: SaveTrajectoryEuRoC completed",
+                        "Saving keyframe trajectory to kf_example.txt ...",
+                        "No keyframes were recorded; skipping keyframe trajectory save.",
+                        "HEL-63 diagnostic: SaveKeyFrameTrajectoryEuRoC completed",
+                        "SUMMARY: AddressSanitizer: 123 byte(s) leaked in 4 allocation(s).",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            summary = MODULE.summarize_runtime_log(log_path)
+            details = MODULE.render_runtime_log_details(summary)
+
+        self.assertEqual(summary.map_points, (93,))
+        self.assertEqual(summary.reset_count, 1)
+        self.assertTrue(summary.frame_trajectory_save_completed)
+        self.assertTrue(summary.keyframe_trajectory_save_completed)
+        self.assertTrue(summary.keyframe_trajectory_skipped)
+        self.assertEqual(
+            summary.asan_summary,
+            "123 byte(s) leaked in 4 allocation(s).",
+        )
+        self.assertIn("Initialization maps created: 1 (points=93)", details)
+        self.assertIn("Active map resets observed: 1", details)
+        self.assertIn("Frame trajectory save call reached completion", details)
+        self.assertIn(
+            "Keyframe trajectory save skipped because no keyframes were recorded",
+            details,
+        )
+        self.assertIn(
+            "AddressSanitizer summary: 123 byte(s) leaked in 4 allocation(s).",
+            details,
+        )

@@ -2,7 +2,7 @@
 
 Status: Final
 Issue: HEL-49
-Last Updated: 2026-03-19
+Last Updated: 2026-03-21
 
 ## Final Recommendation
 
@@ -15,11 +15,17 @@ Last Updated: 2026-03-19
   `iniThFAST: 8`, `minThFAST: 3`) plus a stride-3 frame-selection rerun both
   cross the initialization barrier and create a first map, but each aborts
   with `double free or corruption (out)` before the run can save trajectories.
-- Next follow-up task: start from the
-  [HEL-57 monocular follow-up report](hel-57-monocular-follow-up.md), reuse the
-  aggressive ORB path as the diagnostic baseline, and isolate the
-  post-initialization abort before promoting any tuned settings into the
-  canonical manifest.
+- Current narrowed blocker: the HEL-74 private ASan rerun now survives the full
+  270-frame aggressive replay, initializes twice, reaches
+  `SaveTrajectoryEuRoC`, and only fails at shutdown because LeakSanitizer
+  reports `598421471 byte(s) leaked in 2383336 allocation(s)` while the
+  expected frame trajectory file is still missing.
+- Next follow-up task: keep the HEL-74 aggressive private lane as the
+  diagnostic baseline that started in the
+  [HEL-57 monocular follow-up report](hel-57-monocular-follow-up.md), and
+  isolate why the save path reports completion without leaving
+  `f_insta360_x3_lens10_orb_aggressive_asan_no_static_alignment_hel74.txt`
+  before any tuned settings are promoted into the canonical manifest.
 
 The repo now has one documented rerun path for the selected baseline plus one
 follow-up execution report for the private host run. Another engineer should
@@ -40,6 +46,11 @@ The current HEL-73 private aggressive follow-up is tracked in the
 which codifies `scripts/run_private_monocular_followup.py` as the next direct
 entrypoint for replaying the HEL-57 aggressive ORB lane with the HEL-72 build
 toggles once the raw calibration/extrinsics sidecars are restored.
+The current HEL-74 shutdown/save isolation result is tracked in the
+[HEL-74 private ASan leak follow-up](hel-74-private-asan-leak-follow-up.md),
+which records the first end-to-end private aggressive replay that reaches
+trajectory-save calls and narrows the remaining blocker to missing save
+artifacts plus LeakSanitizer exit semantics.
 
 ## Selected Baseline And Config Bundle
 
