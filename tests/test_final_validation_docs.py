@@ -218,6 +218,12 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("Change to map with id: 0", follow_up)
         self.assertIn("Local Mapping RELEASE", follow_up)
         self.assertIn("Merge finished!", follow_up)
+        self.assertIn("run_with_progress_guard.py", follow_up)
+        self.assertIn("asan_no_static_alignment_guarded_rerun", follow_up)
+        self.assertIn("frame 2124", follow_up)
+        self.assertIn("systemd-journald: Time jumped backwards, rotating.", follow_up)
+        self.assertIn("last KF id: 70", follow_up)
+        self.assertIn("155 points", follow_up)
 
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"

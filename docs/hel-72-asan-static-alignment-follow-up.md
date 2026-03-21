@@ -133,6 +133,48 @@ The runtime side has already crossed the old HEL-71 boundary:
     immediate crash or shutdown failure
 - No AddressSanitizer abort has appeared at the old first-map boundary
 
+The original long clean-room replay still did not finish cleanly:
+
+- the raw log stopped at `HEL-68 diagnostic: frame 2124 TrackMonocular start`
+- the detached JSONL overlay marked `pid_exited: true` at
+  `2026-03-21T01:30:56Z`
+- `reports/out/tum_vi_room1_512_16_cam0.md` was never written
+- `build/tum_vi_room1_512_16/monocular/trajectory/` remained empty
+
+Host-level checks narrowed that cutoff further:
+
+- `dmesg` did not record a new HEL-72 `mono_tum_vi` segfault, `OOM`, or
+  `Killed process` entry around the `frame 2124` stop
+- `journalctl` around the same window also lacked a HEL-72 crash line; the
+  only system churn aligned with that cutoff was
+  `systemd-journald: Time jumped backwards, rotating.`
+
+To remove the earlier supervision ambiguity, the same public lane was
+relaunched as a detached guarded run-only retry:
+
+- Guard wrapper:
+  `python3 /mnt/c/!codex/scripts/run_with_progress_guard.py --artifact .symphony/progress/HEL-72.json ...`
+- Tagged runtime log:
+  `logs/out/tum_vi_room1_512_16_cam0_asan_no_static_alignment_guarded_rerun.log`
+- Tagged report path:
+  `reports/out/tum_vi_room1_512_16_cam0_asan_no_static_alignment_guarded_rerun.md`
+- Tagged trajectory directory:
+  `build/tum_vi_room1_512_16/monocular/trajectory_asan_no_static_alignment_guarded_rerun/`
+
+The guarded retry reproduced the same later-runtime shape and continued beyond
+it:
+
+- local-map failures reappeared through roughly frames `763-803`
+- the rerun created `map 1`, stored `map 0`, and reinitialized with
+  `last KF id: 70`
+- the next map then initialized with `First KF:70; Map init KF:70` and
+  `New Map created with 155 points` at frame `805`
+- the same guarded rerun later reached `*Merge detected` / `Local Mapping STOP`
+  at frame `987`, `Change to map with id: 0` at frame `989`, and
+  `Local Mapping RELEASE` plus `Merge finished!` at frame `1054`
+- the tagged log continued through frame `1082` and beyond without an
+  immediate abort
+
 ## Narrowed Blocker So Far
 
 HEL-72 has not yet finished the full public replay at this checkpoint, so it
@@ -148,6 +190,10 @@ It does prove a materially narrower and more actionable state than HEL-71:
   aborting immediately
 - the same lane also survives the later merge-release completion boundary and
   returns to continued tracking
+- the earlier `frame 2124` cutoff is no longer consistent with a visible kernel
+  OOM/segfault; it is narrowed to an unclassified user-space or supervision
+  loss until the guarded rerun reaches a later concrete stop or the final
+  save path
 - the remaining risk is now a later-runtime or save-phase outcome, not the
   immediate post-initialization segfault seen in HEL-71
 - the private aggressive lens-10 rerun is still blocked in this checkout by
