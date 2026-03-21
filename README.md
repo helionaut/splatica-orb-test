@@ -40,6 +40,7 @@ make check
 - [HEL-73 private aggressive follow-up](docs/hel-73-private-aggressive-follow-up.md)
 - [HEL-74 private ASan leak follow-up](docs/hel-74-private-asan-leak-follow-up.md)
 - [HEL-75 public save-path probe follow-up](docs/hel-75-public-save-path-follow-up.md)
+- [HEL-76 private save comparison follow-up](docs/hel-76-private-save-comparison-follow-up.md)
 - [Dataset normalization](docs/dataset-normalization.md)
 - [Calibration translation](docs/calibration-translation.md)
 - [Monocular baseline](docs/monocular-baseline.md)
@@ -106,7 +107,13 @@ The current HEL-75 follow-up in
 shows that the same ASan/no-static-alignment build can still save both frame
 and keyframe trajectories on a bounded public monocular fisheye lane, so the
 remaining blocker is now private-lane-specific rather than a generic save-path
-or working-directory failure.
+or working-directory failure. The current HEL-76 follow-up in
+[docs/hel-76-private-save-comparison-follow-up.md](docs/hel-76-private-save-comparison-follow-up.md)
+turns that conclusion into a dedicated comparison entrypoint,
+`scripts/run_private_save_comparison_followup.py`, which reuses the HEL-74
+aggressive private lane, records the HEL-75 public save-byte reference in the
+repo, and leaves a blocked report when the current host still lacks the private
+calibration/extrinsics sidecars needed to rerun the comparison.
 
 ## Stereo + IMU Normalization Lane
 
