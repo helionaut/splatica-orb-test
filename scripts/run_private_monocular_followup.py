@@ -180,6 +180,7 @@ def render_status_report(
     execution_blocked: bool,
     execution_details: list[str],
     experiment: Mapping[str, object],
+    issue_identifier: str,
     prerequisites: MonocularBaselinePrerequisites,
     report_path: Path,
     run_log_path: Path,
@@ -200,7 +201,9 @@ def render_status_report(
         )
         if value
     )
-    return f"""# HEL-73 Private Monocular Follow-up Status
+    return f"""# {issue_identifier} Private Monocular Follow-up Status
+
+Issue: {issue_identifier}
 
 ## Result
 
@@ -339,6 +342,7 @@ def main() -> int:
     progress_artifact = resolve_repo_path(args.progress_artifact)
     orchestration_log = resolve_repo_path(args.orchestration_log)
     status_report = resolve_repo_path(args.status_report)
+    issue_identifier = args.progress_issue
 
     manifest = load_monocular_baseline_manifest(manifest_path)
     resolved = apply_monocular_output_tag(
@@ -395,7 +399,8 @@ def main() -> int:
     orchestration_log.parent.mkdir(parents=True, exist_ok=True)
     status_report.parent.mkdir(parents=True, exist_ok=True)
     with orchestration_log.open("w", encoding="utf-8") as log_handle:
-        log_handle.write("Starting HEL-73 private monocular follow-up.\n")
+        log_handle.write(f"Starting {issue_identifier} private monocular follow-up.\n")
+        log_handle.write(f"Issue: {issue_identifier}\n")
         log_handle.write(f"Manifest: {relative_to_repo(manifest_path)}\n")
         log_handle.write(f"Output tag: {args.output_tag}\n")
         log_handle.write(f"Progress artifact: {relative_to_repo(progress_artifact)}\n\n")
@@ -437,6 +442,7 @@ def main() -> int:
                     execution_blocked=True,
                     execution_details=execution_details,
                     experiment=experiment,
+                    issue_identifier=issue_identifier,
                     prerequisites=prerequisites,
                     report_path=status_report,
                     run_log_path=orchestration_log,
@@ -502,7 +508,7 @@ def main() -> int:
                             "alignment toggles before the aggressive private rerun"
                         ),
                         "ORB_SLAM3_PROGRESS_ARTIFACT": str(progress_artifact),
-                        "ORB_SLAM3_PROGRESS_ISSUE_ID": args.progress_issue,
+                        "ORB_SLAM3_PROGRESS_ISSUE_ID": issue_identifier,
                     },
                     REPO_ROOT,
                 ),
@@ -520,7 +526,7 @@ def main() -> int:
                         "--progress-artifact",
                         str(progress_artifact),
                         "--progress-issue",
-                        args.progress_issue,
+                        issue_identifier,
                         "--changed-variable",
                         str(experiment["changed_variable"]),
                         "--hypothesis",
@@ -614,6 +620,7 @@ def main() -> int:
                     execution_blocked=True,
                     execution_details=execution_details,
                     experiment=experiment,
+                    issue_identifier=issue_identifier,
                     prerequisites=inspect_monocular_baseline_prerequisites(
                         REPO_ROOT, manifest_path
                     ),
@@ -631,7 +638,7 @@ def main() -> int:
         progress_artifact,
         build_progress_payload(
             artifacts=artifacts,
-            current_step="HEL-73 private follow-up completed",
+            current_step=f"{issue_identifier} private follow-up completed",
             completed=TOTAL_PHASES,
             status="completed",
             metrics={"delegate_report_path": relative_to_repo(resolved.report)},
@@ -645,6 +652,7 @@ def main() -> int:
             execution_blocked=False,
             execution_details=execution_details,
             experiment=experiment,
+            issue_identifier=issue_identifier,
             prerequisites=inspect_monocular_baseline_prerequisites(REPO_ROOT, manifest_path),
             report_path=status_report,
             run_log_path=orchestration_log,

@@ -85,6 +85,7 @@ class PrivateMonocularFollowupTests(unittest.TestCase):
                     "changed_variable": "HEL-57 aggressive ORB plus HEL-72 build toggles",
                     "expected_artifact": "build/insta360_x3_lens10/monocular/trajectory/f_example.txt",
                 },
+                issue_identifier="HEL-74",
                 prerequisites=prerequisites,
                 report_path=report_path,
                 run_log_path=log_path,
@@ -94,6 +95,8 @@ class PrivateMonocularFollowupTests(unittest.TestCase):
             )
 
         self.assertIn("Status: `blocked`", report)
+        self.assertIn("# HEL-74 Private Monocular Follow-up Status", report)
+        self.assertIn("Issue: HEL-74", report)
         self.assertIn("Source calibration 00: **missing**", report)
         self.assertIn("Source stereo extrinsics: **missing**", report)
         self.assertIn("Next action: provide the missing raw source files", report)

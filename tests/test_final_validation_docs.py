@@ -25,6 +25,7 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("(docs/hel-71-eigen-static-alignment-follow-up.md)", readme)
         self.assertIn("(docs/hel-72-asan-static-alignment-follow-up.md)", readme)
         self.assertIn("(docs/hel-73-private-aggressive-follow-up.md)", readme)
+        self.assertIn("(docs/hel-74-private-asan-leak-follow-up.md)", readme)
         self.assertIn("make check", readme)
 
     def test_final_report_records_canonical_baseline_and_verdict(self) -> None:
@@ -70,8 +71,11 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("HEL-71 Eigen static-alignment follow-up", report)
         self.assertIn("HEL-72 ASan plus no-static-alignment follow-up", report)
         self.assertIn("HEL-73 private aggressive follow-up", report)
+        self.assertIn("HEL-74 private ASan leak follow-up", report)
         self.assertIn("double free or corruption", report)
         self.assertIn("nFeatures: 4000", report)
+        self.assertIn("LeakSanitizer", report)
+        self.assertIn("SaveTrajectoryEuRoC", report)
         self.assertIn(
             "reports/out/insta360_x3_lens10_monocular_prereqs.md",
             report,
@@ -250,6 +254,21 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("insta360_x3_extr_rigs_calib.json", follow_up)
         self.assertIn("blocked before the aggressive rerun could start", follow_up)
         self.assertIn("reports/out/hel-73_private_monocular_followup.md", follow_up)
+
+    def test_hel74_follow_up_doc_records_shutdown_save_boundary(self) -> None:
+        follow_up = (
+            REPO_ROOT / "docs/hel-74-private-asan-leak-follow-up.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("Issue: HEL-74", follow_up)
+        self.assertIn("AddressSanitizer", follow_up)
+        self.assertIn("SaveTrajectoryEuRoC completed", follow_up)
+        self.assertIn("No keyframes were recorded; skipping keyframe trajectory save.", follow_up)
+        self.assertIn("598421471 byte(s) leaked in 2383336 allocation(s).", follow_up)
+        self.assertIn("New Map created with 93 points", follow_up)
+        self.assertIn("New Map created with 71 points", follow_up)
+        self.assertIn("Reseting active map in monocular case", follow_up)
+        self.assertIn("expected frame trajectory is still missing", follow_up)
 
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"

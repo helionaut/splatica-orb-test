@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Callable
+from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
@@ -40,6 +41,13 @@ FRAME_START_PATTERN = re.compile(
 FRAME_COMPLETED_PATTERN = re.compile(
     r"HEL-68 diagnostic: frame (\d+) TrackMonocular completed"
 )
+NEW_MAP_CREATED_PATTERN = re.compile(r"New Map created with (\d+) points")
+RESET_ACTIVE_MAP_PATTERN = re.compile(r"SYSTEM-> Reseting active map in monocular case")
+SAVE_TRAJECTORY_PATTERN = re.compile(r"Saving trajectory to (\S+) \.\.\.")
+SAVE_KEYFRAME_TRAJECTORY_PATTERN = re.compile(
+    r"Saving keyframe trajectory to (\S+) \.\.\."
+)
+ASAN_SUMMARY_PATTERN = re.compile(r"SUMMARY: AddressSanitizer: (.+)")
 DEFAULT_PROGRESS_ARTIFACT = os.environ.get("ORB_SLAM3_PROGRESS_ARTIFACT", "")
 DEFAULT_PROGRESS_ISSUE = os.environ.get("ORB_SLAM3_PROGRESS_ISSUE_ID", "")
 DEFAULT_CHANGED_VARIABLE = os.environ.get("ORB_SLAM3_RUN_CHANGED_VARIABLE", "")
@@ -47,6 +55,18 @@ DEFAULT_HYPOTHESIS = os.environ.get("ORB_SLAM3_RUN_HYPOTHESIS", "")
 DEFAULT_SUCCESS_CRITERION = os.environ.get("ORB_SLAM3_RUN_SUCCESS_CRITERION", "")
 DEFAULT_ABORT_CONDITION = os.environ.get("ORB_SLAM3_RUN_ABORT_CONDITION", "")
 DEFAULT_EXPECTED_ARTIFACT = os.environ.get("ORB_SLAM3_RUN_EXPECTED_ARTIFACT", "")
+
+
+@dataclass(frozen=True)
+class RuntimeLogSummary:
+    map_points: tuple[int, ...]
+    reset_count: int
+    frame_trajectory_save_path: str | None
+    frame_trajectory_save_completed: bool
+    keyframe_trajectory_save_path: str | None
+    keyframe_trajectory_save_completed: bool
+    keyframe_trajectory_skipped: bool
+    asan_summary: str | None
 
 
 def resolve_repo_path(path_text: str) -> Path:
@@ -250,6 +270,91 @@ def inspect_trajectory_outputs(
             missing_or_empty_outputs.append(trajectory_path)
 
     return result_details, missing_or_empty_outputs
+
+
+def summarize_runtime_log(log_path: Path) -> RuntimeLogSummary:
+    map_points: list[int] = []
+    reset_count = 0
+    frame_trajectory_save_path: str | None = None
+    frame_trajectory_save_completed = False
+    keyframe_trajectory_save_path: str | None = None
+    keyframe_trajectory_save_completed = False
+    keyframe_trajectory_skipped = False
+    asan_summary: str | None = None
+
+    if not log_path.exists():
+        return RuntimeLogSummary(
+            map_points=(),
+            reset_count=0,
+            frame_trajectory_save_path=None,
+            frame_trajectory_save_completed=False,
+            keyframe_trajectory_save_path=None,
+            keyframe_trajectory_save_completed=False,
+            keyframe_trajectory_skipped=False,
+            asan_summary=None,
+        )
+
+    for raw_line in log_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if match := NEW_MAP_CREATED_PATTERN.search(line):
+            map_points.append(int(match.group(1)))
+        if RESET_ACTIVE_MAP_PATTERN.search(line):
+            reset_count += 1
+        if match := SAVE_TRAJECTORY_PATTERN.search(line):
+            frame_trajectory_save_path = match.group(1)
+        if match := SAVE_KEYFRAME_TRAJECTORY_PATTERN.search(line):
+            keyframe_trajectory_save_path = match.group(1)
+        if "HEL-63 diagnostic: SaveTrajectoryEuRoC completed" in line:
+            frame_trajectory_save_completed = True
+        if "HEL-63 diagnostic: SaveKeyFrameTrajectoryEuRoC completed" in line:
+            keyframe_trajectory_save_completed = True
+        if "No keyframes were recorded; skipping keyframe trajectory save." in line:
+            keyframe_trajectory_skipped = True
+        if match := ASAN_SUMMARY_PATTERN.search(line):
+            asan_summary = match.group(1)
+
+    return RuntimeLogSummary(
+        map_points=tuple(map_points),
+        reset_count=reset_count,
+        frame_trajectory_save_path=frame_trajectory_save_path,
+        frame_trajectory_save_completed=frame_trajectory_save_completed,
+        keyframe_trajectory_save_path=keyframe_trajectory_save_path,
+        keyframe_trajectory_save_completed=keyframe_trajectory_save_completed,
+        keyframe_trajectory_skipped=keyframe_trajectory_skipped,
+        asan_summary=asan_summary,
+    )
+
+
+def render_runtime_log_details(summary: RuntimeLogSummary) -> list[str]:
+    details: list[str] = []
+
+    if summary.map_points:
+        point_list = ", ".join(str(points) for points in summary.map_points)
+        details.append(
+            f"Initialization maps created: {len(summary.map_points)} (points={point_list})"
+        )
+    if summary.reset_count:
+        details.append(f"Active map resets observed: {summary.reset_count}")
+    if summary.frame_trajectory_save_path:
+        details.append(
+            f"Frame trajectory save invoked for {summary.frame_trajectory_save_path}"
+        )
+    if summary.frame_trajectory_save_completed:
+        details.append("Frame trajectory save call reached completion")
+    if summary.keyframe_trajectory_save_path:
+        details.append(
+            f"Keyframe trajectory save invoked for {summary.keyframe_trajectory_save_path}"
+        )
+    if summary.keyframe_trajectory_save_completed:
+        details.append("Keyframe trajectory save call reached completion")
+    if summary.keyframe_trajectory_skipped:
+        details.append(
+            "Keyframe trajectory save skipped because no keyframes were recorded"
+        )
+    if summary.asan_summary:
+        details.append(f"AddressSanitizer summary: {summary.asan_summary}")
+
+    return details
 
 
 def main() -> int:
@@ -527,6 +632,36 @@ def main() -> int:
         path_renderer=relative_to_repo,
     )
     result_details.extend(trajectory_result_details)
+    runtime_log_summary = summarize_runtime_log(resolved.log)
+    result_details.extend(render_runtime_log_details(runtime_log_summary))
+
+    if (
+        runtime_log_summary.frame_trajectory_save_completed
+        and trajectory_outputs.frame_trajectory in missing_or_empty_outputs
+    ):
+        result_details.append(
+            "Frame trajectory save completed in the log, but the expected frame "
+            "trajectory file is still missing at "
+            f"{relative_to_repo(trajectory_outputs.frame_trajectory)}."
+        )
+    if (
+        runtime_log_summary.keyframe_trajectory_skipped
+        and trajectory_outputs.keyframe_trajectory in missing_or_empty_outputs
+    ):
+        missing_or_empty_outputs = [
+            path
+            for path in missing_or_empty_outputs
+            if path != trajectory_outputs.keyframe_trajectory
+        ]
+    elif (
+        runtime_log_summary.keyframe_trajectory_save_completed
+        and trajectory_outputs.keyframe_trajectory in missing_or_empty_outputs
+    ):
+        result_details.append(
+            "Keyframe trajectory save completed in the log, but the expected keyframe "
+            "trajectory file is still missing at "
+            f"{relative_to_repo(trajectory_outputs.keyframe_trajectory)}."
+        )
 
     if result == 0 and missing_or_empty_outputs:
         final_exit_code = 2
