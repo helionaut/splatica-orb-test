@@ -283,8 +283,13 @@ void LoadImages() {}
         self.assertIn("HEL-75 diagnostic: trajectory save cwd=", rewritten)
         self.assertIn("HEL-63 diagnostic: entering SLAM shutdown", rewritten)
         self.assertIn("HEL-63 diagnostic: SaveTrajectoryEuRoC completed", rewritten)
+        self.assertIn("HEL-78 diagnostic: frame trajectory post_return open=", rewritten)
         self.assertIn(
             "HEL-63 diagnostic: SaveKeyFrameTrajectoryEuRoC completed",
+            rewritten,
+        )
+        self.assertIn(
+            "HEL-78 diagnostic: keyframe trajectory post_return open=",
             rewritten,
         )
 
@@ -390,6 +395,11 @@ int main(int argc, char **argv)
             cout << "HEL-63 diagnostic: calling SaveTrajectoryEuRoC for " << f_file << endl;
             SLAM.SaveTrajectoryEuRoC(f_file);
             cout << "HEL-63 diagnostic: SaveTrajectoryEuRoC completed" << endl;
+            ifstream hel78_frame_saved_file(f_file.c_str(), ios::binary | ios::ate);
+            cout << "HEL-78 diagnostic: frame trajectory post_return open=" << hel78_frame_saved_file.is_open()
+                 << ", bytes="
+                 << (hel78_frame_saved_file.is_open() ? static_cast<long long>(hel78_frame_saved_file.tellg()) : -1)
+                 << ", filename=" << f_file << endl;
         }
         if(skip_keyframe_trajectory_save)
             cout << "HEL-63 diagnostic: skipping SaveKeyFrameTrajectoryEuRoC for " << kf_file << endl;
@@ -398,6 +408,11 @@ int main(int argc, char **argv)
             cout << "HEL-63 diagnostic: calling SaveKeyFrameTrajectoryEuRoC for " << kf_file << endl;
             SLAM.SaveKeyFrameTrajectoryEuRoC(kf_file);
             cout << "HEL-63 diagnostic: SaveKeyFrameTrajectoryEuRoC completed" << endl;
+            ifstream hel78_keyframe_saved_file(kf_file.c_str(), ios::binary | ios::ate);
+            cout << "HEL-78 diagnostic: keyframe trajectory post_return open=" << hel78_keyframe_saved_file.is_open()
+                 << ", bytes="
+                 << (hel78_keyframe_saved_file.is_open() ? static_cast<long long>(hel78_keyframe_saved_file.tellg()) : -1)
+                 << ", filename=" << kf_file << endl;
         }
     }
     else
@@ -409,6 +424,11 @@ int main(int argc, char **argv)
             cout << "HEL-63 diagnostic: calling SaveTrajectoryEuRoC for CameraTrajectory.txt" << endl;
             SLAM.SaveTrajectoryEuRoC("CameraTrajectory.txt");
             cout << "HEL-63 diagnostic: SaveTrajectoryEuRoC completed" << endl;
+            ifstream hel78_frame_saved_file("CameraTrajectory.txt", ios::binary | ios::ate);
+            cout << "HEL-78 diagnostic: frame trajectory post_return open=" << hel78_frame_saved_file.is_open()
+                 << ", bytes="
+                 << (hel78_frame_saved_file.is_open() ? static_cast<long long>(hel78_frame_saved_file.tellg()) : -1)
+                 << ", filename=CameraTrajectory.txt" << endl;
         }
         if(skip_keyframe_trajectory_save)
             cout << "HEL-63 diagnostic: skipping SaveKeyFrameTrajectoryEuRoC for KeyFrameTrajectory.txt" << endl;
@@ -417,6 +437,11 @@ int main(int argc, char **argv)
             cout << "HEL-63 diagnostic: calling SaveKeyFrameTrajectoryEuRoC for KeyFrameTrajectory.txt" << endl;
             SLAM.SaveKeyFrameTrajectoryEuRoC("KeyFrameTrajectory.txt");
             cout << "HEL-63 diagnostic: SaveKeyFrameTrajectoryEuRoC completed" << endl;
+            ifstream hel78_keyframe_saved_file("KeyFrameTrajectory.txt", ios::binary | ios::ate);
+            cout << "HEL-78 diagnostic: keyframe trajectory post_return open=" << hel78_keyframe_saved_file.is_open()
+                 << ", bytes="
+                 << (hel78_keyframe_saved_file.is_open() ? static_cast<long long>(hel78_keyframe_saved_file.tellg()) : -1)
+                 << ", filename=KeyFrameTrajectory.txt" << endl;
         }
     }
 
@@ -497,6 +522,10 @@ void LoadImages() {}
             rewritten,
         )
         self.assertIn(
+            'HEL-78 diagnostic: SaveTrajectoryEuRoC atlas_state ',
+            rewritten,
+        )
+        self.assertIn(
             'HEL-75 diagnostic: SaveTrajectoryEuRoC post_close open=',
             rewritten,
         )
@@ -547,7 +576,55 @@ void LoadImages() {}
             rewritten,
         )
         self.assertIn(
+            'HEL-78 diagnostic: SaveKeyFrameTrajectoryEuRoC atlas_state ',
+            rewritten,
+        )
+        self.assertIn(
             'HEL-75 diagnostic: SaveKeyFrameTrajectoryEuRoC post_close open=',
+            rewritten,
+        )
+
+    def test_normalize_reset_active_map_adds_pre_and_post_clear_diagnostics(self) -> None:
+        block = """void Tracking::ResetActiveMap(bool bLocMap)
+{
+    Verbose::PrintMess("Active map Reseting", Verbose::VERBOSITY_NORMAL);
+    if(mpViewer)
+    {
+        mpViewer->RequestStop();
+        while(!mpViewer->isStopped())
+            usleep(3000);
+    }
+
+    Map* pMap = mpAtlas->GetCurrentMap();
+
+    if (!bLocMap)
+    {
+        Verbose::PrintMess("Reseting Local Mapper...", Verbose::VERBOSITY_VERY_VERBOSE);
+        mpLocalMapper->RequestResetActiveMap(pMap);
+        Verbose::PrintMess("done", Verbose::VERBOSITY_VERY_VERBOSE);
+    }
+
+    Verbose::PrintMess("Reseting Loop Closing...", Verbose::VERBOSITY_NORMAL);
+    mpLoopClosing->RequestResetActiveMap(pMap);
+    Verbose::PrintMess("done", Verbose::VERBOSITY_NORMAL);
+
+    Verbose::PrintMess("Reseting Database", Verbose::VERBOSITY_NORMAL);
+    mpKeyFrameDB->clearMap(pMap);
+    Verbose::PrintMess("done", Verbose::VERBOSITY_NORMAL);
+
+    // Clear Map (this erase MapPoints and KeyFrames)
+    mpAtlas->clearMap();
+}
+"""
+
+        rewritten = PATCH_HELPER.normalize_reset_active_map(block)
+
+        self.assertIn(
+            'HEL-78 diagnostic: ResetActiveMap pre_clear ',
+            rewritten,
+        )
+        self.assertIn(
+            'HEL-78 diagnostic: ResetActiveMap post_clear ',
             rewritten,
         )
 

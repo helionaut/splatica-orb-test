@@ -66,10 +66,17 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
                 "\n".join(
                     [
                         "- Trajectory save cwd reported: /tmp/private/trajectory",
+                        "- Frame trajectory save skipped because no keyframes were recorded",
                         "- Frame trajectory post-close visibility: open=False, bytes=0",
+                        "- Frame trajectory after-return visibility: open=False, bytes=-1",
                         "- Keyframe trajectory post-close visibility: open=True, bytes=12",
+                        "- Keyframe trajectory after-return visibility: open=True, bytes=12",
                         "- Initialization maps created: 2 (points=93, 71)",
                         "- Active map resets observed: 2",
+                        "- Active map reset pre-clear states: map_id=0, keyframes=2, map_points=71, atlas_maps=1, current_frame=254",
+                        "- Active map reset post-clear states: map_id=0, keyframes=0, map_points=0, atlas_maps=1",
+                        "- Frame trajectory save atlas state: current_map_id=0, current_map_keyframes=0, current_map_points=0, atlas_maps=1, tracker_relative_frame_poses=270, tracker_references=270, tracker_frame_times=270, tracker_lost_flags=270",
+                        "- Keyframe trajectory save atlas state: current_map_id=0, current_map_keyframes=0, current_map_points=0, atlas_maps=1, tracker_relative_frame_poses=270, tracker_references=270, tracker_frame_times=270, tracker_lost_flags=270",
                         "- AddressSanitizer summary: 598421903 byte(s) leaked in 2383340 allocation(s).",
                         "- Frame trajectory save completed in the log, but the expected frame trajectory file is still missing at /tmp/private/f_private.txt.",
                     ]
@@ -102,16 +109,90 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
         self.assertEqual(evidence.save_cwd, "/tmp/private/trajectory")
         self.assertFalse(evidence.frame_post_close_open)
         self.assertEqual(evidence.frame_post_close_bytes, 0)
+        self.assertFalse(evidence.frame_post_return_open)
+        self.assertEqual(evidence.frame_post_return_bytes, -1)
+        self.assertTrue(evidence.frame_skipped)
         self.assertTrue(evidence.keyframe_post_close_open)
         self.assertEqual(evidence.keyframe_post_close_bytes, 12)
+        self.assertTrue(evidence.keyframe_post_return_open)
+        self.assertEqual(evidence.keyframe_post_return_bytes, 12)
         self.assertEqual(evidence.initialization_maps, 2)
         self.assertEqual(evidence.initialization_map_points, "93, 71")
         self.assertEqual(evidence.active_map_resets, 2)
+        self.assertEqual(
+            evidence.reset_pre_clear_states,
+            "map_id=0, keyframes=2, map_points=71, atlas_maps=1, current_frame=254",
+        )
+        self.assertEqual(
+            evidence.reset_post_clear_states,
+            "map_id=0, keyframes=0, map_points=0, atlas_maps=1",
+        )
+        self.assertEqual(
+            evidence.frame_save_atlas_state,
+            "current_map_id=0, current_map_keyframes=0, current_map_points=0, atlas_maps=1, tracker_relative_frame_poses=270, tracker_references=270, tracker_frame_times=270, tracker_lost_flags=270",
+        )
+        self.assertEqual(
+            evidence.keyframe_save_atlas_state,
+            "current_map_id=0, current_map_keyframes=0, current_map_points=0, atlas_maps=1, tracker_relative_frame_poses=270, tracker_references=270, tracker_frame_times=270, tracker_lost_flags=270",
+        )
         self.assertEqual(
             evidence.asan_summary,
             "598421903 byte(s) leaked in 2383340 allocation(s).",
         )
         self.assertTrue(evidence.missing_frame_after_save)
+
+    def test_load_progress_artifact_ignores_invalid_json(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            artifact = Path(tmpdir) / "progress.json"
+            artifact.write_text("{not-json}\n", encoding="utf-8")
+
+            loaded = MODULE.load_progress_artifact(artifact)
+
+        self.assertIsNone(loaded)
+
+    def test_build_delegate_heartbeat_payload_mirrors_delegate_progress(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            delegate_artifact = Path(tmpdir) / "delegate-progress.json"
+            payload = MODULE.build_delegate_heartbeat_payload(
+                base_metrics={
+                    "delegate_command": "python3 scripts/run_private_monocular_followup.py",
+                    "reference_frame_bytes": 5437,
+                    "reference_keyframe_bytes": 924,
+                },
+                delegate_progress_artifact=delegate_artifact,
+                delegate_payload={
+                    "status": "in_progress",
+                    "current_step": "building mono_tum_vi",
+                    "progress_percent": 88,
+                    "completed": 7,
+                    "total": 8,
+                    "unit": "phases",
+                    "metrics": {"output_lines": 1542},
+                },
+                artifacts={
+                    "status_report": "reports/out/hel-78_private_save_comparison_followup.md"
+                },
+                experiment={"expected_artifact": "reports/out/hel-78_private_save_comparison_followup.md"},
+            )
+
+        self.assertEqual(payload["status"], "in_progress")
+        self.assertEqual(payload["current_step"], "delegate heartbeat: building mono_tum_vi")
+        self.assertEqual(payload["completed"], 88)
+        self.assertEqual(payload["total"], 100)
+        self.assertEqual(payload["unit"], "percent")
+        self.assertEqual(payload["progress_percent"], 88)
+        self.assertEqual(payload["metrics"]["delegate_status"], "in_progress")
+        self.assertEqual(payload["metrics"]["delegate_current_step"], "building mono_tum_vi")
+        self.assertEqual(payload["metrics"]["delegate_completed"], 7)
+        self.assertEqual(payload["metrics"]["delegate_total"], 8)
+        self.assertEqual(payload["metrics"]["delegate_unit"], "phases")
+        self.assertEqual(payload["metrics"]["delegate_metrics"], {"output_lines": 1542})
+
+    def test_build_delegate_env_overrides_allows_identical_retry(self) -> None:
+        self.assertEqual(
+            MODULE.build_delegate_env_overrides(),
+            {"ORB_SLAM3_ALLOW_IDENTICAL_RETRY": "1"},
+        )
 
     def test_render_status_report_records_reference_and_blocker(self) -> None:
         report = MODULE.render_status_report(
@@ -132,13 +213,22 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
                 save_cwd=None,
                 frame_post_close_open=None,
                 frame_post_close_bytes=None,
+                frame_post_return_open=None,
+                frame_post_return_bytes=None,
+                frame_skipped=True,
                 keyframe_post_close_open=None,
                 keyframe_post_close_bytes=None,
+                keyframe_post_return_open=None,
+                keyframe_post_return_bytes=None,
                 delegate_report_path=Path("reports/out/delegate.md"),
                 delegate_log_path=Path("logs/out/private.log"),
                 initialization_maps=2,
                 initialization_map_points="93, 71",
                 active_map_resets=2,
+                reset_pre_clear_states="map_id=0, keyframes=2, map_points=71, atlas_maps=1, current_frame=254",
+                reset_post_clear_states="map_id=0, keyframes=0, map_points=0, atlas_maps=1",
+                frame_save_atlas_state="current_map_id=0, current_map_keyframes=0, current_map_points=0, atlas_maps=1, tracker_relative_frame_poses=270, tracker_references=270, tracker_frame_times=270, tracker_lost_flags=270",
+                keyframe_save_atlas_state="current_map_id=0, current_map_keyframes=0, current_map_points=0, atlas_maps=1, tracker_relative_frame_poses=270, tracker_references=270, tracker_frame_times=270, tracker_lost_flags=270",
                 asan_summary="598421903 byte(s) leaked in 2383340 allocation(s).",
                 missing_frame_after_save=True,
             ),
@@ -168,11 +258,31 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
         self.assertIn("Private runtime map cycles observed: `2` (points=93, 71).", report)
         self.assertIn("Private active-map resets observed: `2`.", report)
         self.assertIn(
+            "Private reset pre-clear states: `map_id=0, keyframes=2, map_points=71, atlas_maps=1, current_frame=254`.",
+            report,
+        )
+        self.assertIn(
+            "Private reset post-clear states: `map_id=0, keyframes=0, map_points=0, atlas_maps=1`.",
+            report,
+        )
+        self.assertIn(
+            "Private frame-save atlas state: `current_map_id=0, current_map_keyframes=0, current_map_points=0, atlas_maps=1, tracker_relative_frame_poses=270, tracker_references=270, tracker_frame_times=270, tracker_lost_flags=270`.",
+            report,
+        )
+        self.assertIn(
             "Private AddressSanitizer summary: `598421903 byte(s) leaked in 2383340 allocation(s).`",
             report,
         )
         self.assertIn(
-            "the delegate log reached frame-trajectory save completion, but the expected frame trajectory file was still missing afterward",
+            "Private frame save skipped before file open because no keyframes were recorded.",
             report,
         )
-        self.assertIn("reached the late shutdown/save boundary", report)
+        self.assertIn(
+            "System::SaveTrajectoryEuRoC reported no keyframes and skipped opening the frame trajectory file",
+            report,
+        )
+        self.assertIn(
+            "the last active-map reset explicitly cleared the current map before shutdown",
+            report,
+        )
+        self.assertNotIn("reached the late shutdown/save boundary", report)
