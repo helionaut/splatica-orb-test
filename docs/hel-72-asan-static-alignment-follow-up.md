@@ -121,6 +121,11 @@ The runtime side has already crossed the old HEL-71 boundary:
     reported `New Map created with 157 points` at frame `799`
   - the raw log later continued through frame `809` and beyond instead of
     aborting at that second-map boundary
+- The later multi-map lane now also survives a merge boundary:
+  - the log reached `*Merge detected` and `Local Mapping STOP` at frame `988`
+  - the next frame reported `Change to map with id: 0`
+  - the same process continued into frame `978`+ in the monitored overlay and
+    past frame `990` in the raw log without an AddressSanitizer abort
 - No AddressSanitizer abort has appeared at the old first-map boundary
 
 ## Narrowed Blocker So Far
@@ -134,6 +139,8 @@ It does prove a materially narrower and more actionable state than HEL-71:
   first-map crash boundary
 - the same lane now also survives a later tracking-loss and second-map
   reinitialization boundary on the public replay
+- the same lane also survives a later merge-and-map-switch boundary instead of
+  aborting immediately
 - the remaining risk is now a later-runtime or save-phase outcome, not the
   immediate post-initialization segfault seen in HEL-71
 - the private aggressive lens-10 rerun is still blocked in this checkout by

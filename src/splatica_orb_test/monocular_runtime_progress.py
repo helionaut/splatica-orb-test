@@ -15,10 +15,13 @@ FRAME_COMPLETED_PATTERN = re.compile(
 )
 MAP_CREATION_PATTERN = re.compile(r"Creation of new map with id: (\d+)")
 STORED_MAP_PATTERN = re.compile(r"Stored map with ID: (\d+)")
+CHANGE_MAP_PATTERN = re.compile(r"Change to map with id: (\d+)")
 MAP_LAST_KF_PATTERN = re.compile(r"Creation of new map with last KF id: (\d+)")
 MAP_INIT_PATTERN = re.compile(r"First KF:(\d+); Map init KF:(\d+)")
 MAP_POINTS_PATTERN = re.compile(r"New Map created with (\d+) points")
 LOCAL_MAP_FAILURE_MARKER = "Fail to track local map!"
+MERGE_DETECTED_MARKER = "*Merge detected"
+LOCAL_MAPPING_STOP_MARKER = "Local Mapping STOP"
 SHUTDOWN_START_MARKER = "HEL-63 diagnostic: entering SLAM shutdown"
 SHUTDOWN_COMPLETED_MARKER = "HEL-63 diagnostic: SLAM shutdown completed"
 
@@ -42,6 +45,9 @@ class MonocularRuntimeSummary:
     latest_map_first_kf: int | None
     latest_map_init_kf: int | None
     latest_map_points: int | None
+    latest_changed_map_id: int | None
+    merge_detected_count: int
+    local_mapping_stop_count: int
 
 
 def summarize_monocular_runtime_log(
@@ -64,6 +70,9 @@ def summarize_monocular_runtime_log(
     latest_map_first_kf: int | None = None
     latest_map_init_kf: int | None = None
     latest_map_points: int | None = None
+    latest_changed_map_id: int | None = None
+    merge_detected_count = 0
+    local_mapping_stop_count = 0
 
     for raw_line in lines:
         stripped = raw_line.strip()
@@ -101,6 +110,11 @@ def summarize_monocular_runtime_log(
             current_step = stripped
             continue
 
+        if match := CHANGE_MAP_PATTERN.search(stripped):
+            latest_changed_map_id = int(match.group(1))
+            current_step = stripped
+            continue
+
         if match := MAP_LAST_KF_PATTERN.search(stripped):
             latest_map_last_kf_id = int(match.group(1))
             current_step = stripped
@@ -114,6 +128,16 @@ def summarize_monocular_runtime_log(
 
         if match := MAP_POINTS_PATTERN.search(stripped):
             latest_map_points = int(match.group(1))
+            current_step = stripped
+            continue
+
+        if stripped == MERGE_DETECTED_MARKER:
+            merge_detected_count += 1
+            current_step = stripped
+            continue
+
+        if stripped == LOCAL_MAPPING_STOP_MARKER:
+            local_mapping_stop_count += 1
             current_step = stripped
             continue
 
@@ -154,6 +178,9 @@ def summarize_monocular_runtime_log(
         latest_map_first_kf=latest_map_first_kf,
         latest_map_init_kf=latest_map_init_kf,
         latest_map_points=latest_map_points,
+        latest_changed_map_id=latest_changed_map_id,
+        merge_detected_count=merge_detected_count,
+        local_mapping_stop_count=local_mapping_stop_count,
     )
 
 

@@ -276,6 +276,8 @@ class OperatorScriptTests(unittest.TestCase):
         self.assertIn("write_progress_snapshot", script)
         self.assertIn('"local_map_failure_count": summary.local_map_failure_count', script)
         self.assertIn('"latest_map_points": summary.latest_map_points', script)
+        self.assertIn('"latest_changed_map_id": summary.latest_changed_map_id', script)
+        self.assertIn('"merge_detected_count": summary.merge_detected_count', script)
         self.assertIn(
             'status = "completed" if summary.shutdown_completed else "failed"',
             script,

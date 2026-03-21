@@ -213,6 +213,9 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("Fail to track local map!", follow_up)
         self.assertIn("Creation of new map with id: 1", follow_up)
         self.assertIn("157 points", follow_up)
+        self.assertIn("*Merge detected", follow_up)
+        self.assertIn("Local Mapping STOP", follow_up)
+        self.assertIn("Change to map with id: 0", follow_up)
 
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"
