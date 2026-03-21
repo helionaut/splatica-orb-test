@@ -28,6 +28,10 @@ from splatica_orb_test.monocular_inputs import (  # noqa: E402
     RAW_EXTRINSICS_FILENAME,
     resolve_lens_input_layout,
 )
+from splatica_orb_test.local_tooling import (  # noqa: E402
+    resolve_ffmpeg_tool,
+    resolve_ffprobe_tool,
+)
 from splatica_orb_test.monocular_prereqs import (  # noqa: E402
     MonocularBaselinePrerequisites,
     PrerequisiteCheck,
@@ -49,7 +53,14 @@ DEFAULT_STATUS_REPORT = (
     REPO_ROOT / "reports/out/hel-73_private_monocular_followup.md"
 )
 DEFAULT_OUTPUT_TAG = "orb_aggressive_asan_no_static_alignment"
-TOTAL_PHASES = 5
+EXECUTION_BOOTSTRAP_TARGETS = {
+    "Tool `cmake`": "bootstrap-local-cmake",
+    "Eigen3 development package": "bootstrap-local-eigen",
+    "OpenCV development package": "bootstrap-local-opencv",
+    "Boost serialization development package": "bootstrap-local-boost",
+    "Pangolin development package": "bootstrap-local-pangolin",
+}
+ExecutionPhase = tuple[str, list[str], dict[str, str] | None, Path]
 
 
 @dataclass(frozen=True)
@@ -80,17 +91,19 @@ def build_progress_payload(
     artifacts: dict[str, str],
     current_step: str,
     completed: int,
+    total_phases: int,
     status: str,
     metrics: dict[str, object] | None = None,
     experiment: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    clamped_completed = max(0, min(completed, TOTAL_PHASES))
+    resolved_total_phases = max(total_phases, 1)
+    clamped_completed = max(0, min(completed, resolved_total_phases))
     payload = {
         "status": status,
         "current_step": current_step,
-        "progress_percent": round((clamped_completed / TOTAL_PHASES) * 100),
+        "progress_percent": round((clamped_completed / resolved_total_phases) * 100),
         "completed": clamped_completed,
-        "total": TOTAL_PHASES,
+        "total": resolved_total_phases,
         "unit": "phases",
         "metrics": metrics or {},
         "artifacts": artifacts,
@@ -212,6 +225,175 @@ def inspect_source_inputs(source_inputs: SourceInputPaths) -> tuple[Prerequisite
             detail=str(source_inputs.extrinsics),
         ),
     )
+
+
+def resolve_import_bootstrap_targets(
+    *,
+    ready_for_prepare_only: bool,
+    media_tools_ready: bool,
+) -> tuple[str, ...]:
+    if ready_for_prepare_only or media_tools_ready:
+        return ()
+    return ("bootstrap-local-ffmpeg",)
+
+
+def resolve_execution_bootstrap_targets(
+    prerequisites: MonocularBaselinePrerequisites,
+) -> tuple[str, ...]:
+    targets: list[str] = []
+    for check in prerequisites.execute_checks:
+        target = EXECUTION_BOOTSTRAP_TARGETS.get(check.label)
+        if target is not None and not check.ready and target not in targets:
+            targets.append(target)
+    return tuple(targets)
+
+
+def build_followup_phases(
+    *,
+    repo_root: Path,
+    manifest_path: Path,
+    source_inputs: SourceInputPaths,
+    prerequisites: MonocularBaselinePrerequisites,
+    progress_artifact: Path,
+    issue_identifier: str,
+    output_tag: str,
+    frame_stride: int,
+    max_frames: int | None,
+    experiment: Mapping[str, object],
+    media_tools_ready: bool,
+) -> list[ExecutionPhase]:
+    phases: list[ExecutionPhase] = []
+
+    for target in resolve_import_bootstrap_targets(
+        ready_for_prepare_only=prerequisites.ready_for_prepare_only,
+        media_tools_ready=media_tools_ready,
+    ):
+        phases.append(
+            (
+                f"bootstrapping repo-local media tools via make {target}",
+                ["make", target],
+                None,
+                repo_root,
+            )
+        )
+
+    if not prerequisites.ready_for_prepare_only:
+        phases.append(
+            (
+                "importing private lens-10 bundle from raw source files",
+                [
+                    sys.executable,
+                    str(repo_root / "scripts/import_monocular_video_inputs.py"),
+                    "--video-00",
+                    str(source_inputs.video_00),
+                    "--video-10",
+                    str(source_inputs.video_10),
+                    "--calibration-00",
+                    str(source_inputs.calibration_00),
+                    "--calibration-10",
+                    str(source_inputs.calibration_10),
+                    "--extrinsics",
+                    str(source_inputs.extrinsics),
+                    "--lenses",
+                    "10",
+                ],
+                None,
+                repo_root,
+            )
+        )
+
+    phases.append(
+        (
+            "fetching pinned ORB-SLAM3 baseline checkout",
+            [str(repo_root / "scripts/fetch_orbslam3_baseline.sh")],
+            None,
+            repo_root,
+        )
+    )
+
+    for target in resolve_execution_bootstrap_targets(prerequisites):
+        phases.append(
+            (
+                f"bootstrapping repo-local execution prerequisite via make {target}",
+                ["make", target],
+                None,
+                repo_root,
+            )
+        )
+
+    phases.extend(
+        [
+            (
+                "building mono_tum_vi with ASan and disabled Eigen static alignment",
+                [str(repo_root / "scripts/build_orbslam3_baseline.sh")],
+                {
+                    "ORB_SLAM3_BUILD_TARGET": "mono_tum_vi",
+                    "ORB_SLAM3_BUILD_PARALLELISM": "1",
+                    "ORB_SLAM3_BUILD_TYPE": "RelWithDebInfo",
+                    "ORB_SLAM3_ENABLE_ASAN": "1",
+                    "ORB_SLAM3_ASAN_COMPILE_FLAGS": " -fsanitize=address -fno-omit-frame-pointer -g -O0",
+                    "ORB_SLAM3_DISABLE_EIGEN_STATIC_ALIGNMENT": "1",
+                    "ORB_SLAM3_BUILD_EXPERIMENT": "hel-73-private-aggressive-followup",
+                    "ORB_SLAM3_BUILD_CHANGED_VARIABLE": str(
+                        experiment["changed_variable"]
+                    ),
+                    "ORB_SLAM3_BUILD_HYPOTHESIS": str(experiment["hypothesis"]),
+                    "ORB_SLAM3_BUILD_SUCCESS_CRITERION": (
+                        "mono_tum_vi rebuilds with the HEL-72 sanitizer and "
+                        "alignment toggles before the aggressive private rerun"
+                    ),
+                    "ORB_SLAM3_PROGRESS_ARTIFACT": str(progress_artifact),
+                    "ORB_SLAM3_PROGRESS_ISSUE_ID": issue_identifier,
+                },
+                repo_root,
+            ),
+            (
+                "verifying monocular prerequisites after bootstrap/build",
+                ["make", "monocular-prereqs"],
+                None,
+                repo_root,
+            ),
+            (
+                "running the HEL-57 aggressive private monocular follow-up",
+                [
+                    sys.executable,
+                    str(repo_root / "scripts/run_monocular_baseline.py"),
+                    "--manifest",
+                    str(manifest_path),
+                    "--output-tag",
+                    output_tag,
+                    "--frame-stride",
+                    str(frame_stride),
+                    "--progress-artifact",
+                    str(progress_artifact),
+                    "--progress-issue",
+                    issue_identifier,
+                    "--changed-variable",
+                    str(experiment["changed_variable"]),
+                    "--hypothesis",
+                    str(experiment["hypothesis"]),
+                    "--success-criterion",
+                    str(experiment["success_criterion"]),
+                    "--abort-condition",
+                    str(experiment["abort_condition"]),
+                    "--expected-artifact",
+                    str(experiment["expected_artifact"]),
+                    "--orb-n-features",
+                    "4000",
+                    "--orb-ini-fast",
+                    "8",
+                    "--orb-min-fast",
+                    "3",
+                ]
+                + (
+                    ["--max-frames", str(max_frames)] if max_frames is not None else []
+                ),
+                None,
+                repo_root,
+            ),
+        ]
+    )
+    return phases
 
 
 def render_status_report(
@@ -447,6 +629,24 @@ def main() -> int:
         f"Frame stride: {args.frame_stride}",
         f"Max frames: {args.max_frames if args.max_frames is not None else 'full sequence'}",
     ]
+    media_tools_ready = (
+        resolve_ffmpeg_tool(REPO_ROOT) is not None
+        and resolve_ffprobe_tool(REPO_ROOT) is not None
+    )
+    phases = build_followup_phases(
+        repo_root=REPO_ROOT,
+        manifest_path=manifest_path,
+        source_inputs=source_inputs,
+        prerequisites=prerequisites,
+        progress_artifact=progress_artifact,
+        issue_identifier=issue_identifier,
+        output_tag=args.output_tag,
+        frame_stride=args.frame_stride,
+        max_frames=args.max_frames,
+        experiment=experiment,
+        media_tools_ready=media_tools_ready,
+    )
+    total_phases = len(phases)
     orchestration_log.parent.mkdir(parents=True, exist_ok=True)
     status_report.parent.mkdir(parents=True, exist_ok=True)
     with orchestration_log.open("w", encoding="utf-8") as log_handle:
@@ -481,6 +681,7 @@ def main() -> int:
                     artifacts=artifacts,
                     current_step=blocked_reason,
                     completed=0,
+                    total_phases=1,
                     status="blocked",
                     metrics={"missing_source_inputs": missing_sources},
                     experiment=experiment,
@@ -505,107 +706,6 @@ def main() -> int:
             )
             return 1
 
-        phases: list[tuple[str, list[str], dict[str, str] | None, Path]] = []
-        if not prerequisites.ready_for_prepare_only:
-            phases.append(
-                (
-                    "importing private lens-10 bundle from raw source files",
-                    [
-                        sys.executable,
-                        str(REPO_ROOT / "scripts/import_monocular_video_inputs.py"),
-                        "--video-00",
-                        str(source_inputs.video_00),
-                        "--video-10",
-                        str(source_inputs.video_10),
-                        "--calibration-00",
-                        str(source_inputs.calibration_00),
-                        "--calibration-10",
-                        str(source_inputs.calibration_10),
-                        "--extrinsics",
-                        str(source_inputs.extrinsics),
-                        "--lenses",
-                        "10",
-                    ],
-                    None,
-                    REPO_ROOT,
-                )
-            )
-
-        phases.extend(
-            [
-                (
-                    "fetching pinned ORB-SLAM3 baseline checkout",
-                    [str(REPO_ROOT / "scripts/fetch_orbslam3_baseline.sh")],
-                    None,
-                    REPO_ROOT,
-                ),
-                (
-                    "building mono_tum_vi with ASan and disabled Eigen static alignment",
-                    [str(REPO_ROOT / "scripts/build_orbslam3_baseline.sh")],
-                    {
-                        "ORB_SLAM3_BUILD_TARGET": "mono_tum_vi",
-                        "ORB_SLAM3_BUILD_PARALLELISM": "1",
-                        "ORB_SLAM3_BUILD_TYPE": "RelWithDebInfo",
-                        "ORB_SLAM3_ENABLE_ASAN": "1",
-                        "ORB_SLAM3_ASAN_COMPILE_FLAGS": " -fsanitize=address -fno-omit-frame-pointer -g -O0",
-                        "ORB_SLAM3_DISABLE_EIGEN_STATIC_ALIGNMENT": "1",
-                        "ORB_SLAM3_BUILD_EXPERIMENT": "hel-73-private-aggressive-followup",
-                        "ORB_SLAM3_BUILD_CHANGED_VARIABLE": str(
-                            experiment["changed_variable"]
-                        ),
-                        "ORB_SLAM3_BUILD_HYPOTHESIS": str(experiment["hypothesis"]),
-                        "ORB_SLAM3_BUILD_SUCCESS_CRITERION": (
-                            "mono_tum_vi rebuilds with the HEL-72 sanitizer and "
-                            "alignment toggles before the aggressive private rerun"
-                        ),
-                        "ORB_SLAM3_PROGRESS_ARTIFACT": str(progress_artifact),
-                        "ORB_SLAM3_PROGRESS_ISSUE_ID": issue_identifier,
-                    },
-                    REPO_ROOT,
-                ),
-                (
-                    "running the HEL-57 aggressive private monocular follow-up",
-                    [
-                        sys.executable,
-                        str(REPO_ROOT / "scripts/run_monocular_baseline.py"),
-                        "--manifest",
-                        str(manifest_path),
-                        "--output-tag",
-                        args.output_tag,
-                        "--frame-stride",
-                        str(args.frame_stride),
-                        "--progress-artifact",
-                        str(progress_artifact),
-                        "--progress-issue",
-                        issue_identifier,
-                        "--changed-variable",
-                        str(experiment["changed_variable"]),
-                        "--hypothesis",
-                        str(experiment["hypothesis"]),
-                        "--success-criterion",
-                        str(experiment["success_criterion"]),
-                        "--abort-condition",
-                        str(experiment["abort_condition"]),
-                        "--expected-artifact",
-                        str(experiment["expected_artifact"]),
-                        "--orb-n-features",
-                        "4000",
-                        "--orb-ini-fast",
-                        "8",
-                        "--orb-min-fast",
-                        "3",
-                    ]
-                    + (
-                        ["--max-frames", str(args.max_frames)]
-                        if args.max_frames is not None
-                        else []
-                    ),
-                    None,
-                    REPO_ROOT,
-                ),
-            ]
-        )
-
         try:
             for phase_index, (current_step, command, env_overrides, cwd) in enumerate(
                 phases,
@@ -617,6 +717,7 @@ def main() -> int:
                         artifacts=artifacts,
                         current_step=current_step,
                         completed=phase_index - 1,
+                        total_phases=total_phases,
                         status="in_progress",
                         metrics={},
                         experiment=experiment,
@@ -632,6 +733,7 @@ def main() -> int:
                             artifacts=artifacts,
                             current_step=current_step,
                             completed=phase_index - 1,
+                            total_phases=total_phases,
                             status="in_progress",
                             metrics={"phase": phase_index, **metrics},
                             experiment=experiment,
@@ -655,7 +757,8 @@ def main() -> int:
                 build_progress_payload(
                     artifacts=artifacts,
                     current_step="follow-up command failed",
-                    completed=max(0, len(phases) - 1),
+                    completed=max(0, min(total_phases, phase_index)),
+                    total_phases=total_phases,
                     status="failed",
                     metrics={
                         "failed_command": command_display(error.cmd),
@@ -690,7 +793,8 @@ def main() -> int:
         build_progress_payload(
             artifacts=artifacts,
             current_step=f"{issue_identifier} private follow-up completed",
-            completed=TOTAL_PHASES,
+            completed=total_phases,
+            total_phases=total_phases,
             status="completed",
             metrics={"delegate_report_path": relative_to_repo(resolved.report)},
             experiment=experiment,

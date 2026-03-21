@@ -850,96 +850,94 @@ append_build_rpath_dir() {
 
   printf 'Configuring ORB_SLAM3 ...\n'
   mkdir -p "${checkout_dir}/build"
-  (
-    cd "${checkout_dir}/build"
-    append_build_rpath_dir "${checkout_dir}/lib"
-    append_build_rpath_dir "${checkout_dir}/Thirdparty/DBoW2/lib"
-    append_build_rpath_dir "${checkout_dir}/Thirdparty/g2o/lib"
-    for link_dir in "${linker_search_dirs[@]}"; do
-      append_build_rpath_dir "${link_dir}"
-    done
-    cmake_args=(
-      "${checkout_dir}"
-      "-DCMAKE_BUILD_TYPE=${build_type}"
-      "-DCMAKE_CXX_FLAGS="
-      "-DCMAKE_C_FLAGS="
-      "-D${cmake_cxx_flag_name}=${cmake_cxx_flags}"
-      "-D${cmake_c_flag_name}=${cmake_c_flags}"
-    )
-    if ((${#build_rpath_dirs[@]})); then
-      build_rpath_text="$(IFS=';'; printf '%s' "${build_rpath_dirs[*]}")"
-      cmake_args+=("-DCMAKE_BUILD_RPATH=${build_rpath_text}")
-    fi
-    linker_flag_text=""
-    if ((${#linker_search_dirs[@]})); then
-      for link_dir in "${linker_search_dirs[@]}"; do
-        linker_flag_text+=" -Wl,-rpath-link,${link_dir}"
-      done
-      linker_flag_text="${linker_flag_text# }"
-    fi
-    if [[ -n "${linker_flag_text}" ]]; then
-      cmake_linker_flags="${linker_flag_text}${cmake_linker_flags:+ ${cmake_linker_flags}}"
-    fi
-    if [[ -n "${cmake_linker_flags}" ]]; then
-      cmake_args+=(
-        "-DCMAKE_EXE_LINKER_FLAGS=${cmake_linker_flags}"
-        "-DCMAKE_SHARED_LINKER_FLAGS=${cmake_linker_flags}"
-      )
-    fi
-    # Pangolin v0.8 installs sigslot headers that require C++14 aliases.
-    "${cmake_bin}" "${cmake_args[@]}"
-    printf 'Building ORB_SLAM3 target %s ...\n' "${build_target}"
-    mkdir -p "${build_attempt_dir}"
-    : >"${build_log_current}"
-    build_command_workdir="$(pwd)"
-    build_started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    build_command=(
-      "${cmake_bin}"
-      --build
-      .
-      --parallel
-      "${build_parallelism}"
-      --verbose
-      --target
-      "${build_target}"
-    )
-    printf -v build_command_text '%q ' "${build_command[@]}"
-    build_command_text="${build_command_text% }"
-    printf 'Build command: %s\n' "${build_command_text}" | tee -a "${build_log_current}"
-    printf 'Build working directory: %s\n' "${build_command_workdir}" | tee -a "${build_log_current}"
-    printf 'Build started at: %s\n' "${build_started_at}" | tee -a "${build_log_current}"
-    update_progress_phase 7 "in_progress" "Launching root ORB_SLAM3 build for ${build_target}"
-    set +e
-    "${build_command[@]}" > >(tee -a "${build_log_current}") 2>&1 &
-    build_pid="$!"
-    write_build_attempt_metadata "started" ""
-    update_progress_phase 7 "in_progress" "Root ORB_SLAM3 build is running for ${build_target} (pid ${build_pid})"
-    start_build_progress_heartbeat
-    wait "${build_pid}"
-    build_exit_code="$?"
-    stop_build_progress_heartbeat
-    set -e
-    build_finished_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    if (( build_exit_code > 128 )); then
-      build_exit_signal="$((build_exit_code - 128))"
-    fi
-    capture_dmesg_snapshot "${dmesg_current}"
-    if grep -Eq "oom-kill|Out of memory: Killed process" "${dmesg_current}"; then
-      oom_detected=1
-    fi
-    printf 'Build finished at: %s\n' "${build_finished_at}" | tee -a "${build_log_current}"
-    printf 'Build PID: %s\n' "${build_pid}" | tee -a "${build_log_current}"
-    printf 'Build exit code: %s\n' "${build_exit_code}" | tee -a "${build_log_current}"
-    if [[ -n "${build_exit_signal}" ]]; then
-      printf 'Build exit signal: %s\n' "${build_exit_signal}" | tee -a "${build_log_current}"
-    fi
-    if [[ "${oom_detected}" -eq 1 ]]; then
-      printf 'Kernel OOM evidence detected in %s\n' "${dmesg_current}" | tee -a "${build_log_current}"
-    fi
-    if [[ "${build_exit_code}" -ne 0 ]]; then
-      exit "${build_exit_code}"
-    fi
+  cd "${checkout_dir}/build"
+  append_build_rpath_dir "${checkout_dir}/lib"
+  append_build_rpath_dir "${checkout_dir}/Thirdparty/DBoW2/lib"
+  append_build_rpath_dir "${checkout_dir}/Thirdparty/g2o/lib"
+  for link_dir in "${linker_search_dirs[@]}"; do
+    append_build_rpath_dir "${link_dir}"
+  done
+  cmake_args=(
+    "${checkout_dir}"
+    "-DCMAKE_BUILD_TYPE=${build_type}"
+    "-DCMAKE_CXX_FLAGS="
+    "-DCMAKE_C_FLAGS="
+    "-D${cmake_cxx_flag_name}=${cmake_cxx_flags}"
+    "-D${cmake_c_flag_name}=${cmake_c_flags}"
   )
+  if ((${#build_rpath_dirs[@]})); then
+    build_rpath_text="$(IFS=';'; printf '%s' "${build_rpath_dirs[*]}")"
+    cmake_args+=("-DCMAKE_BUILD_RPATH=${build_rpath_text}")
+  fi
+  linker_flag_text=""
+  if ((${#linker_search_dirs[@]})); then
+    for link_dir in "${linker_search_dirs[@]}"; do
+      linker_flag_text+=" -Wl,-rpath-link,${link_dir}"
+    done
+    linker_flag_text="${linker_flag_text# }"
+  fi
+  if [[ -n "${linker_flag_text}" ]]; then
+    cmake_linker_flags="${linker_flag_text}${cmake_linker_flags:+ ${cmake_linker_flags}}"
+  fi
+  if [[ -n "${cmake_linker_flags}" ]]; then
+    cmake_args+=(
+      "-DCMAKE_EXE_LINKER_FLAGS=${cmake_linker_flags}"
+      "-DCMAKE_SHARED_LINKER_FLAGS=${cmake_linker_flags}"
+    )
+  fi
+  # Pangolin v0.8 installs sigslot headers that require C++14 aliases.
+  "${cmake_bin}" "${cmake_args[@]}"
+  printf 'Building ORB_SLAM3 target %s ...\n' "${build_target}"
+  mkdir -p "${build_attempt_dir}"
+  : >"${build_log_current}"
+  build_command_workdir="$(pwd)"
+  build_started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  build_command=(
+    "${cmake_bin}"
+    --build
+    .
+    --parallel
+    "${build_parallelism}"
+    --verbose
+    --target
+    "${build_target}"
+  )
+  printf -v build_command_text '%q ' "${build_command[@]}"
+  build_command_text="${build_command_text% }"
+  printf 'Build command: %s\n' "${build_command_text}" | tee -a "${build_log_current}"
+  printf 'Build working directory: %s\n' "${build_command_workdir}" | tee -a "${build_log_current}"
+  printf 'Build started at: %s\n' "${build_started_at}" | tee -a "${build_log_current}"
+  update_progress_phase 7 "in_progress" "Launching root ORB_SLAM3 build for ${build_target}"
+  set +e
+  "${build_command[@]}" > >(tee -a "${build_log_current}") 2>&1 &
+  build_pid="$!"
+  write_build_attempt_metadata "started" ""
+  update_progress_phase 7 "in_progress" "Root ORB_SLAM3 build is running for ${build_target} (pid ${build_pid})"
+  start_build_progress_heartbeat
+  wait "${build_pid}"
+  build_exit_code="$?"
+  stop_build_progress_heartbeat
+  set -e
+  build_finished_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  if (( build_exit_code > 128 )); then
+    build_exit_signal="$((build_exit_code - 128))"
+  fi
+  capture_dmesg_snapshot "${dmesg_current}"
+  if grep -Eq "oom-kill|Out of memory: Killed process" "${dmesg_current}"; then
+    oom_detected=1
+  fi
+  printf 'Build finished at: %s\n' "${build_finished_at}" | tee -a "${build_log_current}"
+  printf 'Build PID: %s\n' "${build_pid}" | tee -a "${build_log_current}"
+  printf 'Build exit code: %s\n' "${build_exit_code}" | tee -a "${build_log_current}"
+  if [[ -n "${build_exit_signal}" ]]; then
+    printf 'Build exit signal: %s\n' "${build_exit_signal}" | tee -a "${build_log_current}"
+  fi
+  if [[ "${oom_detected}" -eq 1 ]]; then
+    printf 'Kernel OOM evidence detected in %s\n' "${dmesg_current}" | tee -a "${build_log_current}"
+  fi
+  if [[ "${build_exit_code}" -ne 0 ]]; then
+    exit "${build_exit_code}"
+  fi
 
   if [[ ! -x "${build_executable_path}" ]]; then
     printf 'Expected executable missing after build: %s\n' "${build_executable_path}" >&2

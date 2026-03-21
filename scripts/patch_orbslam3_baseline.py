@@ -122,19 +122,26 @@ def normalize_save_trajectory_euroc(block: str) -> str:
 
 def normalize_save_keyframe_trajectory_euroc(block: str) -> str:
     block, count = re.subn(
-        r'vector<Map\*> vpMaps = mpAtlas->GetAllMaps\(\);\n'
         r'    Map\* pBiggerMap(?: = nullptr)?;\n'
         r'    int numMaxKFs = 0;\n',
-        'vector<Map*> vpMaps = mpAtlas->GetAllMaps();\n'
         '    Map* pBiggerMap = nullptr;\n'
         '    int numMaxKFs = 0;\n',
         block,
         count=1,
     )
     if count == 0:
-        raise ValueError(
-            "Failed to normalize SaveKeyFrameTrajectoryEuRoC map initialization"
+        block, count = re.subn(
+            r'    int numMaxKFs = 0;\n'
+            r'    Map\* pBiggerMap(?: = nullptr)?;\n',
+            '    Map* pBiggerMap = nullptr;\n'
+            '    int numMaxKFs = 0;\n',
+            block,
+            count=1,
         )
+        if count == 0:
+            raise ValueError(
+                "Failed to normalize SaveKeyFrameTrajectoryEuRoC map initialization"
+            )
 
     block, count = re.subn(
         r'(    for\(Map\* pMap :vpMaps\)\n'

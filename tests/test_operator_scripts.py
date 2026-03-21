@@ -114,6 +114,12 @@ class OperatorScriptTests(unittest.TestCase):
         self.assertIn('cmake_c_flag_name="CMAKE_C_FLAGS_${cmake_build_type_suffix}"', script)
         self.assertIn('"-D${cmake_cxx_flag_name}=${cmake_cxx_flags}"', script)
         self.assertIn('"-D${cmake_c_flag_name}=${cmake_c_flags}"', script)
+        self.assertIn('cd "${checkout_dir}/build"', script)
+        self.assertNotIn('(\n    cd "${checkout_dir}/build"', script)
+        self.assertIn('build_command_workdir="$(pwd)"', script)
+        self.assertIn('build_started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"', script)
+        self.assertIn('build_exit_code="$?"', script)
+        self.assertIn('build_finished_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"', script)
         self.assertIn("patch_orbslam3_baseline.py", script)
 
     def test_orbslam3_patch_helper_guards_empty_keyframe_saves(self) -> None:

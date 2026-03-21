@@ -143,3 +143,160 @@ class PrivateMonocularFollowupTests(unittest.TestCase):
         self.assertIn("Source stereo extrinsics: **missing**", report)
         self.assertIn("Next action: provide the missing raw source files", report)
         self.assertIn("Expected trajectory artifact", report)
+
+    def test_build_followup_phases_bootstraps_fresh_worktree_prereqs(self) -> None:
+        prerequisites = MODULE.MonocularBaselinePrerequisites(
+            manifest_path=Path("/tmp/repo/manifests/example.json"),
+            raw_input_checks=(),
+            prepare_checks=(
+                MODULE.PrerequisiteCheck(
+                    label="Calibration JSON",
+                    ready=False,
+                    detail="/tmp/repo/datasets/user/example/calibration.json",
+                ),
+                MODULE.PrerequisiteCheck(
+                    label="Frame index CSV",
+                    ready=False,
+                    detail="/tmp/repo/datasets/user/example/frame_index.csv",
+                ),
+            ),
+            execute_checks=(
+                MODULE.PrerequisiteCheck(
+                    label="Tool `cmake`",
+                    ready=False,
+                    detail="missing",
+                ),
+                MODULE.PrerequisiteCheck(
+                    label="Eigen3 development package",
+                    ready=False,
+                    detail="missing",
+                ),
+                MODULE.PrerequisiteCheck(
+                    label="OpenCV development package",
+                    ready=False,
+                    detail="missing",
+                ),
+                MODULE.PrerequisiteCheck(
+                    label="Boost serialization development package",
+                    ready=False,
+                    detail="missing",
+                ),
+                MODULE.PrerequisiteCheck(
+                    label="Pangolin development package",
+                    ready=False,
+                    detail="missing",
+                ),
+            ),
+        )
+        phases = MODULE.build_followup_phases(
+            repo_root=Path("/tmp/repo"),
+            manifest_path=Path("/tmp/repo/manifests/example.json"),
+            source_inputs=MODULE.SourceInputPaths(
+                video_00=Path("/tmp/raw/00.mp4"),
+                video_10=Path("/tmp/raw/10.mp4"),
+                calibration_00=Path("/tmp/raw/00.txt"),
+                calibration_10=Path("/tmp/raw/10.txt"),
+                extrinsics=Path("/tmp/raw/extrinsics.json"),
+            ),
+            prerequisites=prerequisites,
+            progress_artifact=Path("/tmp/repo/.symphony/progress/HEL-79-private-run.json"),
+            issue_identifier="HEL-79",
+            output_tag="hel79",
+            frame_stride=1,
+            max_frames=None,
+            experiment={
+                "changed_variable": "fresh-worktree rerun with explicit repo-local bootstraps",
+                "hypothesis": "the wrapper should bootstrap missing prerequisites before import/build",
+                "success_criterion": "bootstrap targets run before the aggressive lane",
+                "abort_condition": "a prerequisite still fails after bootstrap",
+                "expected_artifact": "build/out/f_example.txt",
+            },
+            media_tools_ready=False,
+        )
+
+        step_names = [phase[0] for phase in phases]
+        commands = [phase[1] for phase in phases]
+
+        self.assertEqual(
+            step_names[0],
+            "bootstrapping repo-local media tools via make bootstrap-local-ffmpeg",
+        )
+        self.assertIn("importing private lens-10 bundle from raw source files", step_names)
+        self.assertIn(
+            "bootstrapping repo-local execution prerequisite via make bootstrap-local-cmake",
+            step_names,
+        )
+        self.assertIn(
+            "bootstrapping repo-local execution prerequisite via make bootstrap-local-pangolin",
+            step_names,
+        )
+        self.assertIn(
+            "verifying monocular prerequisites after bootstrap/build",
+            step_names,
+        )
+        self.assertEqual(commands[0], ["make", "bootstrap-local-ffmpeg"])
+        self.assertEqual(commands[-2], ["make", "monocular-prereqs"])
+        self.assertIn("run_monocular_baseline.py", commands[-1][1])
+
+    def test_build_followup_phases_skips_import_when_prepared_bundle_is_ready(self) -> None:
+        prerequisites = MODULE.MonocularBaselinePrerequisites(
+            manifest_path=Path("/tmp/repo/manifests/example.json"),
+            raw_input_checks=(),
+            prepare_checks=(
+                MODULE.PrerequisiteCheck(
+                    label="Calibration JSON",
+                    ready=True,
+                    detail="/tmp/repo/datasets/user/example/calibration.json",
+                ),
+                MODULE.PrerequisiteCheck(
+                    label="Frame index CSV",
+                    ready=True,
+                    detail="/tmp/repo/datasets/user/example/frame_index.csv",
+                ),
+            ),
+            execute_checks=(),
+        )
+        phases = MODULE.build_followup_phases(
+            repo_root=Path("/tmp/repo"),
+            manifest_path=Path("/tmp/repo/manifests/example.json"),
+            source_inputs=MODULE.SourceInputPaths(
+                video_00=Path("/tmp/raw/00.mp4"),
+                video_10=Path("/tmp/raw/10.mp4"),
+                calibration_00=Path("/tmp/raw/00.txt"),
+                calibration_10=Path("/tmp/raw/10.txt"),
+                extrinsics=Path("/tmp/raw/extrinsics.json"),
+            ),
+            prerequisites=prerequisites,
+            progress_artifact=Path("/tmp/repo/.symphony/progress/HEL-79-private-run.json"),
+            issue_identifier="HEL-79",
+            output_tag="hel79",
+            frame_stride=1,
+            max_frames=90,
+            experiment={
+                "changed_variable": "rerun with prepared bundle already present",
+                "hypothesis": "the wrapper should skip import-specific setup",
+                "success_criterion": "the phase plan starts at fetch/build/verify/run",
+                "abort_condition": "the plan still requires import",
+                "expected_artifact": "build/out/f_example.txt",
+            },
+            media_tools_ready=True,
+        )
+
+        step_names = [phase[0] for phase in phases]
+        self.assertNotIn(
+            "bootstrapping repo-local media tools via make bootstrap-local-ffmpeg",
+            step_names,
+        )
+        self.assertNotIn(
+            "importing private lens-10 bundle from raw source files",
+            step_names,
+        )
+        self.assertEqual(
+            step_names,
+            [
+                "fetching pinned ORB-SLAM3 baseline checkout",
+                "building mono_tum_vi with ASan and disabled Eigen static alignment",
+                "verifying monocular prerequisites after bootstrap/build",
+                "running the HEL-57 aggressive private monocular follow-up",
+            ],
+        )
