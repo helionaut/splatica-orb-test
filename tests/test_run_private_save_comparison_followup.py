@@ -73,6 +73,10 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
                         "- Keyframe trajectory after-return visibility: open=True, bytes=12",
                         "- Initialization maps created: 2 (points=93, 71)",
                         "- Active map resets observed: 2",
+                        "- Active map reset pre-clear states: map_id=0, keyframes=2, map_points=71, atlas_maps=1, current_frame=254",
+                        "- Active map reset post-clear states: map_id=0, keyframes=0, map_points=0, atlas_maps=1",
+                        "- Frame trajectory save atlas state: current_map_id=0, current_map_keyframes=0, current_map_points=0, atlas_maps=1, tracker_relative_frame_poses=270, tracker_references=270, tracker_frame_times=270, tracker_lost_flags=270",
+                        "- Keyframe trajectory save atlas state: current_map_id=0, current_map_keyframes=0, current_map_points=0, atlas_maps=1, tracker_relative_frame_poses=270, tracker_references=270, tracker_frame_times=270, tracker_lost_flags=270",
                         "- AddressSanitizer summary: 598421903 byte(s) leaked in 2383340 allocation(s).",
                         "- Frame trajectory save completed in the log, but the expected frame trajectory file is still missing at /tmp/private/f_private.txt.",
                     ]
@@ -115,6 +119,22 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
         self.assertEqual(evidence.initialization_maps, 2)
         self.assertEqual(evidence.initialization_map_points, "93, 71")
         self.assertEqual(evidence.active_map_resets, 2)
+        self.assertEqual(
+            evidence.reset_pre_clear_states,
+            "map_id=0, keyframes=2, map_points=71, atlas_maps=1, current_frame=254",
+        )
+        self.assertEqual(
+            evidence.reset_post_clear_states,
+            "map_id=0, keyframes=0, map_points=0, atlas_maps=1",
+        )
+        self.assertEqual(
+            evidence.frame_save_atlas_state,
+            "current_map_id=0, current_map_keyframes=0, current_map_points=0, atlas_maps=1, tracker_relative_frame_poses=270, tracker_references=270, tracker_frame_times=270, tracker_lost_flags=270",
+        )
+        self.assertEqual(
+            evidence.keyframe_save_atlas_state,
+            "current_map_id=0, current_map_keyframes=0, current_map_points=0, atlas_maps=1, tracker_relative_frame_poses=270, tracker_references=270, tracker_frame_times=270, tracker_lost_flags=270",
+        )
         self.assertEqual(
             evidence.asan_summary,
             "598421903 byte(s) leaked in 2383340 allocation(s).",
@@ -205,6 +225,10 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
                 initialization_maps=2,
                 initialization_map_points="93, 71",
                 active_map_resets=2,
+                reset_pre_clear_states="map_id=0, keyframes=2, map_points=71, atlas_maps=1, current_frame=254",
+                reset_post_clear_states="map_id=0, keyframes=0, map_points=0, atlas_maps=1",
+                frame_save_atlas_state="current_map_id=0, current_map_keyframes=0, current_map_points=0, atlas_maps=1, tracker_relative_frame_poses=270, tracker_references=270, tracker_frame_times=270, tracker_lost_flags=270",
+                keyframe_save_atlas_state="current_map_id=0, current_map_keyframes=0, current_map_points=0, atlas_maps=1, tracker_relative_frame_poses=270, tracker_references=270, tracker_frame_times=270, tracker_lost_flags=270",
                 asan_summary="598421903 byte(s) leaked in 2383340 allocation(s).",
                 missing_frame_after_save=True,
             ),
@@ -234,6 +258,18 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
         self.assertIn("Private runtime map cycles observed: `2` (points=93, 71).", report)
         self.assertIn("Private active-map resets observed: `2`.", report)
         self.assertIn(
+            "Private reset pre-clear states: `map_id=0, keyframes=2, map_points=71, atlas_maps=1, current_frame=254`.",
+            report,
+        )
+        self.assertIn(
+            "Private reset post-clear states: `map_id=0, keyframes=0, map_points=0, atlas_maps=1`.",
+            report,
+        )
+        self.assertIn(
+            "Private frame-save atlas state: `current_map_id=0, current_map_keyframes=0, current_map_points=0, atlas_maps=1, tracker_relative_frame_poses=270, tracker_references=270, tracker_frame_times=270, tracker_lost_flags=270`.",
+            report,
+        )
+        self.assertIn(
             "Private AddressSanitizer summary: `598421903 byte(s) leaked in 2383340 allocation(s).`",
             report,
         )
@@ -243,6 +279,10 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
         )
         self.assertIn(
             "System::SaveTrajectoryEuRoC reported no keyframes and skipped opening the frame trajectory file",
+            report,
+        )
+        self.assertIn(
+            "the last active-map reset explicitly cleared the current map before shutdown",
             report,
         )
         self.assertNotIn("reached the late shutdown/save boundary", report)

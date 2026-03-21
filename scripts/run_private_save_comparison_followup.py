@@ -53,6 +53,12 @@ INITIALIZATION_MAPS_PATTERN = re.compile(
     r"- Initialization maps created: (\d+) \(points=([^)]+)\)"
 )
 ACTIVE_MAP_RESETS_PATTERN = re.compile(r"- Active map resets observed: (\d+)")
+RESET_PRE_CLEAR_PATTERN = re.compile(r"- Active map reset pre-clear states: (.+)")
+RESET_POST_CLEAR_PATTERN = re.compile(r"- Active map reset post-clear states: (.+)")
+FRAME_SAVE_ATLAS_STATE_PATTERN = re.compile(r"- Frame trajectory save atlas state: (.+)")
+KEYFRAME_SAVE_ATLAS_STATE_PATTERN = re.compile(
+    r"- Keyframe trajectory save atlas state: (.+)"
+)
 ASAN_SUMMARY_PATTERN = re.compile(r"- AddressSanitizer summary: (.+)")
 FRAME_SKIP_PATTERN = re.compile(
     r"- Frame trajectory save skipped because no keyframes were recorded"
@@ -90,6 +96,10 @@ class PrivateRunEvidence:
     initialization_maps: int | None
     initialization_map_points: str | None
     active_map_resets: int | None
+    reset_pre_clear_states: str | None
+    reset_post_clear_states: str | None
+    frame_save_atlas_state: str | None
+    keyframe_save_atlas_state: str | None
     asan_summary: str | None
     missing_frame_after_save: bool
 
@@ -261,6 +271,10 @@ def parse_private_run_evidence(status_report_path: Path) -> PrivateRunEvidence:
             initialization_maps=None,
             initialization_map_points=None,
             active_map_resets=None,
+            reset_pre_clear_states=None,
+            reset_post_clear_states=None,
+            frame_save_atlas_state=None,
+            keyframe_save_atlas_state=None,
             asan_summary=None,
             missing_frame_after_save=False,
         )
@@ -297,6 +311,12 @@ def parse_private_run_evidence(status_report_path: Path) -> PrivateRunEvidence:
     keyframe_post_return_match = KEYFRAME_POST_RETURN_PATTERN.search(delegate_text)
     initialization_maps_match = INITIALIZATION_MAPS_PATTERN.search(delegate_text)
     active_map_resets_match = ACTIVE_MAP_RESETS_PATTERN.search(delegate_text)
+    reset_pre_clear_match = RESET_PRE_CLEAR_PATTERN.search(delegate_text)
+    reset_post_clear_match = RESET_POST_CLEAR_PATTERN.search(delegate_text)
+    frame_save_atlas_state_match = FRAME_SAVE_ATLAS_STATE_PATTERN.search(delegate_text)
+    keyframe_save_atlas_state_match = KEYFRAME_SAVE_ATLAS_STATE_PATTERN.search(
+        delegate_text
+    )
     asan_summary_match = ASAN_SUMMARY_PATTERN.search(delegate_text)
     return PrivateRunEvidence(
         status=status,
@@ -348,6 +368,22 @@ def parse_private_run_evidence(status_report_path: Path) -> PrivateRunEvidence:
         active_map_resets=(
             int(active_map_resets_match.group(1))
             if active_map_resets_match
+            else None
+        ),
+        reset_pre_clear_states=(
+            reset_pre_clear_match.group(1) if reset_pre_clear_match else None
+        ),
+        reset_post_clear_states=(
+            reset_post_clear_match.group(1) if reset_post_clear_match else None
+        ),
+        frame_save_atlas_state=(
+            frame_save_atlas_state_match.group(1)
+            if frame_save_atlas_state_match
+            else None
+        ),
+        keyframe_save_atlas_state=(
+            keyframe_save_atlas_state_match.group(1)
+            if keyframe_save_atlas_state_match
             else None
         ),
         asan_summary=asan_summary_match.group(1) if asan_summary_match else None,
@@ -421,6 +457,26 @@ def render_comparison_lines(
             "Private active-map resets observed: "
             f"`{private_evidence.active_map_resets}`."
         )
+    if private_evidence.reset_pre_clear_states is not None:
+        lines.append(
+            "Private reset pre-clear states: "
+            f"`{private_evidence.reset_pre_clear_states}`."
+        )
+    if private_evidence.reset_post_clear_states is not None:
+        lines.append(
+            "Private reset post-clear states: "
+            f"`{private_evidence.reset_post_clear_states}`."
+        )
+    if private_evidence.frame_save_atlas_state is not None:
+        lines.append(
+            "Private frame-save atlas state: "
+            f"`{private_evidence.frame_save_atlas_state}`."
+        )
+    if private_evidence.keyframe_save_atlas_state is not None:
+        lines.append(
+            "Private keyframe-save atlas state: "
+            f"`{private_evidence.keyframe_save_atlas_state}`."
+        )
     if private_evidence.asan_summary is not None:
         lines.append(
             "Private AddressSanitizer summary: "
@@ -445,6 +501,15 @@ def render_comparison_lines(
             "System::SaveTrajectoryEuRoC reported no keyframes and skipped opening "
             "the frame trajectory file, so there is still no HEL-75-style byte comparison."
         )
+        if (
+            private_evidence.reset_pre_clear_states is not None
+            and private_evidence.reset_post_clear_states is not None
+        ):
+            lines.append(
+                "Narrowed cause: the last active-map reset explicitly cleared the "
+                "current map before shutdown, leaving the save call to inspect an "
+                "atlas/current-map state with zero keyframes."
+            )
     elif private_evidence.missing_frame_after_save:
         details: list[str] = []
         if private_evidence.initialization_maps is not None:

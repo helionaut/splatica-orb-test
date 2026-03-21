@@ -62,6 +62,29 @@ def normalize_save_trajectory_euroc(block: str) -> str:
     if count == 0:
         raise ValueError("Failed to normalize SaveTrajectoryEuRoC guard block")
 
+    if "HEL-78 diagnostic: SaveTrajectoryEuRoC atlas_state " not in block:
+        block, count = re.subn(
+            r'    vector<Map\*> vpMaps = mpAtlas->GetAllMaps\(\);\n',
+            '    vector<Map*> vpMaps = mpAtlas->GetAllMaps();\n'
+            '    Map* pCurrentMap = mpAtlas->GetCurrentMap();\n'
+            '    cout << "HEL-78 diagnostic: SaveTrajectoryEuRoC atlas_state "\n'
+            '         << "current_map_id="\n'
+            '         << (pCurrentMap ? static_cast<long long>(pCurrentMap->GetId()) : -1)\n'
+            '         << ", current_map_keyframes="\n'
+            '         << (pCurrentMap ? static_cast<long long>(pCurrentMap->KeyFramesInMap()) : -1)\n'
+            '         << ", current_map_points="\n'
+            '         << (pCurrentMap ? static_cast<long long>(pCurrentMap->MapPointsInMap()) : -1)\n'
+            '         << ", atlas_maps=" << vpMaps.size()\n'
+            '         << ", tracker_relative_frame_poses=" << mpTracker->mlRelativeFramePoses.size()\n'
+            '         << ", tracker_references=" << mpTracker->mlpReferences.size()\n'
+            '         << ", tracker_frame_times=" << mpTracker->mlFrameTimes.size()\n'
+            '         << ", tracker_lost_flags=" << mpTracker->mlbLost.size() << endl;\n',
+            block,
+            count=1,
+        )
+        if count == 0:
+            raise ValueError("Failed to normalize SaveTrajectoryEuRoC atlas diagnostics")
+
     if "HEL-75 diagnostic: SaveTrajectoryEuRoC stream open=" not in block:
         block, count = re.subn(
             r'    ofstream f;\n'
@@ -142,6 +165,31 @@ def normalize_save_keyframe_trajectory_euroc(block: str) -> str:
     )
     if count == 0:
         raise ValueError("Failed to normalize SaveKeyFrameTrajectoryEuRoC guard block")
+
+    if "HEL-78 diagnostic: SaveKeyFrameTrajectoryEuRoC atlas_state " not in block:
+        block, count = re.subn(
+            r'    vector<Map\*> vpMaps = mpAtlas->GetAllMaps\(\);\n',
+            '    vector<Map*> vpMaps = mpAtlas->GetAllMaps();\n'
+            '    Map* pCurrentMap = mpAtlas->GetCurrentMap();\n'
+            '    cout << "HEL-78 diagnostic: SaveKeyFrameTrajectoryEuRoC atlas_state "\n'
+            '         << "current_map_id="\n'
+            '         << (pCurrentMap ? static_cast<long long>(pCurrentMap->GetId()) : -1)\n'
+            '         << ", current_map_keyframes="\n'
+            '         << (pCurrentMap ? static_cast<long long>(pCurrentMap->KeyFramesInMap()) : -1)\n'
+            '         << ", current_map_points="\n'
+            '         << (pCurrentMap ? static_cast<long long>(pCurrentMap->MapPointsInMap()) : -1)\n'
+            '         << ", atlas_maps=" << vpMaps.size()\n'
+            '         << ", tracker_relative_frame_poses=" << mpTracker->mlRelativeFramePoses.size()\n'
+            '         << ", tracker_references=" << mpTracker->mlpReferences.size()\n'
+            '         << ", tracker_frame_times=" << mpTracker->mlFrameTimes.size()\n'
+            '         << ", tracker_lost_flags=" << mpTracker->mlbLost.size() << endl;\n',
+            block,
+            count=1,
+        )
+        if count == 0:
+            raise ValueError(
+                "Failed to normalize SaveKeyFrameTrajectoryEuRoC atlas diagnostics"
+            )
 
     if "HEL-75 diagnostic: SaveKeyFrameTrajectoryEuRoC stream open=" not in block:
         block, count = re.subn(
@@ -724,6 +772,43 @@ def normalize_rgbd_tum_main(block: str) -> str:
     return block
 
 
+def normalize_reset_active_map(block: str) -> str:
+    if "HEL-78 diagnostic: ResetActiveMap pre_clear " not in block:
+        block, count = re.subn(
+            r'    Map\* pMap = mpAtlas->GetCurrentMap\(\);\n',
+            '    Map* pMap = mpAtlas->GetCurrentMap();\n'
+            '    cout << "HEL-78 diagnostic: ResetActiveMap pre_clear "\n'
+            '         << "map_id=" << pMap->GetId()\n'
+            '         << ", keyframes=" << pMap->KeyFramesInMap()\n'
+            '         << ", map_points=" << pMap->MapPointsInMap()\n'
+            '         << ", atlas_maps=" << mpAtlas->CountMaps()\n'
+            '         << ", current_frame=" << mCurrentFrame.mnId << endl;\n',
+            block,
+            count=1,
+        )
+        if count == 0:
+            raise ValueError("Failed to normalize ResetActiveMap pre-clear diagnostics")
+
+    if "HEL-78 diagnostic: ResetActiveMap post_clear " not in block:
+        block, count = re.subn(
+            r'    // Clear Map \(this erase MapPoints and KeyFrames\)\n'
+            r'    mpAtlas->clearMap\(\);\n',
+            '    // Clear Map (this erase MapPoints and KeyFrames)\n'
+            '    mpAtlas->clearMap();\n'
+            '    cout << "HEL-78 diagnostic: ResetActiveMap post_clear "\n'
+            '         << "map_id=" << pMap->GetId()\n'
+            '         << ", keyframes=" << pMap->KeyFramesInMap()\n'
+            '         << ", map_points=" << pMap->MapPointsInMap()\n'
+            '         << ", atlas_maps=" << mpAtlas->CountMaps() << endl;\n',
+            block,
+            count=1,
+        )
+        if count == 0:
+            raise ValueError("Failed to normalize ResetActiveMap post-clear diagnostics")
+
+    return block
+
+
 def patch_optimizable_types(path: Path) -> bool:
     original = path.read_text(encoding="utf-8")
     updated = original
@@ -842,6 +927,22 @@ def patch_mono_tum_vi(path: Path) -> bool:
     return True
 
 
+def patch_tracking_cc(path: Path) -> bool:
+    original = path.read_text(encoding="utf-8")
+    updated = rewrite_function_block(
+        original,
+        signature="void Tracking::ResetActiveMap(bool bLocMap)\n{",
+        next_signature="\nvector<MapPoint*> Tracking::GetLocalMapMPS()\n{",
+        rewriter=normalize_reset_active_map,
+    )
+
+    if updated == original:
+        return False
+
+    path.write_text(updated, encoding="utf-8")
+    return True
+
+
 def patch_rgbd_tum(path: Path) -> bool:
     original = path.read_text(encoding="utf-8")
     if "#include<cstdlib>\n" in original:
@@ -879,6 +980,7 @@ def main() -> int:
     cmake_lists = checkout_dir / "CMakeLists.txt"
     system_cc = checkout_dir / "src/System.cc"
     optimizable_types_cc = checkout_dir / "src/OptimizableTypes.cpp"
+    tracking_cc = checkout_dir / "src/Tracking.cc"
     mono_tum_vi_cc = checkout_dir / "Examples/Monocular/mono_tum_vi.cc"
     rgbd_tum_cc = checkout_dir / "Examples/RGB-D/rgbd_tum.cc"
     if not cmake_lists.exists():
@@ -887,6 +989,8 @@ def main() -> int:
         raise SystemExit(f"Missing ORB-SLAM3 source file: {system_cc}")
     if not optimizable_types_cc.exists():
         raise SystemExit(f"Missing ORB-SLAM3 source file: {optimizable_types_cc}")
+    if not tracking_cc.exists():
+        raise SystemExit(f"Missing ORB-SLAM3 source file: {tracking_cc}")
     if not mono_tum_vi_cc.exists():
         raise SystemExit(f"Missing ORB-SLAM3 source file: {mono_tum_vi_cc}")
     if not rgbd_tum_cc.exists():
@@ -895,12 +999,14 @@ def main() -> int:
     cmake_changed = patch_cmakelists(cmake_lists)
     changed = patch_system_cc(system_cc)
     optimizable_types_changed = patch_optimizable_types(optimizable_types_cc)
+    tracking_changed = patch_tracking_cc(tracking_cc)
     mono_changed = patch_mono_tum_vi(mono_tum_vi_cc)
     rgbd_changed = patch_rgbd_tum(rgbd_tum_cc)
     if (
         cmake_changed
         or changed
         or optimizable_types_changed
+        or tracking_changed
         or mono_changed
         or rgbd_changed
     ):
@@ -908,14 +1014,14 @@ def main() -> int:
             "Patched ORB-SLAM3 release-flag/trajectory guards plus the "
             "EdgeSE3ProjectXYZ Jacobian lifetime fix in "
             f"{cmake_lists}, {system_cc}, {optimizable_types_cc}, "
-            f"{mono_tum_vi_cc}, and {rgbd_tum_cc}"
+            f"{tracking_cc}, {mono_tum_vi_cc}, and {rgbd_tum_cc}"
         )
     else:
         print(
             "ORB-SLAM3 release-flag/trajectory guards and the "
             "EdgeSE3ProjectXYZ Jacobian lifetime fix already present in "
             f"{cmake_lists}, {system_cc}, {optimizable_types_cc}, "
-            f"{mono_tum_vi_cc}, and {rgbd_tum_cc}"
+            f"{tracking_cc}, {mono_tum_vi_cc}, and {rgbd_tum_cc}"
         )
     return 0
 

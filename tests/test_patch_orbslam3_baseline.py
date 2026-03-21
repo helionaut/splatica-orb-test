@@ -522,6 +522,10 @@ void LoadImages() {}
             rewritten,
         )
         self.assertIn(
+            'HEL-78 diagnostic: SaveTrajectoryEuRoC atlas_state ',
+            rewritten,
+        )
+        self.assertIn(
             'HEL-75 diagnostic: SaveTrajectoryEuRoC post_close open=',
             rewritten,
         )
@@ -572,7 +576,55 @@ void LoadImages() {}
             rewritten,
         )
         self.assertIn(
+            'HEL-78 diagnostic: SaveKeyFrameTrajectoryEuRoC atlas_state ',
+            rewritten,
+        )
+        self.assertIn(
             'HEL-75 diagnostic: SaveKeyFrameTrajectoryEuRoC post_close open=',
+            rewritten,
+        )
+
+    def test_normalize_reset_active_map_adds_pre_and_post_clear_diagnostics(self) -> None:
+        block = """void Tracking::ResetActiveMap(bool bLocMap)
+{
+    Verbose::PrintMess("Active map Reseting", Verbose::VERBOSITY_NORMAL);
+    if(mpViewer)
+    {
+        mpViewer->RequestStop();
+        while(!mpViewer->isStopped())
+            usleep(3000);
+    }
+
+    Map* pMap = mpAtlas->GetCurrentMap();
+
+    if (!bLocMap)
+    {
+        Verbose::PrintMess("Reseting Local Mapper...", Verbose::VERBOSITY_VERY_VERBOSE);
+        mpLocalMapper->RequestResetActiveMap(pMap);
+        Verbose::PrintMess("done", Verbose::VERBOSITY_VERY_VERBOSE);
+    }
+
+    Verbose::PrintMess("Reseting Loop Closing...", Verbose::VERBOSITY_NORMAL);
+    mpLoopClosing->RequestResetActiveMap(pMap);
+    Verbose::PrintMess("done", Verbose::VERBOSITY_NORMAL);
+
+    Verbose::PrintMess("Reseting Database", Verbose::VERBOSITY_NORMAL);
+    mpKeyFrameDB->clearMap(pMap);
+    Verbose::PrintMess("done", Verbose::VERBOSITY_NORMAL);
+
+    // Clear Map (this erase MapPoints and KeyFrames)
+    mpAtlas->clearMap();
+}
+"""
+
+        rewritten = PATCH_HELPER.normalize_reset_active_map(block)
+
+        self.assertIn(
+            'HEL-78 diagnostic: ResetActiveMap pre_clear ',
+            rewritten,
+        )
+        self.assertIn(
+            'HEL-78 diagnostic: ResetActiveMap post_clear ',
             rewritten,
         )
 

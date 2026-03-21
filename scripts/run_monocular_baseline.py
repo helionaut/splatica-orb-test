@@ -43,11 +43,19 @@ FRAME_COMPLETED_PATTERN = re.compile(
 )
 NEW_MAP_CREATED_PATTERN = re.compile(r"New Map created with (\d+) points")
 RESET_ACTIVE_MAP_PATTERN = re.compile(r"SYSTEM-> Reseting active map in monocular case")
+RESET_PRE_CLEAR_PATTERN = re.compile(r"HEL-78 diagnostic: ResetActiveMap pre_clear (.+)")
+RESET_POST_CLEAR_PATTERN = re.compile(r"HEL-78 diagnostic: ResetActiveMap post_clear (.+)")
 SAVE_TRAJECTORY_PATTERN = re.compile(r"Saving trajectory to (\S+) \.\.\.")
 SAVE_KEYFRAME_TRAJECTORY_PATTERN = re.compile(
     r"Saving keyframe trajectory to (\S+) \.\.\."
 )
 SAVE_CWD_PATTERN = re.compile(r"HEL-75 diagnostic: trajectory save cwd=(.+)")
+SAVE_TRAJECTORY_ATLAS_STATE_PATTERN = re.compile(
+    r"HEL-78 diagnostic: SaveTrajectoryEuRoC atlas_state (.+)"
+)
+SAVE_KEYFRAME_ATLAS_STATE_PATTERN = re.compile(
+    r"HEL-78 diagnostic: SaveKeyFrameTrajectoryEuRoC atlas_state (.+)"
+)
 SAVE_TRAJECTORY_POST_CLOSE_PATTERN = re.compile(
     r"HEL-75 diagnostic: SaveTrajectoryEuRoC post_close open=(\d+), bytes=(-?\d+), filename=(.+)"
 )
@@ -74,7 +82,10 @@ DEFAULT_EXPECTED_ARTIFACT = os.environ.get("ORB_SLAM3_RUN_EXPECTED_ARTIFACT", ""
 class RuntimeLogSummary:
     map_points: tuple[int, ...]
     reset_count: int
+    reset_pre_clear_states: tuple[str, ...]
+    reset_post_clear_states: tuple[str, ...]
     trajectory_save_cwd: str | None
+    frame_trajectory_atlas_state: str | None
     frame_trajectory_save_path: str | None
     frame_trajectory_save_completed: bool
     frame_trajectory_skipped: bool
@@ -82,6 +93,7 @@ class RuntimeLogSummary:
     frame_trajectory_post_close_bytes: int | None
     frame_trajectory_post_return_open: bool | None
     frame_trajectory_post_return_bytes: int | None
+    keyframe_trajectory_atlas_state: str | None
     keyframe_trajectory_save_path: str | None
     keyframe_trajectory_save_completed: bool
     keyframe_trajectory_post_close_open: bool | None
@@ -313,7 +325,10 @@ def resolve_runtime_saved_path(
 def summarize_runtime_log(log_path: Path) -> RuntimeLogSummary:
     map_points: list[int] = []
     reset_count = 0
+    reset_pre_clear_states: list[str] = []
+    reset_post_clear_states: list[str] = []
     trajectory_save_cwd: str | None = None
+    frame_trajectory_atlas_state: str | None = None
     frame_trajectory_save_path: str | None = None
     frame_trajectory_save_completed = False
     frame_trajectory_skipped = False
@@ -321,6 +336,7 @@ def summarize_runtime_log(log_path: Path) -> RuntimeLogSummary:
     frame_trajectory_post_close_bytes: int | None = None
     frame_trajectory_post_return_open: bool | None = None
     frame_trajectory_post_return_bytes: int | None = None
+    keyframe_trajectory_atlas_state: str | None = None
     keyframe_trajectory_save_path: str | None = None
     keyframe_trajectory_save_completed = False
     keyframe_trajectory_post_close_open: bool | None = None
@@ -334,7 +350,10 @@ def summarize_runtime_log(log_path: Path) -> RuntimeLogSummary:
         return RuntimeLogSummary(
             map_points=(),
             reset_count=0,
+            reset_pre_clear_states=(),
+            reset_post_clear_states=(),
             trajectory_save_cwd=None,
+            frame_trajectory_atlas_state=None,
             frame_trajectory_save_path=None,
             frame_trajectory_save_completed=False,
             frame_trajectory_skipped=False,
@@ -342,6 +361,7 @@ def summarize_runtime_log(log_path: Path) -> RuntimeLogSummary:
             frame_trajectory_post_close_bytes=None,
             frame_trajectory_post_return_open=None,
             frame_trajectory_post_return_bytes=None,
+            keyframe_trajectory_atlas_state=None,
             keyframe_trajectory_save_path=None,
             keyframe_trajectory_save_completed=False,
             keyframe_trajectory_post_close_open=None,
@@ -358,8 +378,14 @@ def summarize_runtime_log(log_path: Path) -> RuntimeLogSummary:
             map_points.append(int(match.group(1)))
         if RESET_ACTIVE_MAP_PATTERN.search(line):
             reset_count += 1
+        if match := RESET_PRE_CLEAR_PATTERN.search(line):
+            reset_pre_clear_states.append(match.group(1))
+        if match := RESET_POST_CLEAR_PATTERN.search(line):
+            reset_post_clear_states.append(match.group(1))
         if match := SAVE_CWD_PATTERN.search(line):
             trajectory_save_cwd = match.group(1)
+        if match := SAVE_TRAJECTORY_ATLAS_STATE_PATTERN.search(line):
+            frame_trajectory_atlas_state = match.group(1)
         if match := SAVE_TRAJECTORY_PATTERN.search(line):
             frame_trajectory_save_path = match.group(1)
         if match := SAVE_KEYFRAME_TRAJECTORY_PATTERN.search(line):
@@ -374,6 +400,8 @@ def summarize_runtime_log(log_path: Path) -> RuntimeLogSummary:
         if match := SAVE_TRAJECTORY_POST_RETURN_PATTERN.search(line):
             frame_trajectory_post_return_open = match.group(1) == "1"
             frame_trajectory_post_return_bytes = int(match.group(2))
+        if match := SAVE_KEYFRAME_ATLAS_STATE_PATTERN.search(line):
+            keyframe_trajectory_atlas_state = match.group(1)
         if "HEL-63 diagnostic: SaveKeyFrameTrajectoryEuRoC completed" in line:
             keyframe_trajectory_save_completed = True
         if match := SAVE_KEYFRAME_TRAJECTORY_POST_CLOSE_PATTERN.search(line):
@@ -390,7 +418,10 @@ def summarize_runtime_log(log_path: Path) -> RuntimeLogSummary:
     return RuntimeLogSummary(
         map_points=tuple(map_points),
         reset_count=reset_count,
+        reset_pre_clear_states=tuple(reset_pre_clear_states),
+        reset_post_clear_states=tuple(reset_post_clear_states),
         trajectory_save_cwd=trajectory_save_cwd,
+        frame_trajectory_atlas_state=frame_trajectory_atlas_state,
         frame_trajectory_save_path=frame_trajectory_save_path,
         frame_trajectory_save_completed=frame_trajectory_save_completed,
         frame_trajectory_skipped=frame_trajectory_skipped,
@@ -398,6 +429,7 @@ def summarize_runtime_log(log_path: Path) -> RuntimeLogSummary:
         frame_trajectory_post_close_bytes=frame_trajectory_post_close_bytes,
         frame_trajectory_post_return_open=frame_trajectory_post_return_open,
         frame_trajectory_post_return_bytes=frame_trajectory_post_return_bytes,
+        keyframe_trajectory_atlas_state=keyframe_trajectory_atlas_state,
         keyframe_trajectory_save_path=keyframe_trajectory_save_path,
         keyframe_trajectory_save_completed=keyframe_trajectory_save_completed,
         keyframe_trajectory_post_close_open=keyframe_trajectory_post_close_open,
@@ -419,8 +451,23 @@ def render_runtime_log_details(summary: RuntimeLogSummary) -> list[str]:
         )
     if summary.reset_count:
         details.append(f"Active map resets observed: {summary.reset_count}")
+    if summary.reset_pre_clear_states:
+        details.append(
+            "Active map reset pre-clear states: "
+            + " | ".join(summary.reset_pre_clear_states)
+        )
+    if summary.reset_post_clear_states:
+        details.append(
+            "Active map reset post-clear states: "
+            + " | ".join(summary.reset_post_clear_states)
+        )
     if summary.trajectory_save_cwd:
         details.append(f"Trajectory save cwd reported: {summary.trajectory_save_cwd}")
+    if summary.frame_trajectory_atlas_state:
+        details.append(
+            "Frame trajectory save atlas state: "
+            f"{summary.frame_trajectory_atlas_state}"
+        )
     if summary.frame_trajectory_save_path:
         details.append(
             f"Frame trajectory save invoked for {summary.frame_trajectory_save_path}"
@@ -444,6 +491,11 @@ def render_runtime_log_details(summary: RuntimeLogSummary) -> list[str]:
     if summary.keyframe_trajectory_save_path:
         details.append(
             f"Keyframe trajectory save invoked for {summary.keyframe_trajectory_save_path}"
+        )
+    if summary.keyframe_trajectory_atlas_state:
+        details.append(
+            "Keyframe trajectory save atlas state: "
+            f"{summary.keyframe_trajectory_atlas_state}"
         )
     if summary.keyframe_trajectory_save_completed:
         details.append("Keyframe trajectory save call reached completion")
