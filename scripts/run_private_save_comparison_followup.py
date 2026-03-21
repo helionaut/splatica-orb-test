@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Sequence
 from dataclasses import dataclass
 import json
 from pathlib import Path
+import queue
 import re
 import subprocess
 import sys
+import threading
+import time
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
@@ -117,20 +121,102 @@ def build_progress_payload(
     artifacts: dict[str, str],
     metrics: dict[str, object],
     experiment: dict[str, object],
+    unit: str = "phases",
+    progress_percent: int | None = None,
 ) -> dict[str, object]:
     clamped_completed = max(0, min(completed, total))
-    progress_percent = round((clamped_completed / total) * 100) if total else 100
+    resolved_progress_percent = (
+        progress_percent
+        if progress_percent is not None
+        else (round((clamped_completed / total) * 100) if total else 100)
+    )
     return {
         "status": status,
         "current_step": current_step,
         "completed": clamped_completed,
         "total": total,
-        "unit": "phases",
-        "progress_percent": progress_percent,
+        "unit": unit,
+        "progress_percent": resolved_progress_percent,
         "metrics": metrics,
         "artifacts": artifacts,
         "experiment": experiment,
     }
+
+
+def load_progress_artifact(path: Path) -> dict[str, object] | None:
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+def coerce_progress_percent(value: object) -> int | None:
+    if isinstance(value, int):
+        return max(0, min(value, 99))
+    if isinstance(value, float) and value.is_integer():
+        return max(0, min(int(value), 99))
+    return None
+
+
+def build_delegate_heartbeat_payload(
+    *,
+    base_metrics: dict[str, object],
+    delegate_progress_artifact: Path,
+    delegate_payload: dict[str, object],
+    artifacts: dict[str, str],
+    experiment: dict[str, object],
+) -> dict[str, object]:
+    delegate_status = str(delegate_payload.get("status", "in_progress"))
+    delegate_current_step = str(delegate_payload.get("current_step", "delegate running"))
+    delegate_progress_percent = coerce_progress_percent(
+        delegate_payload.get("progress_percent")
+    )
+    metrics = dict(base_metrics)
+    metrics.update(
+        {
+            "delegate_status": delegate_status,
+            "delegate_current_step": delegate_current_step,
+            "delegate_progress_artifact": relative_to_repo(delegate_progress_artifact),
+        }
+    )
+    for key in ("completed", "total", "unit"):
+        if key in delegate_payload:
+            metrics[f"delegate_{key}"] = delegate_payload[key]
+    delegate_metrics = delegate_payload.get("metrics")
+    if isinstance(delegate_metrics, dict):
+        metrics["delegate_metrics"] = delegate_metrics
+    return build_progress_payload(
+        status="in_progress",
+        current_step=f"delegate heartbeat: {delegate_current_step}",
+        completed=delegate_progress_percent or 0,
+        total=100,
+        artifacts=artifacts,
+        metrics=metrics,
+        experiment=experiment,
+        unit="percent",
+        progress_percent=delegate_progress_percent or 0,
+    )
+
+
+def format_delegate_heartbeat_line(delegate_payload: dict[str, object]) -> str:
+    delegate_status = str(delegate_payload.get("status", "in_progress"))
+    delegate_current_step = str(delegate_payload.get("current_step", "delegate running"))
+    delegate_progress_percent = delegate_payload.get("progress_percent")
+    progress_text = (
+        str(delegate_progress_percent)
+        if isinstance(delegate_progress_percent, (int, float))
+        else "unknown"
+    )
+    return (
+        "[delegate-heartbeat] "
+        f"status={delegate_status} progress_percent={progress_text} "
+        f"current_step={delegate_current_step}\n"
+    )
 
 
 def load_public_reference(report_path: Path) -> PublicSaveReference:
@@ -511,6 +597,74 @@ Issue: {issue_identifier}
 """
 
 
+def run_delegate_command(
+    *,
+    command: Sequence[str],
+    cwd: Path,
+    delegate_progress_artifact: Path,
+    progress_artifact: Path,
+    artifacts: dict[str, str],
+    base_metrics: dict[str, object],
+    experiment: dict[str, object],
+    log_handle,
+) -> int:
+    process = subprocess.Popen(
+        list(command),
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+    assert process.stdout is not None
+
+    output_queue: queue.Queue[str | None] = queue.Queue()
+
+    def reader() -> None:
+        for line in process.stdout:
+            output_queue.put(line)
+        output_queue.put(None)
+
+    threading.Thread(target=reader, daemon=True).start()
+
+    last_heartbeat_time = 0.0
+    while True:
+        try:
+            item = output_queue.get(timeout=5.0)
+        except queue.Empty:
+            item = ""
+
+        now = time.monotonic()
+        if item is None:
+            if process.poll() is not None:
+                break
+        elif item:
+            log_handle.write(item)
+            log_handle.flush()
+
+        if now - last_heartbeat_time >= 30.0:
+            delegate_payload = load_progress_artifact(delegate_progress_artifact)
+            if delegate_payload is not None:
+                write_progress_artifact(
+                    progress_artifact,
+                    build_delegate_heartbeat_payload(
+                        base_metrics=base_metrics,
+                        delegate_progress_artifact=delegate_progress_artifact,
+                        delegate_payload=delegate_payload,
+                        artifacts=artifacts,
+                        experiment=experiment,
+                    ),
+                )
+                log_handle.write(format_delegate_heartbeat_line(delegate_payload))
+                log_handle.flush()
+            last_heartbeat_time = now
+
+        if process.poll() is not None and item is None:
+            break
+
+    return process.wait()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -651,6 +805,11 @@ def main() -> int:
         command.extend(["--calibration-10", str(calibration_10)])
     if extrinsics is not None:
         command.extend(["--extrinsics", str(extrinsics)])
+    base_metrics = {
+        "delegate_command": subprocess.list2cmdline(command),
+        "reference_frame_bytes": public_reference.frame_bytes,
+        "reference_keyframe_bytes": public_reference.keyframe_bytes,
+    }
 
     write_progress_artifact(
         progress_artifact,
@@ -661,14 +820,12 @@ def main() -> int:
                 "save comparison wrapper"
             ),
             completed=0,
-            total=2,
+            total=100,
             artifacts=artifacts,
-            metrics={
-                "delegate_command": subprocess.list2cmdline(command),
-                "reference_frame_bytes": public_reference.frame_bytes,
-                "reference_keyframe_bytes": public_reference.keyframe_bytes,
-            },
+            metrics=base_metrics,
             experiment=experiment,
+            unit="percent",
+            progress_percent=0,
         ),
     )
 
@@ -701,13 +858,15 @@ def main() -> int:
             f"{extrinsics if extrinsics is not None else 'not found'}\n\n"
         )
         log_handle.flush()
-        result = subprocess.run(
-            command,
+        delegate_exit_code = run_delegate_command(
+            command=command,
             cwd=REPO_ROOT,
-            stdout=log_handle,
-            stderr=subprocess.STDOUT,
-            check=False,
-            text=True,
+            delegate_progress_artifact=delegate_progress_artifact,
+            progress_artifact=progress_artifact,
+            artifacts=artifacts,
+            base_metrics=base_metrics,
+            experiment=experiment,
+            log_handle=log_handle,
         )
 
     private_evidence = parse_private_run_evidence(delegate_status_report)
@@ -715,7 +874,7 @@ def main() -> int:
         render_status_report(
             issue_identifier=args.progress_issue,
             command=subprocess.list2cmdline(command),
-            delegate_exit_code=result.returncode,
+            delegate_exit_code=delegate_exit_code,
             downloads_root=downloads_root,
             public_reference=public_reference,
             private_evidence=private_evidence,
@@ -734,17 +893,17 @@ def main() -> int:
     write_progress_artifact(
         progress_artifact,
         build_progress_payload(
-            status="completed" if result.returncode == 0 else "blocked",
+            status="completed" if delegate_exit_code == 0 else "blocked",
             current_step=(
                 f"{args.progress_issue} save comparison completed"
-                if result.returncode == 0
+                if delegate_exit_code == 0
                 else f"{args.progress_issue} save comparison blocked with auditable evidence"
             ),
-            completed=2,
-            total=2,
+            completed=100,
+            total=100,
             artifacts=artifacts,
             metrics={
-                "delegate_exit_code": result.returncode,
+                "delegate_exit_code": delegate_exit_code,
                 "missing_sources": list(private_evidence.missing_sources),
                 "private_save_cwd": private_evidence.save_cwd,
                 "private_frame_post_close_bytes": private_evidence.frame_post_close_bytes,
@@ -753,9 +912,11 @@ def main() -> int:
                 "reference_keyframe_bytes": public_reference.keyframe_bytes,
             },
             experiment=experiment,
+            unit="percent",
+            progress_percent=100,
         ),
     )
-    return result.returncode
+    return delegate_exit_code
 
 
 if __name__ == "__main__":

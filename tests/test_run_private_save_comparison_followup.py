@@ -121,6 +121,53 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
         )
         self.assertTrue(evidence.missing_frame_after_save)
 
+    def test_load_progress_artifact_ignores_invalid_json(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            artifact = Path(tmpdir) / "progress.json"
+            artifact.write_text("{not-json}\n", encoding="utf-8")
+
+            loaded = MODULE.load_progress_artifact(artifact)
+
+        self.assertIsNone(loaded)
+
+    def test_build_delegate_heartbeat_payload_mirrors_delegate_progress(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            delegate_artifact = Path(tmpdir) / "delegate-progress.json"
+            payload = MODULE.build_delegate_heartbeat_payload(
+                base_metrics={
+                    "delegate_command": "python3 scripts/run_private_monocular_followup.py",
+                    "reference_frame_bytes": 5437,
+                    "reference_keyframe_bytes": 924,
+                },
+                delegate_progress_artifact=delegate_artifact,
+                delegate_payload={
+                    "status": "in_progress",
+                    "current_step": "building mono_tum_vi",
+                    "progress_percent": 88,
+                    "completed": 7,
+                    "total": 8,
+                    "unit": "phases",
+                    "metrics": {"output_lines": 1542},
+                },
+                artifacts={
+                    "status_report": "reports/out/hel-78_private_save_comparison_followup.md"
+                },
+                experiment={"expected_artifact": "reports/out/hel-78_private_save_comparison_followup.md"},
+            )
+
+        self.assertEqual(payload["status"], "in_progress")
+        self.assertEqual(payload["current_step"], "delegate heartbeat: building mono_tum_vi")
+        self.assertEqual(payload["completed"], 88)
+        self.assertEqual(payload["total"], 100)
+        self.assertEqual(payload["unit"], "percent")
+        self.assertEqual(payload["progress_percent"], 88)
+        self.assertEqual(payload["metrics"]["delegate_status"], "in_progress")
+        self.assertEqual(payload["metrics"]["delegate_current_step"], "building mono_tum_vi")
+        self.assertEqual(payload["metrics"]["delegate_completed"], 7)
+        self.assertEqual(payload["metrics"]["delegate_total"], 8)
+        self.assertEqual(payload["metrics"]["delegate_unit"], "phases")
+        self.assertEqual(payload["metrics"]["delegate_metrics"], {"output_lines": 1542})
+
     def test_render_status_report_records_reference_and_blocker(self) -> None:
         report = MODULE.render_status_report(
             issue_identifier="HEL-77",
