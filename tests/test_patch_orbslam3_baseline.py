@@ -280,6 +280,7 @@ void LoadImages() {}
         self.assertIn("HEL-68 diagnostic: frame ", rewritten)
         self.assertIn("TrackMonocular completed", rewritten)
         self.assertIn('std::getenv("ORB_SLAM3_SKIP_FRAME_TRAJECTORY_SAVE")', rewritten)
+        self.assertIn("HEL-75 diagnostic: trajectory save cwd=", rewritten)
         self.assertIn("HEL-63 diagnostic: entering SLAM shutdown", rewritten)
         self.assertIn("HEL-63 diagnostic: SaveTrajectoryEuRoC completed", rewritten)
         self.assertIn(
@@ -368,6 +369,11 @@ int main(int argc, char **argv)
         cout << "HEL-63 diagnostic: save toggles frame=" << skip_frame_trajectory_save
              << ", keyframe=" << skip_keyframe_trajectory_save << endl;
     }
+    char hel75_save_cwd[4096];
+    if(getcwd(hel75_save_cwd, sizeof(hel75_save_cwd)) != nullptr)
+        cout << "HEL-75 diagnostic: trajectory save cwd=" << hel75_save_cwd << endl;
+    else
+        cout << "HEL-75 diagnostic: trajectory save cwd=<unavailable>" << endl;
 
     // Tracking time statistics
 
@@ -435,6 +441,115 @@ void LoadImages() {}
             source_path.write_text(source, encoding="utf-8")
             self.assertFalse(PATCH_HELPER.patch_mono_tum_vi(source_path))
             self.assertEqual(source_path.read_text(encoding="utf-8"), source)
+
+    def test_normalize_save_trajectory_euroc_adds_post_close_diagnostics(self) -> None:
+        block = """void System::SaveTrajectoryEuRoC(const string &filename)
+{
+    vector<Map*> vpMaps = mpAtlas->GetAllMaps();
+    int numMaxKFs = 0;
+    Map* pBiggerMap;
+    std::cout << "There are " << std::to_string(vpMaps.size()) << " maps in the atlas" << std::endl;
+    for(Map* pMap :vpMaps)
+    {
+        std::cout << " Map " << std::to_string(pMap->GetId()) << " has " << std::to_string(pMap->GetAllKeyFrames().size()) << " KFs" << std::endl;
+        if(pMap->GetAllKeyFrames().size() > numMaxKFs)
+        {
+            numMaxKFs = pMap->GetAllKeyFrames().size();
+            pBiggerMap = pMap;
+        }
+    }
+
+    vector<KeyFrame*> vpKFs = pBiggerMap->GetAllKeyFrames();
+    ofstream f;
+    f.open(filename.c_str());
+    // cout << "file open" << endl;
+    f << fixed;
+    list<ORB_SLAM3::KeyFrame*>::iterator lRit = mpTracker->mlpReferences.begin();
+    list<double>::iterator lT = mpTracker->mlFrameTimes.begin();
+    list<bool>::iterator lbL = mpTracker->mlbLost.begin();
+    for(list<Sophus::SE3f>::iterator lit=mpTracker->mlRelativeFramePoses.begin(),
+    lend=mpTracker->mlRelativeFramePoses.end();lit!=lend;lit++, lRit++, lT++, lbL++)
+    {
+        if(*lbL)
+            continue;
+        KeyFrame* pKF = *lRit;
+        Sophus::SE3f Trw;
+        while(pKF->isBad())
+        {
+            Trw = Trw * pKF->mTcp;
+            pKF = pKF->GetParent();
+        }
+        Trw = Trw * pKF->GetPose() * Two;
+        Sophus::SE3f Tcw = (*lit) * Trw;
+        Sophus::SE3f Twc = Tcw.inverse();
+        Eigen::Vector3f twc = Twc.translation();
+        Eigen::Quaternionf q = Twc.unit_quaternion();
+        f << setprecision(6) << *lT << " " << setprecision(9) << twc(0) << " " << twc(1) << " " << twc(2) << " " << q.x() << " " << q.y() << " " << q.z() << " " << q.w() << endl;
+    }
+    f.close();
+}
+"""
+        rewritten = PATCH_HELPER.normalize_save_trajectory_euroc(block)
+
+        self.assertIn("No keyframes were recorded; skipping trajectory save.", rewritten)
+        self.assertIn(
+            'HEL-75 diagnostic: SaveTrajectoryEuRoC stream open=',
+            rewritten,
+        )
+        self.assertIn(
+            'HEL-75 diagnostic: SaveTrajectoryEuRoC post_close open=',
+            rewritten,
+        )
+
+    def test_normalize_save_keyframe_trajectory_euroc_adds_post_close_diagnostics(
+        self,
+    ) -> None:
+        block = """void System::SaveKeyFrameTrajectoryEuRoC(const string &filename)
+{
+    vector<Map*> vpMaps = mpAtlas->GetAllMaps();
+    Map* pBiggerMap;
+    int numMaxKFs = 0;
+    for(Map* pMap :vpMaps)
+    {
+        if(pMap->GetAllKeyFrames().size() > numMaxKFs)
+        {
+            numMaxKFs = pMap->GetAllKeyFrames().size();
+            pBiggerMap = pMap;
+        }
+    }
+
+    vector<KeyFrame*> vpKFs = pBiggerMap->GetAllKeyFrames();
+    ofstream f;
+    f.open(filename.c_str());
+    f << fixed;
+    for(size_t i=0; i<vpKFs.size(); i++)
+    {
+        KeyFrame* pKF = vpKFs[i];
+        if(pKF->isBad())
+            continue;
+        Sophus::SE3f Twc = pKF->GetPoseInverse();
+        Eigen::Quaternionf q = Twc.unit_quaternion();
+        Eigen::Vector3f t = Twc.translation();
+        f << setprecision(6) << pKF->mTimeStamp << setprecision(7) << " " << t(0) << " " << t(1) << " " << t(2)
+          << " " << q.x() << " " << q.y() << " " << q.z() << " " << q.w() << endl;
+    }
+    f.close();
+}
+"""
+        rewritten = PATCH_HELPER.normalize_save_keyframe_trajectory_euroc(block)
+
+        self.assertIn(
+            "No keyframes were recorded; skipping keyframe trajectory save.",
+            rewritten,
+        )
+        self.assertIn(
+            'HEL-75 diagnostic: SaveKeyFrameTrajectoryEuRoC stream open=',
+            rewritten,
+        )
+        self.assertIn(
+            'HEL-75 diagnostic: SaveKeyFrameTrajectoryEuRoC post_close open=',
+            rewritten,
+        )
 
     def test_rewrites_rgbd_tum_main_with_tracking_diagnostics(self) -> None:
         source = """#include<iostream>

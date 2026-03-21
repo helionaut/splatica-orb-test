@@ -92,11 +92,14 @@ class RunMonocularBaselineTests(unittest.TestCase):
                     [
                         "New Map created with 93 points",
                         "SYSTEM-> Reseting active map in monocular case",
+                        "HEL-75 diagnostic: trajectory save cwd=/tmp/trajectory",
                         "Saving trajectory to f_example.txt ...",
                         "HEL-63 diagnostic: SaveTrajectoryEuRoC completed",
+                        "HEL-75 diagnostic: SaveTrajectoryEuRoC post_close open=1, bytes=321, filename=f_example.txt",
                         "Saving keyframe trajectory to kf_example.txt ...",
                         "No keyframes were recorded; skipping keyframe trajectory save.",
                         "HEL-63 diagnostic: SaveKeyFrameTrajectoryEuRoC completed",
+                        "HEL-75 diagnostic: SaveKeyFrameTrajectoryEuRoC post_close open=0, bytes=-1, filename=kf_example.txt",
                         "SUMMARY: AddressSanitizer: 123 byte(s) leaked in 4 allocation(s).",
                     ]
                 )
@@ -109,8 +112,13 @@ class RunMonocularBaselineTests(unittest.TestCase):
 
         self.assertEqual(summary.map_points, (93,))
         self.assertEqual(summary.reset_count, 1)
+        self.assertEqual(summary.trajectory_save_cwd, "/tmp/trajectory")
         self.assertTrue(summary.frame_trajectory_save_completed)
+        self.assertTrue(summary.frame_trajectory_post_close_open)
+        self.assertEqual(summary.frame_trajectory_post_close_bytes, 321)
         self.assertTrue(summary.keyframe_trajectory_save_completed)
+        self.assertFalse(summary.keyframe_trajectory_post_close_open)
+        self.assertEqual(summary.keyframe_trajectory_post_close_bytes, -1)
         self.assertTrue(summary.keyframe_trajectory_skipped)
         self.assertEqual(
             summary.asan_summary,
@@ -118,7 +126,12 @@ class RunMonocularBaselineTests(unittest.TestCase):
         )
         self.assertIn("Initialization maps created: 1 (points=93)", details)
         self.assertIn("Active map resets observed: 1", details)
+        self.assertIn("Trajectory save cwd reported: /tmp/trajectory", details)
         self.assertIn("Frame trajectory save call reached completion", details)
+        self.assertIn(
+            "Frame trajectory post-close visibility: open=True, bytes=321",
+            details,
+        )
         self.assertIn(
             "Keyframe trajectory save skipped because no keyframes were recorded",
             details,
@@ -127,3 +140,11 @@ class RunMonocularBaselineTests(unittest.TestCase):
             "AddressSanitizer summary: 123 byte(s) leaked in 4 allocation(s).",
             details,
         )
+
+    def test_resolve_runtime_saved_path_uses_reported_cwd_for_relative_outputs(self) -> None:
+        runtime_path = MODULE.resolve_runtime_saved_path(
+            save_cwd="/tmp/trajectory",
+            save_path="f_example.txt",
+        )
+
+        self.assertEqual(runtime_path, Path("/tmp/trajectory/f_example.txt"))
