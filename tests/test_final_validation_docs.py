@@ -308,7 +308,7 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("insta360-b87308a3/00.mp4", follow_up)
         self.assertIn("insta360_x3_extr_rigs_calib.json", follow_up)
 
-    def test_hel77_follow_up_doc_records_clean_host_blocker(self) -> None:
+    def test_hel77_follow_up_doc_records_late_shutdown_save_blocker(self) -> None:
         follow_up = (
             REPO_ROOT / "docs/hel-77-private-save-comparison-follow-up.md"
         ).read_text(encoding="utf-8")
@@ -320,9 +320,13 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("insta360_x3_extr_rigs_calib", follow_up)
         self.assertIn("270", follow_up)
         self.assertIn("4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4", follow_up)
-        self.assertIn("Missing required build tool: cmake", follow_up)
-        self.assertIn("Boost serialization", follow_up)
-        self.assertIn("Pangolin", follow_up)
+        self.assertIn("Initialization maps created: `2`", follow_up)
+        self.assertIn("Active map resets observed: `2`", follow_up)
+        self.assertIn("SaveTrajectoryEuRoC completed", follow_up)
+        self.assertIn("expected frame trajectory file is still missing", follow_up)
+        self.assertIn("598421903 byte(s) leaked in 2383340 allocation(s).", follow_up)
+        self.assertIn("Frame `252`", follow_up)
+        self.assertIn("Frame `254`", follow_up)
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"
         text = source.read_text(encoding="utf-8")

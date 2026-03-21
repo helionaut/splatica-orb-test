@@ -11,25 +11,30 @@ Last Updated: 2026-03-21
 - Next unresolved risk: the repo-local prerequisite lane is now proven on a
   host that has the private Insta360 exports, but the canonical lens-10
   manifest still reaches shutdown with `Map 0 has 0 KFs` and no saved
-  trajectory artifacts. An aggressive ORB rerun (`nFeatures: 4000`,
-  `iniThFAST: 8`, `minThFAST: 3`) plus a stride-3 frame-selection rerun both
-  cross the initialization barrier and create a first map, but each aborts
-  with `double free or corruption (out)` before the run can save trajectories.
+  trajectory artifacts. Historical aggressive reruns (`nFeatures: 4000`,
+  `iniThFAST: 8`, `minThFAST: 3`) plus a stride-3 frame-selection rerun crossed
+  the initialization barrier and created a first map, but initially aborted
+  with `double free or corruption (out)` before the run could save
+  trajectories. The latest HEL-77 aggressive rerun now clears the clean-host
+  dependency lane, creates two short-lived maps (`93` and `71` points), and
+  reaches both save calls on the private lane.
 - Current narrowed blocker: the HEL-75 bounded public save probe now proves the
   HEL-74 ASan/no-static-alignment build can save trajectories on a known-good
   monocular fisheye lane. The public probe exits non-zero only because
   LeakSanitizer reports `7152947 byte(s) leaked in 16038 allocation(s)`, while
   both saved trajectories remain on disk and the HEL-75 post-close diagnostics
   report `open=1` with `5437` frame-trajectory bytes and `924` keyframe bytes.
-  That narrows the unresolved problem to the private aggressive lane, which
-  still reaches `SaveTrajectoryEuRoC` without leaving the expected frame
-  artifact afterward.
+  That narrows the unresolved problem to the private aggressive lane. HEL-77
+  now reaches `SaveTrajectoryEuRoC` and `SaveKeyFrameTrajectoryEuRoC`, but the
+  expected frame trajectory file is still missing afterward and LeakSanitizer
+  reports `598421903 byte(s) leaked in 2383340 allocation(s).`, so there are
+  still no private post-close bytes to compare against HEL-75.
 - Next follow-up task: keep the HEL-74 aggressive private lane as the
   diagnostic baseline that started in the
-  [HEL-57 monocular follow-up report](hel-57-monocular-follow-up.md), rerun it
-  on the host with the private exports, and compare its HEL-75 save cwd and
-  post-close byte counts against the successful public save probe before any
-  tuned settings are promoted into the canonical manifest.
+  [HEL-57 monocular follow-up report](hel-57-monocular-follow-up.md),
+  preserve the HEL-75 save-path comparison hooks, and instrument the late
+  private shutdown/save path until the repo can explain why the frame
+  trajectory file disappears after the save call returns.
 
 The repo now has one documented rerun path for the selected baseline plus one
 follow-up execution report for the private host run. Another engineer should
@@ -67,15 +72,10 @@ private calibration/extrinsics sidecars required to rerun the aggressive lane.
 The current HEL-77 private save comparison follow-up is tracked in the
 [HEL-77 private save comparison follow-up](hel-77-private-save-comparison-follow-up.md),
 which proves the private exports and sidecars are now reachable on the current
-host, materializes the repo-local lens-10 bundle plus pinned ORB-SLAM3 checkout,
-and narrows the remaining blocker to the clean-workspace native dependency lane
-(`cmake`, Eigen3, OpenCV, Boost serialization, Pangolin) before the aggressive
-private rerun can re-enter the HEL-75 save-byte comparison.
-lane. The current HEL-76 private save comparison follow-up is tracked in the
-[HEL-76 private save comparison follow-up](hel-76-private-save-comparison-follow-up.md),
-which codifies the HEL-75 public byte counts as the comparison reference and
-leaves a repo-owned blocked report when the current host still lacks the
-private calibration/extrinsics sidecars required to rerun the aggressive lane.
+host, bootstraps the clean-workspace native dependency lane, rebuilds
+`mono_tum_vi`, and narrows the remaining blocker to the late private
+shutdown/save path after the expected frame trajectory file still disappears
+even though the save calls return.
 
 ## Selected Baseline And Config Bundle
 
@@ -452,6 +452,11 @@ The full step-by-step notes for that pass live in
 - The HEL-57 host pass repeated that same import/bootstrap/build/run lane from
   a fresh issue worktree and confirmed the full path is reproducible when the
   private user exports are present.
+- The HEL-77 host pass bootstrapped the repo-local `cmake`, `Eigen3`, OpenCV,
+  Boost serialization, and Pangolin dependencies in a clean worktree, rebuilt
+  `mono_tum_vi`, and confirmed that the aggressive private lane now reaches
+  both trajectory-save calls on this host instead of failing earlier in native
+  setup.
 - The real monocular wrapper now leaves behind an auditable report even when
   ORB-SLAM3 fails to produce a savable trajectory. It records the working
   directory, expected `f_*.txt` and `kf_*.txt` outputs, raw process exit code,
@@ -460,6 +465,10 @@ The full step-by-step notes for that pass live in
   aggressive ORB settings, ORB-SLAM3 created a first keyframe and an initial
   map with 83-93 points before aborting, which rules out "no detectable
   initialization path at all" as the next bottleneck.
+- The newer HEL-77 save-comparison wrapper now records private initialization
+  map counts, active-map resets, and sanitizer summaries alongside the HEL-75
+  public byte-count reference, so the remaining private blocker is auditable in
+  repo-owned reports instead of only in a raw log.
 
 ## What Failed Or Remains Blocked
 
@@ -479,6 +488,13 @@ The full step-by-step notes for that pass live in
   with `double free or corruption (out)` immediately after initialization.
   That makes post-initialization memory corruption the next blocker after the
   default `0 KFs` failure, not missing native setup.
+- On the HEL-77 host, the aggressive ASan/no-static-alignment rerun now gets
+  materially further: it creates maps at frames `77` and `252`, resets the
+  active map at frames `78` and `254`, reaches `SaveTrajectoryEuRoC` and
+  `SaveKeyFrameTrajectoryEuRoC`, then exits under LeakSanitizer with
+  `598421903 byte(s) leaked in 2383340 allocation(s).` The expected private
+  frame trajectory file is still missing afterward, so there are no private
+  post-close byte counts yet for a direct HEL-75 comparison.
 - Full stereo+IMU validation remains blocked beyond this monocular lane because
   the shareable calibration subset still lacks `camera_to_imu`, IMU noise, IMU
   walk, IMU frequency, and overlapping-stereo geometry required for a credible

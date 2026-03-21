@@ -1,6 +1,6 @@
 # HEL-77 Private Save Comparison Follow-up
 
-Status: Blocked with narrower clean-host prerequisite evidence
+Status: Blocked with narrower late shutdown/save evidence
 Issue: HEL-77
 Last Updated: 2026-03-21
 
@@ -15,16 +15,17 @@ into the canonical lens-10 manifest.
 
 - Changed variable: keep the HEL-74 aggressive private comparison lane, but
   auto-discover the known OpenClaw raw videos and inbound calibration sidecars
-  so the host can reuse them without manual path translation
-- Hypothesis: once the host-side private exports are surfaced and the repo-local
-  media tooling is bootstrapped, the HEL-77 lane will move past the old
-  missing-sidecar blocker and expose the next real build/runtime boundary
+  on the private-export host, then compare the resulting save-path evidence
+  directly against the HEL-75 public byte-count reference
+- Hypothesis: once the host-side private exports and clean-workspace native
+  prerequisites are bootstrapped, the HEL-77 lane will move beyond the old
+  input/build blockers and expose the next concrete shutdown/save boundary
 - Success criterion: the current pass leaves repo-owned HEL-77 evidence that
-  either reaches private save-byte comparison or narrows the remaining blocker
-  beyond the old HEL-76 host-input boundary
+  either records private post-close trajectory bytes or narrows the remaining
+  blocker beyond the earlier prerequisite-only explanation
 - Abort condition: the host-side files still cannot be consumed, the delegated
-  rerun leaves no auditable report, or the build lane fails before any new
-  evidence is recorded
+  rerun leaves no auditable report, or the save-path evidence still disappears
+  before comparison can happen
 
 ## Repo Changes In This Pass
 
@@ -39,6 +40,9 @@ into the canonical lens-10 manifest.
     report
   - render the active issue identifier in the generated HEL-77 report/progress
     text instead of hard-coding HEL-76
+  - parse the delegated monocular report for initialization-map counts,
+    active-map resets, AddressSanitizer summaries, and the "save completed but
+    file still missing" signal
   - write the delegated monocular orchestration log to
     `logs/out/hel-77_private_monocular_followup.log`
 - Updated the focused tests that protect those private follow-up entrypoints.
@@ -71,20 +75,50 @@ start the aggressive lane:
   - extracted vocabulary
     `third_party/orbslam3/upstream/Vocabulary/ORBvoc.txt`
 
-The remaining blocker is now the repo-local native prerequisite lane, not the
-private export lane:
+The clean-workspace prerequisite blocker has now been cleared on this host:
 
-- `scripts/build_orbslam3_baseline.sh` aborts immediately with:
+- `make bootstrap-local-cmake`
+- `make bootstrap-local-eigen`
+- `make bootstrap-local-opencv`
+- `make bootstrap-local-boost`
+- `make bootstrap-local-pangolin`
+- `./scripts/build_orbslam3_baseline.sh`
 
-  ```text
-  Missing required build tool: cmake
-  Install cmake on PATH or run ./scripts/bootstrap_local_cmake.sh first.
-  ```
+Those steps produced the expected repo-local runtime assets:
 
-- The HEL-77 status report also confirms the clean workspace still lacks the
-  repo-local or system copies of OpenCV, Eigen3, Boost serialization, and
-  Pangolin, so the private save comparison still cannot reach the actual
-  ORB-SLAM3 runtime yet.
+- `third_party/orbslam3/upstream/lib/libORB_SLAM3.so`
+- `third_party/orbslam3/upstream/Examples/Monocular/mono_tum_vi`
+- `reports/out/insta360_x3_lens10_monocular_prereqs.md` with full execution
+  readiness on this host
+
+## Runtime Evidence
+
+The rerun now reaches materially further into the private aggressive lane than
+the earlier HEL-57 and first-pass HEL-77 evidence:
+
+- Initialization maps created: `2` (`93` points, then `71` points)
+- Active map resets observed: `2`
+- Frame `77`: `New Map created with 93 points`
+- Frame `78`: `SYSTEM-> Reseting active map in monocular case`
+- Frame `252`: `New Map created with 71 points`
+- Frame `254`: `SYSTEM-> Reseting active map in monocular case`
+- `HEL-63 diagnostic: calling SaveTrajectoryEuRoC for f_insta360_x3_lens10_orb_aggressive_asan_no_static_alignment_hel77_save_compare.txt`
+- `HEL-63 diagnostic: SaveTrajectoryEuRoC completed`
+- `HEL-63 diagnostic: calling SaveKeyFrameTrajectoryEuRoC for kf_insta360_x3_lens10_orb_aggressive_asan_no_static_alignment_hel77_save_compare.txt`
+- `HEL-63 diagnostic: SaveKeyFrameTrajectoryEuRoC completed`
+- `Keyframe trajectory save skipped because no keyframes were recorded`
+- `SUMMARY: AddressSanitizer: 598421903 byte(s) leaked in 2383340 allocation(s).`
+
+The private save comparison still remains blocked, but it is now blocked later
+than either the old clean-host prerequisite failure or the HEL-57
+`double free or corruption (out)` shutdown:
+
+- the frame-trajectory save call returns in the log
+- the expected frame trajectory file is still missing afterward at
+  `build/insta360_x3_lens10/monocular/trajectory_orb_aggressive_asan_no_static_alignment_hel77_save_compare/f_insta360_x3_lens10_orb_aggressive_asan_no_static_alignment_hel77_save_compare.txt`
+- no frame or keyframe trajectory files are present in the private save cwd
+- there are still no private post-close byte counts to compare against the
+  HEL-75 public reference (`5437` frame bytes, `924` keyframe bytes)
 
 ## Commands
 
@@ -112,22 +146,25 @@ python3 scripts/run_private_save_comparison_followup.py \
 
 ## Result So Far
 
-HEL-77 does not yet produce private save cwd or post-close byte counts, but it
-does narrow the blocker materially:
+HEL-77 still does not produce private post-close byte counts, but it narrows
+the blocker materially:
 
 - the current host now proves the private exports and sidecars are accessible
 - the repo can now materialize the prepared lens-10 bundle directly from those
   host files
-- the pinned ORB-SLAM3 upstream checkout and vocabulary are now present in the
-  clean HEL-77 workspace
-- the next missing prerequisite is explicit and reproducible: `cmake` first,
-  followed by the rest of the native dependency lane required before the
-  aggressive rerun can re-enter ORB-SLAM3 itself
+- the clean-workspace native dependency lane can be bootstrapped end-to-end and
+  rebuild the ASan/no-static-alignment `mono_tum_vi` runner
+- the aggressive private rerun now creates two short-lived maps, reaches both
+  trajectory-save calls, and exits under LeakSanitizer instead of the earlier
+  immediate `double free or corruption (out)` abort
+- the remaining blocker is now the late shutdown/save path: the private run
+  still leaves no trajectory artifact on disk after `SaveTrajectoryEuRoC`
+  returns, so HEL-75-style post-close byte comparison is still unavailable
 
 ## Next Step
 
-Bootstrap the remaining repo-local native prerequisites in the documented order
-(`cmake`, `Eigen3`, OpenCV, Boost serialization, Pangolin), then rerun the
-same HEL-77 comparison command so the aggressive private lane can finally move
-past the clean-room build boundary and back toward HEL-75-style save-byte
-evidence.
+Instrument the late private shutdown/save path further before promoting any
+tuned settings into the canonical manifest. The next follow-up should preserve
+this HEL-77 lane and answer why `SaveTrajectoryEuRoC` returns without leaving a
+visible frame artifact in the private save cwd, then recover the missing
+post-close byte counts if the file is being unlinked or removed after close.

@@ -68,6 +68,10 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
                         "- Trajectory save cwd reported: /tmp/private/trajectory",
                         "- Frame trajectory post-close visibility: open=False, bytes=0",
                         "- Keyframe trajectory post-close visibility: open=True, bytes=12",
+                        "- Initialization maps created: 2 (points=93, 71)",
+                        "- Active map resets observed: 2",
+                        "- AddressSanitizer summary: 598421903 byte(s) leaked in 2383340 allocation(s).",
+                        "- Frame trajectory save completed in the log, but the expected frame trajectory file is still missing at /tmp/private/f_private.txt.",
                     ]
                 )
                 + "\n",
@@ -100,6 +104,14 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
         self.assertEqual(evidence.frame_post_close_bytes, 0)
         self.assertTrue(evidence.keyframe_post_close_open)
         self.assertEqual(evidence.keyframe_post_close_bytes, 12)
+        self.assertEqual(evidence.initialization_maps, 2)
+        self.assertEqual(evidence.initialization_map_points, "93, 71")
+        self.assertEqual(evidence.active_map_resets, 2)
+        self.assertEqual(
+            evidence.asan_summary,
+            "598421903 byte(s) leaked in 2383340 allocation(s).",
+        )
+        self.assertTrue(evidence.missing_frame_after_save)
 
     def test_render_status_report_records_reference_and_blocker(self) -> None:
         report = MODULE.render_status_report(
@@ -116,7 +128,7 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
             ),
             private_evidence=MODULE.PrivateRunEvidence(
                 status="blocked",
-                missing_sources=("Source calibration 00", "Source stereo extrinsics"),
+                missing_sources=(),
                 save_cwd=None,
                 frame_post_close_open=None,
                 frame_post_close_bytes=None,
@@ -124,6 +136,11 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
                 keyframe_post_close_bytes=None,
                 delegate_report_path=Path("reports/out/delegate.md"),
                 delegate_log_path=Path("logs/out/private.log"),
+                initialization_maps=2,
+                initialization_map_points="93, 71",
+                active_map_resets=2,
+                asan_summary="598421903 byte(s) leaked in 2383340 allocation(s).",
+                missing_frame_after_save=True,
             ),
             discovered_video_00=Path("/tmp/downloads/insta360-b87308a3/00.mp4"),
             discovered_video_10=Path("/tmp/downloads/insta360-b87308a3/10.mp4"),
@@ -146,5 +163,16 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
         self.assertIn("Raw video 00: `/tmp/downloads/insta360-b87308a3/00.mp4`", report)
         self.assertIn("Calibration 00: `/tmp/inbound/insta360_x3_kb4_00_calib.txt`", report)
         self.assertIn("Stereo extrinsics: `/tmp/inbound/insta360_x3_extr_rigs_calib.json`", report)
-        self.assertIn("`Source calibration 00`", report)
-        self.assertIn("private rerun is still blocked before save comparison", report)
+        self.assertIn("## Missing Source Inputs", report)
+        self.assertIn("- none", report)
+        self.assertIn("Private runtime map cycles observed: `2` (points=93, 71).", report)
+        self.assertIn("Private active-map resets observed: `2`.", report)
+        self.assertIn(
+            "Private AddressSanitizer summary: `598421903 byte(s) leaked in 2383340 allocation(s).`",
+            report,
+        )
+        self.assertIn(
+            "the delegate log reached frame-trajectory save completion, but the expected frame trajectory file was still missing afterward",
+            report,
+        )
+        self.assertIn("reached the late shutdown/save boundary", report)
