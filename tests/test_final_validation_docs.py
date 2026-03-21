@@ -305,7 +305,6 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("924", follow_up)
         self.assertIn("insta360-b87308a3/00.mp4", follow_up)
         self.assertIn("insta360_x3_extr_rigs_calib.json", follow_up)
-
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"
         text = source.read_text(encoding="utf-8")

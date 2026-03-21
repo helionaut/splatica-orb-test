@@ -64,6 +64,11 @@ lane. The current HEL-76 private save comparison follow-up is tracked in the
 which codifies the HEL-75 public byte counts as the comparison reference and
 leaves a repo-owned blocked report when the current host still lacks the
 private calibration/extrinsics sidecars required to rerun the aggressive lane.
+lane. The current HEL-76 private save comparison follow-up is tracked in the
+[HEL-76 private save comparison follow-up](hel-76-private-save-comparison-follow-up.md),
+which codifies the HEL-75 public byte counts as the comparison reference and
+leaves a repo-owned blocked report when the current host still lacks the
+private calibration/extrinsics sidecars required to rerun the aggressive lane.
 
 ## Selected Baseline And Config Bundle
 
