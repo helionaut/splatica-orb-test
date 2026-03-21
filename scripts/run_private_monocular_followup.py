@@ -33,6 +33,12 @@ from splatica_orb_test.monocular_prereqs import (  # noqa: E402
     PrerequisiteCheck,
     inspect_monocular_baseline_prerequisites,
 )
+from splatica_orb_test.private_host_inputs import (  # noqa: E402
+    DEFAULT_OPENCLAW_DOWNLOADS_ROOT,
+    DEFAULT_OPENCLAW_MEDIA_INBOUND_ROOT,
+    discover_openclaw_calibration_inputs,
+    discover_openclaw_video_inputs,
+)
 
 
 DEFAULT_PROGRESS_ARTIFACT = REPO_ROOT / ".symphony/progress/HEL-73.json"
@@ -119,26 +125,61 @@ def resolve_source_inputs(
     calibration_00: str | None,
     calibration_10: str | None,
     extrinsics: str | None,
+    video_downloads_root: Path = DEFAULT_OPENCLAW_DOWNLOADS_ROOT,
+    media_inbound_root: Path = DEFAULT_OPENCLAW_MEDIA_INBOUND_ROOT,
 ) -> SourceInputPaths:
     lens00_layout = resolve_lens_input_layout(dataset_root, lens_id="00")
     lens10_layout = resolve_lens_input_layout(dataset_root, lens_id="10")
+    discovered_video_00, discovered_video_10 = discover_openclaw_video_inputs(
+        video_downloads_root
+    )
+    (
+        discovered_calibration_00,
+        discovered_calibration_10,
+        discovered_extrinsics,
+    ) = discover_openclaw_calibration_inputs(media_inbound_root)
+
+    def prefer_existing(repo_path: Path, discovered_path: Path | None) -> Path:
+        if repo_path.exists():
+            return repo_path
+        if discovered_path is not None:
+            return discovered_path
+        return repo_path
+
     return SourceInputPaths(
-        video_00=resolve_repo_path(video_00) if video_00 else lens00_layout.raw_video_path,
-        video_10=resolve_repo_path(video_10) if video_10 else lens10_layout.raw_video_path,
+        video_00=(
+            resolve_repo_path(video_00)
+            if video_00
+            else prefer_existing(lens00_layout.raw_video_path, discovered_video_00)
+        ),
+        video_10=(
+            resolve_repo_path(video_10)
+            if video_10
+            else prefer_existing(lens10_layout.raw_video_path, discovered_video_10)
+        ),
         calibration_00=(
             resolve_repo_path(calibration_00)
             if calibration_00
-            else lens00_layout.raw_calibration_path
+            else prefer_existing(
+                lens00_layout.raw_calibration_path,
+                discovered_calibration_00,
+            )
         ),
         calibration_10=(
             resolve_repo_path(calibration_10)
             if calibration_10
-            else lens10_layout.raw_calibration_path
+            else prefer_existing(
+                lens10_layout.raw_calibration_path,
+                discovered_calibration_10,
+            )
         ),
         extrinsics=(
             resolve_repo_path(extrinsics)
             if extrinsics
-            else dataset_root / "raw" / "calibration" / RAW_EXTRINSICS_FILENAME
+            else prefer_existing(
+                dataset_root / "raw" / "calibration" / RAW_EXTRINSICS_FILENAME,
+                discovered_extrinsics,
+            )
         ),
     )
 
@@ -329,6 +370,14 @@ def main() -> int:
     parser.add_argument("--calibration-00")
     parser.add_argument("--calibration-10")
     parser.add_argument("--extrinsics")
+    parser.add_argument(
+        "--video-downloads-root",
+        default=str(DEFAULT_OPENCLAW_DOWNLOADS_ROOT),
+    )
+    parser.add_argument(
+        "--media-inbound-root",
+        default=str(DEFAULT_OPENCLAW_MEDIA_INBOUND_ROOT),
+    )
     parser.add_argument("--progress-artifact", default=str(DEFAULT_PROGRESS_ARTIFACT))
     parser.add_argument("--progress-issue", default="HEL-73")
     parser.add_argument("--orchestration-log", default=str(DEFAULT_ORCHESTRATION_LOG))
@@ -359,6 +408,8 @@ def main() -> int:
         calibration_00=args.calibration_00,
         calibration_10=args.calibration_10,
         extrinsics=args.extrinsics,
+        video_downloads_root=Path(args.video_downloads_root),
+        media_inbound_root=Path(args.media_inbound_root),
     )
     source_checks = inspect_source_inputs(source_inputs)
 

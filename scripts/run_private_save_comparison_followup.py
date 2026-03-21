@@ -10,16 +10,22 @@ import re
 import subprocess
 import sys
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_PROGRESS_ARTIFACT = REPO_ROOT / ".symphony/progress/HEL-76.json"
-DEFAULT_DELEGATE_PROGRESS_ARTIFACT = REPO_ROOT / ".symphony/progress/HEL-76-private-run.json"
-DEFAULT_ORCHESTRATION_LOG = REPO_ROOT / "logs/out/hel-76_private_save_comparison_followup.log"
-DEFAULT_STATUS_REPORT = REPO_ROOT / "reports/out/hel-76_private_save_comparison_followup.md"
-DEFAULT_DELEGATE_STATUS_REPORT = REPO_ROOT / "reports/out/hel-76_private_monocular_followup.md"
-DEFAULT_OUTPUT_TAG = "orb_aggressive_asan_no_static_alignment_hel76_save_compare"
+sys.path.insert(0, str(REPO_ROOT / "src"))
+
+from splatica_orb_test.private_host_inputs import (  # noqa: E402
+    DEFAULT_OPENCLAW_DOWNLOADS_ROOT,
+    DEFAULT_OPENCLAW_MEDIA_INBOUND_ROOT,
+    discover_openclaw_calibration_inputs,
+    discover_openclaw_video_inputs,
+)
+DEFAULT_PROGRESS_ARTIFACT = REPO_ROOT / ".symphony/progress/HEL-77.json"
+DEFAULT_DELEGATE_PROGRESS_ARTIFACT = REPO_ROOT / ".symphony/progress/HEL-77-private-run.json"
+DEFAULT_ORCHESTRATION_LOG = REPO_ROOT / "logs/out/hel-77_private_save_comparison_followup.log"
+DEFAULT_STATUS_REPORT = REPO_ROOT / "reports/out/hel-77_private_save_comparison_followup.md"
+DEFAULT_DELEGATE_STATUS_REPORT = REPO_ROOT / "reports/out/hel-77_private_monocular_followup.md"
+DEFAULT_OUTPUT_TAG = "orb_aggressive_asan_no_static_alignment_hel77_save_compare"
 DEFAULT_PUBLIC_REFERENCE_REPORT = REPO_ROOT / "docs/hel-75-public-save-path-follow-up.md"
-DEFAULT_OPENCLAW_DOWNLOADS_ROOT = Path("/home/helionaut/.openclaw/workspace/downloads")
 
 STATUS_PATTERN = re.compile(r"- Status: `([^`]+)`")
 MISSING_SOURCE_PATTERN = re.compile(r"- (Source [^:]+): \*\*missing\*\* \(`([^`]+)`\)")
@@ -31,6 +37,14 @@ FRAME_POST_CLOSE_PATTERN = re.compile(
 )
 KEYFRAME_POST_CLOSE_PATTERN = re.compile(
     r"- Keyframe trajectory post-close visibility: open=(True|False), bytes=(-?\d+)"
+)
+INITIALIZATION_MAPS_PATTERN = re.compile(
+    r"- Initialization maps created: (\d+) \(points=([^)]+)\)"
+)
+ACTIVE_MAP_RESETS_PATTERN = re.compile(r"- Active map resets observed: (\d+)")
+ASAN_SUMMARY_PATTERN = re.compile(r"- AddressSanitizer summary: (.+)")
+FRAME_SAVE_MISSING_PATTERN = re.compile(
+    r"- Frame trajectory save completed in the log, but the expected frame trajectory file is still missing"
 )
 
 
@@ -54,6 +68,11 @@ class PrivateRunEvidence:
     keyframe_post_close_bytes: int | None
     delegate_report_path: Path | None
     delegate_log_path: Path | None
+    initialization_maps: int | None
+    initialization_map_points: str | None
+    active_map_resets: int | None
+    asan_summary: str | None
+    missing_frame_after_save: bool
 
 
 def resolve_repo_path(path_text: str) -> Path:
@@ -100,22 +119,6 @@ def build_progress_payload(
     }
 
 
-def discover_openclaw_video_inputs(downloads_root: Path) -> tuple[Path | None, Path | None]:
-    if not downloads_root.exists():
-        return None, None
-
-    candidate_pairs: list[tuple[Path, Path]] = []
-    for video_00 in sorted(downloads_root.glob("insta360-*/00.mp4")):
-        video_10 = video_00.with_name("10.mp4")
-        if video_10.exists():
-            candidate_pairs.append((video_00, video_10))
-
-    if not candidate_pairs:
-        return None, None
-
-    return candidate_pairs[-1]
-
-
 def load_public_reference(report_path: Path) -> PublicSaveReference:
     if not report_path.exists():
         raise SystemExit(
@@ -143,6 +146,11 @@ def parse_private_run_evidence(status_report_path: Path) -> PrivateRunEvidence:
             keyframe_post_close_bytes=None,
             delegate_report_path=None,
             delegate_log_path=None,
+            initialization_maps=None,
+            initialization_map_points=None,
+            active_map_resets=None,
+            asan_summary=None,
+            missing_frame_after_save=False,
         )
 
     text = status_report_path.read_text(encoding="utf-8")
@@ -173,6 +181,9 @@ def parse_private_run_evidence(status_report_path: Path) -> PrivateRunEvidence:
     save_cwd_match = SAVE_CWD_PATTERN.search(delegate_text)
     frame_match = FRAME_POST_CLOSE_PATTERN.search(delegate_text)
     keyframe_match = KEYFRAME_POST_CLOSE_PATTERN.search(delegate_text)
+    initialization_maps_match = INITIALIZATION_MAPS_PATTERN.search(delegate_text)
+    active_map_resets_match = ACTIVE_MAP_RESETS_PATTERN.search(delegate_text)
+    asan_summary_match = ASAN_SUMMARY_PATTERN.search(delegate_text)
     return PrivateRunEvidence(
         status=status,
         missing_sources=missing_sources,
@@ -189,6 +200,23 @@ def parse_private_run_evidence(status_report_path: Path) -> PrivateRunEvidence:
         ),
         delegate_report_path=delegate_report_path,
         delegate_log_path=delegate_log_path,
+        initialization_maps=(
+            int(initialization_maps_match.group(1))
+            if initialization_maps_match
+            else None
+        ),
+        initialization_map_points=(
+            initialization_maps_match.group(2)
+            if initialization_maps_match
+            else None
+        ),
+        active_map_resets=(
+            int(active_map_resets_match.group(1))
+            if active_map_resets_match
+            else None
+        ),
+        asan_summary=asan_summary_match.group(1) if asan_summary_match else None,
+        missing_frame_after_save=bool(FRAME_SAVE_MISSING_PATTERN.search(delegate_text)),
     )
 
 
@@ -227,6 +255,31 @@ def render_comparison_lines(
         )
     else:
         lines.append("Private keyframe post-close bytes: unavailable.")
+    if private_evidence.initialization_maps is not None:
+        points = (
+            f" (points={private_evidence.initialization_map_points})"
+            if private_evidence.initialization_map_points
+            else ""
+        )
+        lines.append(
+            "Private runtime map cycles observed: "
+            f"`{private_evidence.initialization_maps}`{points}."
+        )
+    if private_evidence.active_map_resets is not None:
+        lines.append(
+            "Private active-map resets observed: "
+            f"`{private_evidence.active_map_resets}`."
+        )
+    if private_evidence.asan_summary is not None:
+        lines.append(
+            "Private AddressSanitizer summary: "
+            f"`{private_evidence.asan_summary}`."
+        )
+    if private_evidence.missing_frame_after_save:
+        lines.append(
+            "Private frame-save signal: the delegate log reached frame-trajectory save "
+            "completion, but the expected frame trajectory file was still missing afterward."
+        )
 
     if private_evidence.missing_sources:
         lines.append(
@@ -234,6 +287,30 @@ def render_comparison_lines(
             "because these source inputs are missing: "
             + ", ".join(f"`{label}`" for label in private_evidence.missing_sources)
             + "."
+        )
+    elif private_evidence.missing_frame_after_save:
+        details: list[str] = []
+        if private_evidence.initialization_maps is not None:
+            map_detail = str(private_evidence.initialization_maps)
+            if private_evidence.initialization_map_points:
+                map_detail += f" map cycles (points={private_evidence.initialization_map_points})"
+            else:
+                map_detail += " map cycles"
+            details.append(map_detail)
+        if private_evidence.active_map_resets is not None:
+            details.append(f"{private_evidence.active_map_resets} active-map resets")
+        if private_evidence.asan_summary is not None:
+            details.append(f"LeakSanitizer exit `{private_evidence.asan_summary}`")
+        detail_suffix = (
+            " Observed: " + ", ".join(details) + "."
+            if details
+            else ""
+        )
+        lines.append(
+            "Current blocker: the private rerun reached the late shutdown/save boundary, "
+            "but still left no post-close frame-byte evidence because the expected frame "
+            "trajectory file remained missing after the save call returned."
+            + detail_suffix
         )
     elif private_evidence.frame_post_close_bytes is None:
         lines.append(
@@ -250,6 +327,7 @@ def render_comparison_lines(
 
 def render_status_report(
     *,
+    issue_identifier: str,
     command: str,
     delegate_exit_code: int,
     downloads_root: Path,
@@ -257,6 +335,9 @@ def render_status_report(
     private_evidence: PrivateRunEvidence,
     discovered_video_00: Path | None,
     discovered_video_10: Path | None,
+    discovered_calibration_00: Path | None,
+    discovered_calibration_10: Path | None,
+    discovered_extrinsics: Path | None,
     orchestration_log: Path,
     status_report: Path,
     delegate_status_report: Path,
@@ -272,6 +353,21 @@ def render_status_report(
             f"- Raw video 10: `{discovered_video_10}`"
             if discovered_video_10 is not None
             else "- Raw video 10: not found"
+        ),
+        (
+            f"- Calibration 00: `{discovered_calibration_00}`"
+            if discovered_calibration_00 is not None
+            else "- Calibration 00: not found"
+        ),
+        (
+            f"- Calibration 10: `{discovered_calibration_10}`"
+            if discovered_calibration_10 is not None
+            else "- Calibration 10: not found"
+        ),
+        (
+            f"- Stereo extrinsics: `{discovered_extrinsics}`"
+            if discovered_extrinsics is not None
+            else "- Stereo extrinsics: not found"
         ),
     ]
     delegate_report_line = (
@@ -295,9 +391,9 @@ def render_status_report(
         if private_evidence.missing_sources
         else "- none"
     )
-    return f"""# HEL-76 Private Save Comparison Follow-up
+    return f"""# {issue_identifier} Private Save Comparison Follow-up
 
-Issue: HEL-76
+Issue: {issue_identifier}
 
 ## Result
 
@@ -349,7 +445,7 @@ def main() -> int:
         "--manifest",
         default="manifests/insta360_x3_lens10_monocular_baseline.json",
     )
-    parser.add_argument("--progress-issue", default="HEL-76")
+    parser.add_argument("--progress-issue", default="HEL-77")
     parser.add_argument("--progress-artifact", default=str(DEFAULT_PROGRESS_ARTIFACT))
     parser.add_argument(
         "--delegate-progress-artifact",
@@ -370,6 +466,10 @@ def main() -> int:
         "--video-downloads-root",
         default=str(DEFAULT_OPENCLAW_DOWNLOADS_ROOT),
     )
+    parser.add_argument(
+        "--media-inbound-root",
+        default=str(DEFAULT_OPENCLAW_MEDIA_INBOUND_ROOT),
+    )
     parser.add_argument("--video-00")
     parser.add_argument("--video-10")
     parser.add_argument("--calibration-00")
@@ -386,10 +486,31 @@ def main() -> int:
     delegate_status_report = resolve_repo_path(args.delegate_status_report)
     public_reference = load_public_reference(resolve_repo_path(args.public_reference_report))
     downloads_root = Path(args.video_downloads_root)
+    inbound_root = Path(args.media_inbound_root)
 
     discovered_video_00, discovered_video_10 = discover_openclaw_video_inputs(downloads_root)
+    (
+        discovered_calibration_00,
+        discovered_calibration_10,
+        discovered_extrinsics,
+    ) = discover_openclaw_calibration_inputs(inbound_root)
     video_00 = resolve_repo_path(args.video_00) if args.video_00 else discovered_video_00
     video_10 = resolve_repo_path(args.video_10) if args.video_10 else discovered_video_10
+    calibration_00 = (
+        resolve_repo_path(args.calibration_00)
+        if args.calibration_00
+        else discovered_calibration_00
+    )
+    calibration_10 = (
+        resolve_repo_path(args.calibration_10)
+        if args.calibration_10
+        else discovered_calibration_10
+    )
+    extrinsics = (
+        resolve_repo_path(args.extrinsics)
+        if args.extrinsics
+        else discovered_extrinsics
+    )
 
     experiment = {
         "changed_variable": (
@@ -401,7 +522,7 @@ def main() -> int:
             "counts or narrow the blocker to the exact inputs still missing before rerun"
         ),
         "success_criterion": (
-            "the HEL-76 report records both the HEL-75 public reference numbers and "
+            f"the {args.progress_issue} report records both the HEL-75 public reference numbers and "
             "the current private-lane save evidence or prerequisite blocker"
         ),
         "abort_condition": (
@@ -434,7 +555,11 @@ def main() -> int:
         "--progress-artifact",
         str(delegate_progress_artifact),
         "--orchestration-log",
-        str(orchestration_log.with_name("hel-76_private_monocular_followup.log")),
+        str(
+            orchestration_log.with_name(
+                f"{args.progress_issue.lower()}_private_monocular_followup.log"
+            )
+        ),
         "--status-report",
         str(delegate_status_report),
         "--output-tag",
@@ -448,18 +573,21 @@ def main() -> int:
         command.extend(["--video-00", str(video_00)])
     if video_10 is not None:
         command.extend(["--video-10", str(video_10)])
-    if args.calibration_00:
-        command.extend(["--calibration-00", args.calibration_00])
-    if args.calibration_10:
-        command.extend(["--calibration-10", args.calibration_10])
-    if args.extrinsics:
-        command.extend(["--extrinsics", args.extrinsics])
+    if calibration_00 is not None:
+        command.extend(["--calibration-00", str(calibration_00)])
+    if calibration_10 is not None:
+        command.extend(["--calibration-10", str(calibration_10)])
+    if extrinsics is not None:
+        command.extend(["--extrinsics", str(extrinsics)])
 
     write_progress_artifact(
         progress_artifact,
         build_progress_payload(
             status="in_progress",
-            current_step="running HEL-74 private baseline under the HEL-76 comparison wrapper",
+            current_step=(
+                f"running HEL-74 private baseline under the {args.progress_issue} "
+                "save comparison wrapper"
+            ),
             completed=0,
             total=2,
             artifacts=artifacts,
@@ -473,7 +601,9 @@ def main() -> int:
     )
 
     with orchestration_log.open("w", encoding="utf-8") as log_handle:
-        log_handle.write("Starting HEL-76 private save comparison follow-up.\n")
+        log_handle.write(
+            f"Starting {args.progress_issue} private save comparison follow-up.\n"
+        )
         log_handle.write(
             f"Delegate command: {subprocess.list2cmdline(command)}\n"
         )
@@ -485,6 +615,18 @@ def main() -> int:
         )
         log_handle.write(
             f"Discovered raw video 10: {video_10 if video_10 is not None else 'not found'}\n\n"
+        )
+        log_handle.write(
+            "Discovered calibration 00: "
+            f"{calibration_00 if calibration_00 is not None else 'not found'}\n"
+        )
+        log_handle.write(
+            "Discovered calibration 10: "
+            f"{calibration_10 if calibration_10 is not None else 'not found'}\n"
+        )
+        log_handle.write(
+            "Discovered stereo extrinsics: "
+            f"{extrinsics if extrinsics is not None else 'not found'}\n\n"
         )
         log_handle.flush()
         result = subprocess.run(
@@ -499,6 +641,7 @@ def main() -> int:
     private_evidence = parse_private_run_evidence(delegate_status_report)
     status_report.write_text(
         render_status_report(
+            issue_identifier=args.progress_issue,
             command=subprocess.list2cmdline(command),
             delegate_exit_code=result.returncode,
             downloads_root=downloads_root,
@@ -506,6 +649,9 @@ def main() -> int:
             private_evidence=private_evidence,
             discovered_video_00=video_00,
             discovered_video_10=video_10,
+            discovered_calibration_00=calibration_00,
+            discovered_calibration_10=calibration_10,
+            discovered_extrinsics=extrinsics,
             orchestration_log=orchestration_log,
             status_report=status_report,
             delegate_status_report=delegate_status_report,
@@ -518,9 +664,9 @@ def main() -> int:
         build_progress_payload(
             status="completed" if result.returncode == 0 else "blocked",
             current_step=(
-                "HEL-76 save comparison completed"
+                f"{args.progress_issue} save comparison completed"
                 if result.returncode == 0
-                else "HEL-76 save comparison blocked with auditable evidence"
+                else f"{args.progress_issue} save comparison blocked with auditable evidence"
             ),
             completed=2,
             total=2,

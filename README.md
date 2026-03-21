@@ -41,6 +41,7 @@ make check
 - [HEL-74 private ASan leak follow-up](docs/hel-74-private-asan-leak-follow-up.md)
 - [HEL-75 public save-path probe follow-up](docs/hel-75-public-save-path-follow-up.md)
 - [HEL-76 private save comparison follow-up](docs/hel-76-private-save-comparison-follow-up.md)
+- [HEL-77 private save comparison follow-up](docs/hel-77-private-save-comparison-follow-up.md)
 - [Dataset normalization](docs/dataset-normalization.md)
 - [Calibration translation](docs/calibration-translation.md)
 - [Monocular baseline](docs/monocular-baseline.md)
@@ -112,8 +113,16 @@ or working-directory failure. The current HEL-76 follow-up in
 turns that conclusion into a dedicated comparison entrypoint,
 `scripts/run_private_save_comparison_followup.py`, which reuses the HEL-74
 aggressive private lane, records the HEL-75 public save-byte reference in the
-repo, and leaves a blocked report when the current host still lacks the private
-calibration/extrinsics sidecars needed to rerun the comparison.
+repo, auto-discovers the known OpenClaw host paths for the raw videos and
+calibration/extrinsics sidecars when the repo-local bundle is absent, and
+leaves a blocked report when the current host still lacks the private inputs
+needed to rerun the comparison.
+The current HEL-77 follow-up in
+[docs/hel-77-private-save-comparison-follow-up.md](docs/hel-77-private-save-comparison-follow-up.md)
+shows that this host does expose the private exports and sidecars, and that the
+repo can materialize the lens-10 bundle plus fetch the pinned ORB-SLAM3
+checkout, but the clean workspace is still blocked at `cmake` and the remaining
+native dependency lane before any private save-byte comparison can run.
 
 ## Stereo + IMU Normalization Lane
 
