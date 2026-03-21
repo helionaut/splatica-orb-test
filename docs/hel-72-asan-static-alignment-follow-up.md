@@ -175,12 +175,29 @@ it:
 - the tagged log continued through frame `1082` and beyond without an
   immediate abort
 
+That guarded rerun then completed successfully:
+
+- it advanced through all `2821` prepared frames and finished with
+  `exit code: 0`
+- the log reached `HEL-63 diagnostic: entering SLAM shutdown`,
+  `Shutdown`, and `HEL-63 diagnostic: SLAM shutdown completed`
+- ORB-SLAM3 then completed both `SaveTrajectoryEuRoC` and
+  `SaveKeyFrameTrajectoryEuRoC`
+- the save path reported `Map 1 has 72 KFs`
+- the rerun wrote:
+  - `reports/out/tum_vi_room1_512_16_cam0_asan_no_static_alignment_guarded_rerun.md`
+  - `build/tum_vi_room1_512_16/monocular/trajectory_asan_no_static_alignment_guarded_rerun/f_tum_vi_room1_512_16_cam0_asan_no_static_alignment_guarded_rerun.txt`
+  - `build/tum_vi_room1_512_16/monocular/trajectory_asan_no_static_alignment_guarded_rerun/kf_tum_vi_room1_512_16_cam0_asan_no_static_alignment_guarded_rerun.txt`
+- the resulting trajectory artifacts are non-empty:
+  - frame trajectory: `310392` bytes
+  - keyframe trajectory: `8212` bytes
+
 ## Narrowed Blocker So Far
 
-HEL-72 has not yet finished the full public replay at this checkpoint, so it
-does not prove successful trajectory save yet.
+HEL-72 now leaves successful public rerun artifacts instead of only a narrowed
+runtime boundary. The remaining blocker is no longer the public surrogate lane.
 
-It does prove a materially narrower and more actionable state than HEL-71:
+This pass proves a materially stronger state than HEL-71:
 
 - the combined ASan plus no-static-alignment lane clears the old frame-93
   first-map crash boundary
@@ -192,21 +209,22 @@ It does prove a materially narrower and more actionable state than HEL-71:
   returns to continued tracking
 - the earlier `frame 2124` cutoff is no longer consistent with a visible kernel
   OOM/segfault; it is narrowed to an unclassified user-space or supervision
-  loss until the guarded rerun reaches a later concrete stop or the final
-  save path
-- the remaining risk is now a later-runtime or save-phase outcome, not the
-  immediate post-initialization segfault seen in HEL-71
+  loss that the guarded rerun worked around by completing to the final save
+  path
+- the public surrogate lane now reaches shutdown and writes non-empty
+  trajectory artifacts, so the remaining risk is no longer a public
+  post-initialization crash
 - the private aggressive lens-10 rerun is still blocked in this checkout by
   missing calibration/extrinsics sidecars, not by an implicit undocumented host
   dependency
 
 ## Next Step
 
-Let the active HEL-72 full replay finish and then classify the final outcome:
+Use the successful public guarded rerun as the new stopping point for this
+follow-up, then return to the actual private blocker:
 
-- successful public trajectory/report artifacts, or
-- a later concrete runtime boundary with log evidence
-
-Once the private calibration sidecars are available again, replay the HEL-57
-aggressive lens-10 baseline with the same build toggle combination before any
-tuned monocular settings are promoted into the canonical manifest.
+- restore the missing private calibration/extrinsics sidecars
+- replay the HEL-57 aggressive lens-10 baseline with the same ASan plus
+  no-static-alignment build toggles
+- only after that private rerun succeeds should any tuned settings be promoted
+  into the canonical lens-10 manifest

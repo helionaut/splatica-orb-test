@@ -224,6 +224,12 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("systemd-journald: Time jumped backwards, rotating.", follow_up)
         self.assertIn("last KF id: 70", follow_up)
         self.assertIn("155 points", follow_up)
+        self.assertIn("SaveTrajectoryEuRoC", follow_up)
+        self.assertIn("SaveKeyFrameTrajectoryEuRoC", follow_up)
+        self.assertIn("Map 1 has 72 KFs", follow_up)
+        self.assertIn("310392", follow_up)
+        self.assertIn("8212", follow_up)
+        self.assertIn("successful public rerun artifacts", follow_up)
 
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"
