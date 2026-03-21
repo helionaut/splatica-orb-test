@@ -231,6 +231,16 @@ def main() -> int:
                         "ORB_SLAM3_BUILD_PARALLELISM": os.environ.get(
                             "ORB_SLAM3_BUILD_PARALLELISM", "1"
                         ),
+                        "ORB_SLAM3_BUILD_TYPE": os.environ.get(
+                            "ORB_SLAM3_BUILD_TYPE", ""
+                        ),
+                        "ORB_SLAM3_ENABLE_ASAN": os.environ.get(
+                            "ORB_SLAM3_ENABLE_ASAN", "0"
+                        ),
+                        "ORB_SLAM3_ASAN_COMPILE_FLAGS": os.environ.get(
+                            "ORB_SLAM3_ASAN_COMPILE_FLAGS",
+                            " -fsanitize=address -fno-omit-frame-pointer -g -O1",
+                        ),
                         "ORB_SLAM3_DISABLE_EIGEN_STATIC_ALIGNMENT": os.environ.get(
                             "ORB_SLAM3_DISABLE_EIGEN_STATIC_ALIGNMENT", "0"
                         ),
