@@ -91,6 +91,11 @@ def resolve_repo_path(path_text: str) -> Path:
     return REPO_ROOT / path
 
 
+def infer_progress_issue_id(progress_artifact: Path) -> str:
+    stem = progress_artifact.stem
+    return stem or "clean-room-public-tum-vi"
+
+
 def remove_path(path: Path) -> None:
     if path.is_symlink() or path.is_file():
         path.unlink(missing_ok=True)
@@ -259,6 +264,13 @@ def main() -> int:
                         "ORB_SLAM3_BUILD_SUCCESS_CRITERION": os.environ.get(
                             "ORB_SLAM3_BUILD_SUCCESS_CRITERION",
                             "mono_tum_vi and libORB_SLAM3.so both exist after the build phase"
+                        ),
+                    }
+                elif command[0].endswith("run_orbslam3_sequence.sh"):
+                    env_overrides = {
+                        "ORB_SLAM3_PROGRESS_ARTIFACT": str(progress_artifact),
+                        "ORB_SLAM3_PROGRESS_ISSUE_ID": infer_progress_issue_id(
+                            progress_artifact
                         ),
                     }
 
