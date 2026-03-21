@@ -24,6 +24,7 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("(docs/hel-69-worktree-containment-follow-up.md)", readme)
         self.assertIn("(docs/hel-71-eigen-static-alignment-follow-up.md)", readme)
         self.assertIn("(docs/hel-72-asan-static-alignment-follow-up.md)", readme)
+        self.assertIn("(docs/hel-73-private-aggressive-follow-up.md)", readme)
         self.assertIn("make check", readme)
 
     def test_final_report_records_canonical_baseline_and_verdict(self) -> None:
@@ -68,12 +69,14 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("HEL-68 ASan crash follow-up", report)
         self.assertIn("HEL-71 Eigen static-alignment follow-up", report)
         self.assertIn("HEL-72 ASan plus no-static-alignment follow-up", report)
+        self.assertIn("HEL-73 private aggressive follow-up", report)
         self.assertIn("double free or corruption", report)
         self.assertIn("nFeatures: 4000", report)
         self.assertIn(
             "reports/out/insta360_x3_lens10_monocular_prereqs.md",
             report,
         )
+        self.assertIn("scripts/run_private_monocular_followup.py", report)
         self.assertIn("Reference-Only Paths", report)
         self.assertNotIn("datasets/user/insta360_x3_lens10/", report)
 
@@ -230,6 +233,23 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("310392", follow_up)
         self.assertIn("8212", follow_up)
         self.assertIn("successful public rerun artifacts", follow_up)
+
+    def test_hel73_follow_up_doc_records_private_blocker_and_runner(self) -> None:
+        follow_up = (
+            REPO_ROOT / "docs/hel-73-private-aggressive-follow-up.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("Issue: HEL-73", follow_up)
+        self.assertIn("run_private_monocular_followup.py", follow_up)
+        self.assertIn(".symphony/progress/HEL-73.json", follow_up)
+        self.assertIn("AddressSanitizer", follow_up)
+        self.assertIn("Eigen static alignment", follow_up)
+        self.assertIn("00.mp4", follow_up)
+        self.assertIn("10.mp4", follow_up)
+        self.assertIn("insta360_x3_kb4_00_calib.txt", follow_up)
+        self.assertIn("insta360_x3_extr_rigs_calib.json", follow_up)
+        self.assertIn("blocked before the aggressive rerun could start", follow_up)
+        self.assertIn("reports/out/hel-73_private_monocular_followup.md", follow_up)
 
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"

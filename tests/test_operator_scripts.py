@@ -170,6 +170,27 @@ class OperatorScriptTests(unittest.TestCase):
         self.assertIn("process = subprocess.Popen(", script)
         self.assertNotIn("Popen(\n            command,\n            check=False,", script)
 
+    def test_private_monocular_followup_runner_captures_blocked_inputs_and_progress(self) -> None:
+        script = (
+            REPO_ROOT / "scripts/run_private_monocular_followup.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn(".symphony/progress/HEL-73.json", script)
+        self.assertIn("inspect_monocular_baseline_prerequisites", script)
+        self.assertIn("resolve_source_inputs", script)
+        self.assertIn("Source stereo extrinsics", script)
+        self.assertIn("awaiting private calibration/extrinsics sidecars", script)
+        self.assertIn("scripts/import_monocular_video_inputs.py", script)
+        self.assertIn("scripts/build_orbslam3_baseline.sh", script)
+        self.assertIn("scripts/run_monocular_baseline.py", script)
+        self.assertIn("ORB_SLAM3_ENABLE_ASAN", script)
+        self.assertIn("ORB_SLAM3_DISABLE_EIGEN_STATIC_ALIGNMENT", script)
+        self.assertIn("--orb-n-features", script)
+        self.assertIn("--orb-ini-fast", script)
+        self.assertIn("--orb-min-fast", script)
+        self.assertIn("build_progress_payload", script)
+        self.assertIn("run_command(", script)
+
     def test_rgbd_runner_supports_hel63_diagnostics(self) -> None:
         script = (REPO_ROOT / "scripts/run_rgbd_tum_baseline.py").read_text(
             encoding="utf-8"

@@ -1,7 +1,7 @@
 PYTHON ?= python3
 export PYTHONPATH := $(CURDIR)/src
 
-.PHONY: help build smoke calibration-smoke fetch-tum-rgbd fetch-tum-vi rgbd-sanity tum-vi-sanity publish-rgbd-sanity bootstrap-local-cmake bootstrap-local-eigen bootstrap-local-opencv bootstrap-local-boost bootstrap-local-ffmpeg bootstrap-local-pangolin monocular-prereqs normalize-fixture test check verify-production clean
+.PHONY: help build smoke calibration-smoke fetch-tum-rgbd fetch-tum-vi rgbd-sanity tum-vi-sanity publish-rgbd-sanity bootstrap-local-cmake bootstrap-local-eigen bootstrap-local-opencv bootstrap-local-boost bootstrap-local-ffmpeg bootstrap-local-pangolin monocular-prereqs monocular-followup normalize-fixture test check verify-production clean
 
 help:
 	@printf '%s\n' \
@@ -20,6 +20,7 @@ help:
 		'make bootstrap-local-ffmpeg Bootstrap a repo-local ffmpeg/ffprobe bundle under build/' \
 		'make bootstrap-local-pangolin Bootstrap a repo-local Pangolin prefix plus GL/GLEW/X11 sysroot under build/' \
 		'make monocular-prereqs   Check whether the lens-10 monocular baseline is ready to prepare/run' \
+		'make monocular-followup  Run the HEL-73 aggressive private monocular follow-up entrypoint' \
 		'make normalize-fixture   Normalize the checked-in stereo+IMU fixture into build/' \
 		'make test                Run the Python stdlib test suite' \
 		'make check               Run tests, build, smoke, and normalization in one command' \
@@ -73,6 +74,9 @@ monocular-prereqs:
 	@PYTHONPATH="$(CURDIR)/src" python3 scripts/check_monocular_baseline_prereqs.py \
 		--manifest manifests/insta360_x3_lens10_monocular_baseline.json \
 		--report reports/out/insta360_x3_lens10_monocular_prereqs.md
+
+monocular-followup:
+	@PYTHONPATH="$(CURDIR)/src" python3 scripts/run_private_monocular_followup.py
 
 normalize-fixture:
 	@./scripts/prepare_stereo_imu_sequence.py --manifest manifests/stereo_imu_fixture_normalization.json

@@ -16,6 +16,10 @@ from .monocular_baseline import (
     load_monocular_baseline_manifest,
     resolve_monocular_baseline_paths,
 )
+from .monocular_inputs import (
+    RAW_EXTRINSICS_FILENAME,
+    resolve_lens_input_layout,
+)
 
 
 @dataclass(frozen=True)
@@ -28,8 +32,13 @@ class PrerequisiteCheck:
 @dataclass(frozen=True)
 class MonocularBaselinePrerequisites:
     manifest_path: Path
+    raw_input_checks: tuple[PrerequisiteCheck, ...]
     prepare_checks: tuple[PrerequisiteCheck, ...]
     execute_checks: tuple[PrerequisiteCheck, ...]
+
+    @property
+    def ready_for_import(self) -> bool:
+        return all(check.ready for check in self.raw_input_checks)
 
     @property
     def ready_for_prepare_only(self) -> bool:
@@ -309,6 +318,36 @@ def inspect_monocular_baseline_prerequisites(
 ) -> MonocularBaselinePrerequisites:
     manifest = load_monocular_baseline_manifest(manifest_path)
     resolved = resolve_monocular_baseline_paths(repo_root, manifest)
+    dataset_root = resolved.calibration.parents[2]
+    lens00_layout = resolve_lens_input_layout(dataset_root, lens_id="00")
+    lens10_layout = resolve_lens_input_layout(dataset_root, lens_id="10")
+    raw_input_checks = (
+        PrerequisiteCheck(
+            label="Raw video 00",
+            ready=lens00_layout.raw_video_path.exists(),
+            detail=str(lens00_layout.raw_video_path),
+        ),
+        PrerequisiteCheck(
+            label="Raw video 10",
+            ready=lens10_layout.raw_video_path.exists(),
+            detail=str(lens10_layout.raw_video_path),
+        ),
+        PrerequisiteCheck(
+            label="Raw calibration 00",
+            ready=lens00_layout.raw_calibration_path.exists(),
+            detail=str(lens00_layout.raw_calibration_path),
+        ),
+        PrerequisiteCheck(
+            label="Raw calibration 10",
+            ready=lens10_layout.raw_calibration_path.exists(),
+            detail=str(lens10_layout.raw_calibration_path),
+        ),
+        PrerequisiteCheck(
+            label="Raw stereo extrinsics",
+            ready=(dataset_root / "raw" / "calibration" / RAW_EXTRINSICS_FILENAME).exists(),
+            detail=str(dataset_root / "raw" / "calibration" / RAW_EXTRINSICS_FILENAME),
+        ),
+    )
 
     prepare_checks = (
         PrerequisiteCheck(
@@ -394,6 +433,7 @@ def inspect_monocular_baseline_prerequisites(
 
     return MonocularBaselinePrerequisites(
         manifest_path=manifest_path,
+        raw_input_checks=raw_input_checks,
         prepare_checks=prepare_checks,
         execute_checks=tuple(execute_checks),
     )
@@ -406,6 +446,9 @@ def render_monocular_baseline_prerequisite_report(
         status = "ready" if check.ready else "missing"
         return f"- {check.label}: **{status}** (`{check.detail}`)"
 
+    raw_input_lines = "\n".join(
+        render_check(check) for check in prerequisites.raw_input_checks
+    )
     prepare_lines = "\n".join(
         render_check(check) for check in prerequisites.prepare_checks
     )
@@ -417,8 +460,13 @@ def render_monocular_baseline_prerequisite_report(
 
 ## Result
 
+- Ready to rebuild the prepared lens bundle from raw inputs: `{str(prerequisites.ready_for_import).lower()}`
 - Ready for `--prepare-only`: `{str(prerequisites.ready_for_prepare_only).lower()}`
 - Ready for full execution: `{str(prerequisites.ready_for_execute).lower()}`
+
+## Raw input prerequisites
+
+{raw_input_lines}
 
 ## Prepare-only prerequisites
 
