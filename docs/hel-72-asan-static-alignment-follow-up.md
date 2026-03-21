@@ -49,6 +49,11 @@ HEL-68, and HEL-71.
   - `ORB_SLAM3_ASAN_COMPILE_FLAGS`
   into the build phase instead of forcing HEL-72 to use an out-of-band shell
   invocation
+- `scripts/monitor_monocular_progress.py` plus
+  `src/splatica_orb_test/monocular_runtime_progress.py` now tail the existing
+  `HEL-68 diagnostic` runtime log and emit frame-based JSON or JSONL progress
+  snapshots for long-running monocular replays that started before the
+  phase-10 heartbeat fix landed
 - Operator-script coverage now checks that forwarding behavior
 
 ## Command
@@ -77,6 +82,7 @@ env \
 The clean-room pass has already left auditable setup/build evidence:
 
 - Progress artifact: `.symphony/progress/HEL-72.json`
+- Live frame overlay artifact: `.symphony/progress/HEL-72.jsonl`
 - Orchestration log:
   `logs/out/hel-72_tum_vi_asan_no_static_alignment_orchestration.log`
 - Build attempt JSON:
@@ -101,8 +107,12 @@ The runtime side has already crossed the old HEL-71 boundary:
   - `New Map created with 375 points`
 - Unlike HEL-71, the combined lane then continued:
   - `HEL-68 diagnostic: frame 93 TrackMonocular completed`
-  - later checkpoints include `frame 111`, `frame 173`, and `frame 268`
-    completions in the same run log
+  - later checkpoints include `frame 111`, `frame 173`, `frame 268`,
+    `frame 515`, and `frame 638` in the same run
+- The JSONL live overlay now records the advancing frame boundary directly:
+  - `.symphony/progress/HEL-72.jsonl` reached `completed: 638`
+  - `progress_percent: 23`
+  - `trajectory_files: []`
 - No AddressSanitizer abort has appeared at the old first-map boundary
 
 ## Narrowed Blocker So Far

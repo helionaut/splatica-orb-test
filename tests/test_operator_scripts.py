@@ -263,3 +263,18 @@ class OperatorScriptTests(unittest.TestCase):
         self.assertIn('"ORB_SLAM3_BUILD_SUCCESS_CRITERION": os.environ.get(', script)
         self.assertIn("public TUM-VI room1_512_16 archive", script)
         self.assertIn("fresh_execution_paths", script)
+
+    def test_monocular_progress_monitor_supports_pid_and_jsonl_artifacts(self) -> None:
+        script = (
+            REPO_ROOT / "scripts/monitor_monocular_progress.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("--artifact", script)
+        self.assertIn("--pid", script)
+        self.assertIn("--poll-seconds", script)
+        self.assertIn("summarize_monocular_runtime_log", script)
+        self.assertIn("write_progress_snapshot", script)
+        self.assertIn(
+            'status = "completed" if summary.shutdown_completed else "failed"',
+            script,
+        )

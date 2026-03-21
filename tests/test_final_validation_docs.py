@@ -202,10 +202,14 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("ORB_SLAM3_ASAN_COMPILE_FLAGS", follow_up)
         self.assertIn("run_clean_room_public_tum_vi_sanity.py", follow_up)
         self.assertIn(".symphony/progress/HEL-72.json", follow_up)
+        self.assertIn(".symphony/progress/HEL-72.jsonl", follow_up)
+        self.assertIn("scripts/monitor_monocular_progress.py", follow_up)
+        self.assertIn("monocular_runtime_progress.py", follow_up)
         self.assertIn("datasets/user/README.md", follow_up)
         self.assertIn("00.mp4", follow_up)
         self.assertIn("10.mp4", follow_up)
         self.assertIn("AddressSanitizer", follow_up)
+        self.assertIn("frame 638", follow_up)
 
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"
