@@ -26,6 +26,7 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("(docs/hel-72-asan-static-alignment-follow-up.md)", readme)
         self.assertIn("(docs/hel-73-private-aggressive-follow-up.md)", readme)
         self.assertIn("(docs/hel-74-private-asan-leak-follow-up.md)", readme)
+        self.assertIn("(docs/hel-75-public-save-path-follow-up.md)", readme)
         self.assertIn("make check", readme)
 
     def test_final_report_records_canonical_baseline_and_verdict(self) -> None:
@@ -72,10 +73,14 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("HEL-72 ASan plus no-static-alignment follow-up", report)
         self.assertIn("HEL-73 private aggressive follow-up", report)
         self.assertIn("HEL-74 private ASan leak follow-up", report)
+        self.assertIn("HEL-75 public save-path probe follow-up", report)
         self.assertIn("double free or corruption", report)
         self.assertIn("nFeatures: 4000", report)
         self.assertIn("LeakSanitizer", report)
         self.assertIn("SaveTrajectoryEuRoC", report)
+        self.assertIn("5437", report)
+        self.assertIn("924", report)
+        self.assertIn("post-close diagnostics", report)
         self.assertIn(
             "reports/out/insta360_x3_lens10_monocular_prereqs.md",
             report,
@@ -269,6 +274,23 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("New Map created with 71 points", follow_up)
         self.assertIn("Reseting active map in monocular case", follow_up)
         self.assertIn("expected frame trajectory is still missing", follow_up)
+
+    def test_hel75_follow_up_doc_records_public_save_probe(self) -> None:
+        follow_up = (
+            REPO_ROOT / "docs/hel-75-public-save-path-follow-up.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("Issue: HEL-75", follow_up)
+        self.assertIn("--max-frames 140", follow_up)
+        self.assertIn("hel75_save_probe_140", follow_up)
+        self.assertIn("New Map created with 375 points", follow_up)
+        self.assertIn("SaveTrajectoryEuRoC post_close open=1, bytes=5437", follow_up)
+        self.assertIn(
+            "SaveKeyFrameTrajectoryEuRoC post_close open=1, bytes=924",
+            follow_up,
+        )
+        self.assertIn("7152947 byte(s) leaked in 16038 allocation(s).", follow_up)
+        self.assertIn("private-lane-specific", follow_up)
 
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"

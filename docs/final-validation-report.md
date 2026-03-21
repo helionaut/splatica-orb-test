@@ -15,17 +15,21 @@ Last Updated: 2026-03-21
   `iniThFAST: 8`, `minThFAST: 3`) plus a stride-3 frame-selection rerun both
   cross the initialization barrier and create a first map, but each aborts
   with `double free or corruption (out)` before the run can save trajectories.
-- Current narrowed blocker: the HEL-74 private ASan rerun now survives the full
-  270-frame aggressive replay, initializes twice, reaches
-  `SaveTrajectoryEuRoC`, and only fails at shutdown because LeakSanitizer
-  reports `598421471 byte(s) leaked in 2383336 allocation(s)` while the
-  expected frame trajectory file is still missing.
+- Current narrowed blocker: the HEL-75 bounded public save probe now proves the
+  HEL-74 ASan/no-static-alignment build can save trajectories on a known-good
+  monocular fisheye lane. The public probe exits non-zero only because
+  LeakSanitizer reports `7152947 byte(s) leaked in 16038 allocation(s)`, while
+  both saved trajectories remain on disk and the HEL-75 post-close diagnostics
+  report `open=1` with `5437` frame-trajectory bytes and `924` keyframe bytes.
+  That narrows the unresolved problem to the private aggressive lane, which
+  still reaches `SaveTrajectoryEuRoC` without leaving the expected frame
+  artifact afterward.
 - Next follow-up task: keep the HEL-74 aggressive private lane as the
   diagnostic baseline that started in the
-  [HEL-57 monocular follow-up report](hel-57-monocular-follow-up.md), and
-  isolate why the save path reports completion without leaving
-  `f_insta360_x3_lens10_orb_aggressive_asan_no_static_alignment_hel74.txt`
-  before any tuned settings are promoted into the canonical manifest.
+  [HEL-57 monocular follow-up report](hel-57-monocular-follow-up.md), rerun it
+  on the host with the private exports, and compare its HEL-75 save cwd and
+  post-close byte counts against the successful public save probe before any
+  tuned settings are promoted into the canonical manifest.
 
 The repo now has one documented rerun path for the selected baseline plus one
 follow-up execution report for the private host run. Another engineer should
@@ -50,7 +54,12 @@ The current HEL-74 shutdown/save isolation result is tracked in the
 [HEL-74 private ASan leak follow-up](hel-74-private-asan-leak-follow-up.md),
 which records the first end-to-end private aggressive replay that reaches
 trajectory-save calls and narrows the remaining blocker to missing save
-artifacts plus LeakSanitizer exit semantics.
+artifacts plus LeakSanitizer exit semantics. The current HEL-75 public
+save-path proof is tracked in the
+[HEL-75 public save-path probe follow-up](hel-75-public-save-path-follow-up.md),
+which shows that the same patched ASan/no-static-alignment build can write and
+immediately reopen both trajectory files on a bounded public monocular fisheye
+lane.
 
 ## Selected Baseline And Config Bundle
 
