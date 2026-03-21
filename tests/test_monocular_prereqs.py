@@ -49,12 +49,20 @@ class MonocularPrerequisiteTests(unittest.TestCase):
 
         self.assertFalse(prerequisites.ready_for_prepare_only)
         self.assertFalse(prerequisites.ready_for_execute)
+        self.assertFalse(prerequisites.ready_for_import)
         report = render_monocular_baseline_prerequisite_report(prerequisites)
+        self.assertEqual(prerequisites.raw_input_checks[0].label, "Raw video 00")
+        self.assertFalse(prerequisites.raw_input_checks[0].ready)
         self.assertEqual(prerequisites.prepare_checks[0].label, "Calibration JSON")
         self.assertFalse(prerequisites.prepare_checks[0].ready)
         self.assertEqual(prerequisites.execute_checks[0].label, "Baseline checkout")
         self.assertFalse(prerequisites.execute_checks[0].ready)
         self.assertIn("missing", report)
+        self.assertIn(
+            "Ready to rebuild the prepared lens bundle from raw inputs: `false`",
+            report,
+        )
+        self.assertIn("Raw stereo extrinsics", report)
         self.assertIn("Boost serialization development package", report)
         self.assertIn("make bootstrap-local-pangolin", report)
 
@@ -70,6 +78,31 @@ class MonocularPrerequisiteTests(unittest.TestCase):
             frame_index_path = repo_root / LENS10_ROOT / "frame_index.csv"
             write_file(calibration_path, json.dumps({"camera": {}}))
             write_file(frame_index_path, "timestamp_ns,source_path\n")
+            write_file(
+                repo_root
+                / "datasets/user/insta360_x3_one_lens_baseline/raw/video/00.mp4",
+                "video",
+            )
+            write_file(
+                repo_root
+                / "datasets/user/insta360_x3_one_lens_baseline/raw/video/10.mp4",
+                "video",
+            )
+            write_file(
+                repo_root
+                / "datasets/user/insta360_x3_one_lens_baseline/raw/calibration/insta360_x3_kb4_00_calib.txt",
+                "calib",
+            )
+            write_file(
+                repo_root
+                / "datasets/user/insta360_x3_one_lens_baseline/raw/calibration/insta360_x3_kb4_10_calib.txt",
+                "calib",
+            )
+            write_file(
+                repo_root
+                / "datasets/user/insta360_x3_one_lens_baseline/raw/calibration/insta360_x3_extr_rigs_calib.json",
+                "{}",
+            )
             write_file(repo_root / "third_party/orbslam3/upstream/.git", "gitdir")
             write_file(
                 repo_root / "third_party/orbslam3/upstream/Vocabulary/ORBvoc.txt.tar.gz",
@@ -140,6 +173,7 @@ class MonocularPrerequisiteTests(unittest.TestCase):
                     manifest_path,
                 )
 
+        self.assertTrue(prerequisites.ready_for_import)
         self.assertTrue(prerequisites.ready_for_prepare_only)
         self.assertTrue(prerequisites.ready_for_execute)
         self.assertIn(
@@ -162,6 +196,16 @@ class MonocularPrerequisiteTests(unittest.TestCase):
             write_file(
                 repo_root / LENS10_ROOT / "frame_index.csv",
                 "timestamp_ns,source_path\n",
+            )
+            write_file(
+                repo_root
+                / "datasets/user/insta360_x3_one_lens_baseline/raw/video/00.mp4",
+                "video",
+            )
+            write_file(
+                repo_root
+                / "datasets/user/insta360_x3_one_lens_baseline/raw/video/10.mp4",
+                "video",
             )
             write_file(repo_root / "third_party/orbslam3/upstream/.git", "gitdir")
             write_file(
@@ -210,6 +254,7 @@ class MonocularPrerequisiteTests(unittest.TestCase):
                 )
 
         self.assertFalse(prerequisites.ready_for_execute)
+        self.assertFalse(prerequisites.ready_for_import)
         report = render_monocular_baseline_prerequisite_report(prerequisites)
         self.assertIn("Vocabulary archive: **ready**", report)
         self.assertIn("Extracted vocabulary text: **missing**", report)

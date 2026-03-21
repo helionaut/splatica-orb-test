@@ -35,6 +35,11 @@ current public rerun with Eigen static alignment disabled is tracked in the
 [HEL-71 Eigen static-alignment follow-up](hel-71-eigen-static-alignment-follow-up.md).
 The current HEL-72 ASan plus no-static-alignment follow-up is tracked in the
 [HEL-72 ASan plus no-static-alignment follow-up](hel-72-asan-static-alignment-follow-up.md).
+The current HEL-73 private aggressive follow-up is tracked in the
+[HEL-73 private aggressive follow-up](hel-73-private-aggressive-follow-up.md),
+which codifies `scripts/run_private_monocular_followup.py` as the next direct
+entrypoint for replaying the HEL-57 aggressive ORB lane with the HEL-72 build
+toggles once the raw calibration/extrinsics sidecars are restored.
 
 ## Selected Baseline And Config Bundle
 
