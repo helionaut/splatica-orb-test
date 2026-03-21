@@ -415,10 +415,62 @@ def normalize_mono_tum_vi_main(block: str) -> str:
         block,
         count=1,
     )
-    if count == 0:
-        if "HEL-63 diagnostic: entering SLAM shutdown" in block:
-            return block
+    if count == 0 and "HEL-63 diagnostic: entering SLAM shutdown" not in block:
         raise ValueError("Failed to normalize mono_tum_vi save flow")
+
+    if "HEL-78 diagnostic: frame trajectory post_return open=" not in block:
+        block, count = re.subn(
+            r'            cout << "HEL-63 diagnostic: SaveTrajectoryEuRoC completed" << endl;\n',
+            '            cout << "HEL-63 diagnostic: SaveTrajectoryEuRoC completed" << endl;\n'
+            '            ifstream hel78_frame_saved_file(f_file.c_str(), ios::binary | ios::ate);\n'
+            '            cout << "HEL-78 diagnostic: frame trajectory post_return open=" << hel78_frame_saved_file.is_open()\n'
+            '                 << ", bytes="\n'
+            '                 << (hel78_frame_saved_file.is_open() ? static_cast<long long>(hel78_frame_saved_file.tellg()) : -1)\n'
+            '                 << ", filename=" << f_file << endl;\n',
+            block,
+            count=1,
+        )
+        if count == 0:
+            block, count = re.subn(
+                r'            cout << "HEL-63 diagnostic: SaveTrajectoryEuRoC completed" << endl;\n',
+                '            cout << "HEL-63 diagnostic: SaveTrajectoryEuRoC completed" << endl;\n'
+                '            ifstream hel78_frame_saved_file("CameraTrajectory.txt", ios::binary | ios::ate);\n'
+                '            cout << "HEL-78 diagnostic: frame trajectory post_return open=" << hel78_frame_saved_file.is_open()\n'
+                '                 << ", bytes="\n'
+                '                 << (hel78_frame_saved_file.is_open() ? static_cast<long long>(hel78_frame_saved_file.tellg()) : -1)\n'
+                '                 << ", filename=CameraTrajectory.txt" << endl;\n',
+                block,
+                count=1,
+            )
+        if count == 0:
+            raise ValueError("Failed to normalize mono_tum_vi frame post-return diagnostics")
+
+    if "HEL-78 diagnostic: keyframe trajectory post_return open=" not in block:
+        block, count = re.subn(
+            r'            cout << "HEL-63 diagnostic: SaveKeyFrameTrajectoryEuRoC completed" << endl;\n',
+            '            cout << "HEL-63 diagnostic: SaveKeyFrameTrajectoryEuRoC completed" << endl;\n'
+            '            ifstream hel78_keyframe_saved_file(kf_file.c_str(), ios::binary | ios::ate);\n'
+            '            cout << "HEL-78 diagnostic: keyframe trajectory post_return open=" << hel78_keyframe_saved_file.is_open()\n'
+            '                 << ", bytes="\n'
+            '                 << (hel78_keyframe_saved_file.is_open() ? static_cast<long long>(hel78_keyframe_saved_file.tellg()) : -1)\n'
+            '                 << ", filename=" << kf_file << endl;\n',
+            block,
+            count=1,
+        )
+        if count == 0:
+            block, count = re.subn(
+                r'            cout << "HEL-63 diagnostic: SaveKeyFrameTrajectoryEuRoC completed" << endl;\n',
+                '            cout << "HEL-63 diagnostic: SaveKeyFrameTrajectoryEuRoC completed" << endl;\n'
+                '            ifstream hel78_keyframe_saved_file("KeyFrameTrajectory.txt", ios::binary | ios::ate);\n'
+                '            cout << "HEL-78 diagnostic: keyframe trajectory post_return open=" << hel78_keyframe_saved_file.is_open()\n'
+                '                 << ", bytes="\n'
+                '                 << (hel78_keyframe_saved_file.is_open() ? static_cast<long long>(hel78_keyframe_saved_file.tellg()) : -1)\n'
+                '                 << ", filename=KeyFrameTrajectory.txt" << endl;\n',
+                block,
+                count=1,
+            )
+        if count == 0:
+            raise ValueError("Failed to normalize mono_tum_vi keyframe post-return diagnostics")
 
     block, count = re.subn(
         r'    sort\(vTimesTrack.begin\(\),vTimesTrack.end\(\)\);\n'

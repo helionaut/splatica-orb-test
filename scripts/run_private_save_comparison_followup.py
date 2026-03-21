@@ -35,14 +35,23 @@ SAVE_CWD_PATTERN = re.compile(r"- Trajectory save cwd reported: (.+)")
 FRAME_POST_CLOSE_PATTERN = re.compile(
     r"- Frame trajectory post-close visibility: open=(True|False), bytes=(-?\d+)"
 )
+FRAME_POST_RETURN_PATTERN = re.compile(
+    r"- Frame trajectory after-return visibility: open=(True|False), bytes=(-?\d+)"
+)
 KEYFRAME_POST_CLOSE_PATTERN = re.compile(
     r"- Keyframe trajectory post-close visibility: open=(True|False), bytes=(-?\d+)"
+)
+KEYFRAME_POST_RETURN_PATTERN = re.compile(
+    r"- Keyframe trajectory after-return visibility: open=(True|False), bytes=(-?\d+)"
 )
 INITIALIZATION_MAPS_PATTERN = re.compile(
     r"- Initialization maps created: (\d+) \(points=([^)]+)\)"
 )
 ACTIVE_MAP_RESETS_PATTERN = re.compile(r"- Active map resets observed: (\d+)")
 ASAN_SUMMARY_PATTERN = re.compile(r"- AddressSanitizer summary: (.+)")
+FRAME_SKIP_PATTERN = re.compile(
+    r"- Frame trajectory save skipped because no keyframes were recorded"
+)
 FRAME_SAVE_MISSING_PATTERN = re.compile(
     r"- Frame trajectory save completed in the log, but the expected frame trajectory file is still missing"
 )
@@ -64,8 +73,13 @@ class PrivateRunEvidence:
     save_cwd: str | None
     frame_post_close_open: bool | None
     frame_post_close_bytes: int | None
+    frame_post_return_open: bool | None
+    frame_post_return_bytes: int | None
+    frame_skipped: bool
     keyframe_post_close_open: bool | None
     keyframe_post_close_bytes: int | None
+    keyframe_post_return_open: bool | None
+    keyframe_post_return_bytes: int | None
     delegate_report_path: Path | None
     delegate_log_path: Path | None
     initialization_maps: int | None
@@ -142,8 +156,13 @@ def parse_private_run_evidence(status_report_path: Path) -> PrivateRunEvidence:
             save_cwd=None,
             frame_post_close_open=None,
             frame_post_close_bytes=None,
+            frame_post_return_open=None,
+            frame_post_return_bytes=None,
+            frame_skipped=False,
             keyframe_post_close_open=None,
             keyframe_post_close_bytes=None,
+            keyframe_post_return_open=None,
+            keyframe_post_return_bytes=None,
             delegate_report_path=None,
             delegate_log_path=None,
             initialization_maps=None,
@@ -180,7 +199,9 @@ def parse_private_run_evidence(status_report_path: Path) -> PrivateRunEvidence:
     )
     save_cwd_match = SAVE_CWD_PATTERN.search(delegate_text)
     frame_match = FRAME_POST_CLOSE_PATTERN.search(delegate_text)
+    frame_post_return_match = FRAME_POST_RETURN_PATTERN.search(delegate_text)
     keyframe_match = KEYFRAME_POST_CLOSE_PATTERN.search(delegate_text)
+    keyframe_post_return_match = KEYFRAME_POST_RETURN_PATTERN.search(delegate_text)
     initialization_maps_match = INITIALIZATION_MAPS_PATTERN.search(delegate_text)
     active_map_resets_match = ACTIVE_MAP_RESETS_PATTERN.search(delegate_text)
     asan_summary_match = ASAN_SUMMARY_PATTERN.search(delegate_text)
@@ -192,11 +213,32 @@ def parse_private_run_evidence(status_report_path: Path) -> PrivateRunEvidence:
             frame_match.group(1) == "True" if frame_match else None
         ),
         frame_post_close_bytes=int(frame_match.group(2)) if frame_match else None,
+        frame_post_return_open=(
+            frame_post_return_match.group(1) == "True"
+            if frame_post_return_match
+            else None
+        ),
+        frame_post_return_bytes=(
+            int(frame_post_return_match.group(2))
+            if frame_post_return_match
+            else None
+        ),
+        frame_skipped=bool(FRAME_SKIP_PATTERN.search(delegate_text)),
         keyframe_post_close_open=(
             keyframe_match.group(1) == "True" if keyframe_match else None
         ),
         keyframe_post_close_bytes=(
             int(keyframe_match.group(2)) if keyframe_match else None
+        ),
+        keyframe_post_return_open=(
+            keyframe_post_return_match.group(1) == "True"
+            if keyframe_post_return_match
+            else None
+        ),
+        keyframe_post_return_bytes=(
+            int(keyframe_post_return_match.group(2))
+            if keyframe_post_return_match
+            else None
         ),
         delegate_report_path=delegate_report_path,
         delegate_log_path=delegate_log_path,
@@ -246,6 +288,16 @@ def render_comparison_lines(
         )
     else:
         lines.append("Private frame post-close bytes: unavailable.")
+    if private_evidence.frame_post_return_bytes is not None:
+        lines.append(
+            "Private frame after-return bytes: "
+            f"`{private_evidence.frame_post_return_bytes}` "
+            f"(open={private_evidence.frame_post_return_open})."
+        )
+    if private_evidence.frame_skipped:
+        lines.append(
+            "Private frame save skipped before file open because no keyframes were recorded."
+        )
 
     if private_evidence.keyframe_post_close_bytes is not None:
         lines.append(
@@ -255,6 +307,12 @@ def render_comparison_lines(
         )
     else:
         lines.append("Private keyframe post-close bytes: unavailable.")
+    if private_evidence.keyframe_post_return_bytes is not None:
+        lines.append(
+            "Private keyframe after-return bytes: "
+            f"`{private_evidence.keyframe_post_return_bytes}` "
+            f"(open={private_evidence.keyframe_post_return_open})."
+        )
     if private_evidence.initialization_maps is not None:
         points = (
             f" (points={private_evidence.initialization_map_points})"
@@ -288,6 +346,12 @@ def render_comparison_lines(
             + ", ".join(f"`{label}`" for label in private_evidence.missing_sources)
             + "."
         )
+    elif private_evidence.frame_skipped:
+        lines.append(
+            "Current blocker: the private rerun reached the save boundary, but "
+            "System::SaveTrajectoryEuRoC reported no keyframes and skipped opening "
+            "the frame trajectory file, so there is still no HEL-75-style byte comparison."
+        )
     elif private_evidence.missing_frame_after_save:
         details: list[str] = []
         if private_evidence.initialization_maps is not None:
@@ -306,12 +370,20 @@ def render_comparison_lines(
             if details
             else ""
         )
-        lines.append(
-            "Current blocker: the private rerun reached the late shutdown/save boundary, "
-            "but still left no post-close frame-byte evidence because the expected frame "
-            "trajectory file remained missing after the save call returned."
-            + detail_suffix
-        )
+        if private_evidence.frame_post_return_open:
+            lines.append(
+                "Current blocker: the private rerun reached the late shutdown/save boundary, "
+                "and the frame trajectory was visible immediately after SaveTrajectoryEuRoC "
+                "returned, but the expected frame artifact was gone again by final inspection."
+                + detail_suffix
+            )
+        else:
+            lines.append(
+                "Current blocker: the private rerun reached the late shutdown/save boundary, "
+                "but still left no post-close frame-byte evidence because no frame trajectory "
+                "file was visible immediately after the save call returned."
+                + detail_suffix
+            )
     elif private_evidence.frame_post_close_bytes is None:
         lines.append(
             "Current blocker: the rerun produced no post-close frame-byte evidence yet, "

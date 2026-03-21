@@ -66,8 +66,11 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
                 "\n".join(
                     [
                         "- Trajectory save cwd reported: /tmp/private/trajectory",
+                        "- Frame trajectory save skipped because no keyframes were recorded",
                         "- Frame trajectory post-close visibility: open=False, bytes=0",
+                        "- Frame trajectory after-return visibility: open=False, bytes=-1",
                         "- Keyframe trajectory post-close visibility: open=True, bytes=12",
+                        "- Keyframe trajectory after-return visibility: open=True, bytes=12",
                         "- Initialization maps created: 2 (points=93, 71)",
                         "- Active map resets observed: 2",
                         "- AddressSanitizer summary: 598421903 byte(s) leaked in 2383340 allocation(s).",
@@ -102,8 +105,13 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
         self.assertEqual(evidence.save_cwd, "/tmp/private/trajectory")
         self.assertFalse(evidence.frame_post_close_open)
         self.assertEqual(evidence.frame_post_close_bytes, 0)
+        self.assertFalse(evidence.frame_post_return_open)
+        self.assertEqual(evidence.frame_post_return_bytes, -1)
+        self.assertTrue(evidence.frame_skipped)
         self.assertTrue(evidence.keyframe_post_close_open)
         self.assertEqual(evidence.keyframe_post_close_bytes, 12)
+        self.assertTrue(evidence.keyframe_post_return_open)
+        self.assertEqual(evidence.keyframe_post_return_bytes, 12)
         self.assertEqual(evidence.initialization_maps, 2)
         self.assertEqual(evidence.initialization_map_points, "93, 71")
         self.assertEqual(evidence.active_map_resets, 2)
@@ -132,8 +140,13 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
                 save_cwd=None,
                 frame_post_close_open=None,
                 frame_post_close_bytes=None,
+                frame_post_return_open=None,
+                frame_post_return_bytes=None,
+                frame_skipped=True,
                 keyframe_post_close_open=None,
                 keyframe_post_close_bytes=None,
+                keyframe_post_return_open=None,
+                keyframe_post_return_bytes=None,
                 delegate_report_path=Path("reports/out/delegate.md"),
                 delegate_log_path=Path("logs/out/private.log"),
                 initialization_maps=2,
@@ -172,7 +185,11 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
             report,
         )
         self.assertIn(
-            "the delegate log reached frame-trajectory save completion, but the expected frame trajectory file was still missing afterward",
+            "Private frame save skipped before file open because no keyframes were recorded.",
             report,
         )
-        self.assertIn("reached the late shutdown/save boundary", report)
+        self.assertIn(
+            "System::SaveTrajectoryEuRoC reported no keyframes and skipped opening the frame trajectory file",
+            report,
+        )
+        self.assertNotIn("reached the late shutdown/save boundary", report)
