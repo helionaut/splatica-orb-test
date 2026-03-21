@@ -216,6 +216,8 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("*Merge detected", follow_up)
         self.assertIn("Local Mapping STOP", follow_up)
         self.assertIn("Change to map with id: 0", follow_up)
+        self.assertIn("Local Mapping RELEASE", follow_up)
+        self.assertIn("Merge finished!", follow_up)
 
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"

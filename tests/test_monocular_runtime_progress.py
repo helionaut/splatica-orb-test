@@ -58,11 +58,16 @@ class MonocularRuntimeProgressTests(unittest.TestCase):
                 "Local Mapping STOP",
                 "Change to map with id: 0",
                 "HEL-68 diagnostic: frame 749 TrackMonocular completed",
+                "HEL-68 diagnostic: frame 750 TrackMonocular start timestamp=5.0",
+                "Local Mapping RELEASE",
+                "Local Mapping RELEASE",
+                "Merge finished!",
+                "HEL-68 diagnostic: frame 750 TrackMonocular completed",
             ],
             total_frames=1000,
         )
 
-        self.assertEqual(summary.completed_frames, 750)
+        self.assertEqual(summary.completed_frames, 751)
         self.assertEqual(summary.local_map_failure_count, 2)
         self.assertEqual(summary.map_creation_count, 1)
         self.assertEqual(summary.stored_map_count, 1)
@@ -74,6 +79,8 @@ class MonocularRuntimeProgressTests(unittest.TestCase):
         self.assertEqual(summary.latest_map_points, 157)
         self.assertEqual(summary.latest_changed_map_id, 0)
         self.assertEqual(summary.merge_detected_count, 1)
+        self.assertEqual(summary.merge_finished_count, 1)
+        self.assertEqual(summary.local_mapping_release_count, 2)
         self.assertEqual(summary.local_mapping_stop_count, 1)
 
     def test_build_payload_uses_frame_progress(self) -> None:

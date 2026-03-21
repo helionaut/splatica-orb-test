@@ -118,6 +118,8 @@ def main() -> int:
             "latest_map_points": summary.latest_map_points,
             "latest_changed_map_id": summary.latest_changed_map_id,
             "merge_detected_count": summary.merge_detected_count,
+            "merge_finished_count": summary.merge_finished_count,
+            "local_mapping_release_count": summary.local_mapping_release_count,
             "local_mapping_stop_count": summary.local_mapping_stop_count,
             "log_size_bytes": log_stat.st_size,
             "seconds_since_log_update": round(time.time() - log_stat.st_mtime, 1),

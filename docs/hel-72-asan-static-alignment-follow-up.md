@@ -126,6 +126,11 @@ The runtime side has already crossed the old HEL-71 boundary:
   - the next frame reported `Change to map with id: 0`
   - the same process continued into frame `978`+ in the monitored overlay and
     past frame `990` in the raw log without an AddressSanitizer abort
+- That merge path now also exits cleanly back into tracking:
+  - the log later reported `Local Mapping RELEASE` twice and
+    `Merge finished!` at frame `1068`
+  - the same run then continued through frame `1090` and beyond without an
+    immediate crash or shutdown failure
 - No AddressSanitizer abort has appeared at the old first-map boundary
 
 ## Narrowed Blocker So Far
@@ -141,6 +146,8 @@ It does prove a materially narrower and more actionable state than HEL-71:
   reinitialization boundary on the public replay
 - the same lane also survives a later merge-and-map-switch boundary instead of
   aborting immediately
+- the same lane also survives the later merge-release completion boundary and
+  returns to continued tracking
 - the remaining risk is now a later-runtime or save-phase outcome, not the
   immediate post-initialization segfault seen in HEL-71
 - the private aggressive lens-10 rerun is still blocked in this checkout by
