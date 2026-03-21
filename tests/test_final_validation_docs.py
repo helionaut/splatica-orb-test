@@ -23,6 +23,7 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("(docs/hel-68-asan-crash-follow-up.md)", readme)
         self.assertIn("(docs/hel-69-worktree-containment-follow-up.md)", readme)
         self.assertIn("(docs/hel-71-eigen-static-alignment-follow-up.md)", readme)
+        self.assertIn("(docs/hel-72-asan-static-alignment-follow-up.md)", readme)
         self.assertIn("make check", readme)
 
     def test_final_report_records_canonical_baseline_and_verdict(self) -> None:
@@ -66,6 +67,7 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("HEL-57 monocular follow-up report", report)
         self.assertIn("HEL-68 ASan crash follow-up", report)
         self.assertIn("HEL-71 Eigen static-alignment follow-up", report)
+        self.assertIn("HEL-72 ASan plus no-static-alignment follow-up", report)
         self.assertIn("double free or corruption", report)
         self.assertIn("nFeatures: 4000", report)
         self.assertIn(
@@ -188,6 +190,46 @@ class FinalValidationDocsTests(unittest.TestCase):
             ".symphony/build-attempts/orbslam3-build-20260320T225148Z.json",
             follow_up,
         )
+
+    def test_hel72_follow_up_doc_records_asan_static_alignment_lane(self) -> None:
+        follow_up = (
+            REPO_ROOT / "docs/hel-72-asan-static-alignment-follow-up.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("Issue: HEL-72", follow_up)
+        self.assertIn("ORB_SLAM3_ENABLE_ASAN=1", follow_up)
+        self.assertIn("ORB_SLAM3_DISABLE_EIGEN_STATIC_ALIGNMENT=1", follow_up)
+        self.assertIn("ORB_SLAM3_ASAN_COMPILE_FLAGS", follow_up)
+        self.assertIn("run_clean_room_public_tum_vi_sanity.py", follow_up)
+        self.assertIn(".symphony/progress/HEL-72.json", follow_up)
+        self.assertIn(".symphony/progress/HEL-72.jsonl", follow_up)
+        self.assertIn("scripts/monitor_monocular_progress.py", follow_up)
+        self.assertIn("monocular_runtime_progress.py", follow_up)
+        self.assertIn("datasets/user/README.md", follow_up)
+        self.assertIn("00.mp4", follow_up)
+        self.assertIn("10.mp4", follow_up)
+        self.assertIn("AddressSanitizer", follow_up)
+        self.assertIn("frame 638", follow_up)
+        self.assertIn("Fail to track local map!", follow_up)
+        self.assertIn("Creation of new map with id: 1", follow_up)
+        self.assertIn("157 points", follow_up)
+        self.assertIn("*Merge detected", follow_up)
+        self.assertIn("Local Mapping STOP", follow_up)
+        self.assertIn("Change to map with id: 0", follow_up)
+        self.assertIn("Local Mapping RELEASE", follow_up)
+        self.assertIn("Merge finished!", follow_up)
+        self.assertIn("run_with_progress_guard.py", follow_up)
+        self.assertIn("asan_no_static_alignment_guarded_rerun", follow_up)
+        self.assertIn("frame 2124", follow_up)
+        self.assertIn("systemd-journald: Time jumped backwards, rotating.", follow_up)
+        self.assertIn("last KF id: 70", follow_up)
+        self.assertIn("155 points", follow_up)
+        self.assertIn("SaveTrajectoryEuRoC", follow_up)
+        self.assertIn("SaveKeyFrameTrajectoryEuRoC", follow_up)
+        self.assertIn("Map 1 has 72 KFs", follow_up)
+        self.assertIn("310392", follow_up)
+        self.assertIn("8212", follow_up)
+        self.assertIn("successful public rerun artifacts", follow_up)
 
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"

@@ -250,10 +250,39 @@ class OperatorScriptTests(unittest.TestCase):
         self.assertIn("ORB_SLAM3_BUILD_TARGET", script)
         self.assertIn("ORB_SLAM3_APPEND_MARCH_NATIVE", script)
         self.assertIn("ORB_SLAM3_BUILD_PARALLELISM", script)
+        self.assertIn("ORB_SLAM3_BUILD_TYPE", script)
+        self.assertIn("ORB_SLAM3_ENABLE_ASAN", script)
+        self.assertIn("ORB_SLAM3_ASAN_COMPILE_FLAGS", script)
         self.assertIn("ORB_SLAM3_DISABLE_EIGEN_STATIC_ALIGNMENT", script)
+        self.assertIn("infer_progress_issue_id", script)
+        self.assertIn('"ORB_SLAM3_PROGRESS_ARTIFACT": str(progress_artifact)', script)
+        self.assertIn('"ORB_SLAM3_PROGRESS_ISSUE_ID": infer_progress_issue_id(', script)
         self.assertIn("ORB_SLAM3_BUILD_CHANGED_VARIABLE", script)
         self.assertIn('"ORB_SLAM3_BUILD_CHANGED_VARIABLE": os.environ.get(', script)
         self.assertIn('"ORB_SLAM3_BUILD_HYPOTHESIS": os.environ.get(', script)
         self.assertIn('"ORB_SLAM3_BUILD_SUCCESS_CRITERION": os.environ.get(', script)
         self.assertIn("public TUM-VI room1_512_16 archive", script)
         self.assertIn("fresh_execution_paths", script)
+
+    def test_monocular_progress_monitor_supports_pid_and_jsonl_artifacts(self) -> None:
+        script = (
+            REPO_ROOT / "scripts/monitor_monocular_progress.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("--artifact", script)
+        self.assertIn("--primary-artifact", script)
+        self.assertIn("--pid", script)
+        self.assertIn("--poll-seconds", script)
+        self.assertIn("summarize_monocular_runtime_log", script)
+        self.assertIn("write_progress_snapshot", script)
+        self.assertIn("write_progress_outputs(", script)
+        self.assertIn('"local_map_failure_count": summary.local_map_failure_count', script)
+        self.assertIn('"latest_map_points": summary.latest_map_points', script)
+        self.assertIn('"latest_changed_map_id": summary.latest_changed_map_id', script)
+        self.assertIn('"merge_detected_count": summary.merge_detected_count', script)
+        self.assertIn('"merge_finished_count": summary.merge_finished_count', script)
+        self.assertIn('"local_mapping_release_count": summary.local_mapping_release_count', script)
+        self.assertIn(
+            'status = "completed" if summary.shutdown_completed else "failed"',
+            script,
+        )

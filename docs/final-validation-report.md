@@ -33,6 +33,8 @@ private-host rerun after applying that Jacobian fix is tracked in the
 [HEL-70 Eigen alignment follow-up](hel-70-eigen-alignment-follow-up.md). The
 current public rerun with Eigen static alignment disabled is tracked in the
 [HEL-71 Eigen static-alignment follow-up](hel-71-eigen-static-alignment-follow-up.md).
+The current HEL-72 ASan plus no-static-alignment follow-up is tracked in the
+[HEL-72 ASan plus no-static-alignment follow-up](hel-72-asan-static-alignment-follow-up.md).
 
 ## Selected Baseline And Config Bundle
 

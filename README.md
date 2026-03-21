@@ -36,6 +36,7 @@ make check
 - [HEL-68 ASan crash follow-up](docs/hel-68-asan-crash-follow-up.md)
 - [HEL-69 worktree containment follow-up](docs/hel-69-worktree-containment-follow-up.md)
 - [HEL-71 Eigen static-alignment follow-up](docs/hel-71-eigen-static-alignment-follow-up.md)
+- [HEL-72 ASan plus no-static-alignment follow-up](docs/hel-72-asan-static-alignment-follow-up.md)
 - [Dataset normalization](docs/dataset-normalization.md)
 - [Calibration translation](docs/calibration-translation.md)
 - [Monocular baseline](docs/monocular-baseline.md)
@@ -76,7 +77,15 @@ shows that a clean-room public rerun with
 `ORB_SLAM3_DISABLE_EIGEN_STATIC_ALIGNMENT=1` still crashes at frame `93`
 immediately after `New Map created with 375 points`, now as a plain
 segmentation fault. That means Eigen static-alignment policy alone is not yet a
-safe fix to promote into the canonical lane before the next private rerun.
+safe fix to promote into the canonical lane before the next private rerun. The
+current HEL-72 checkpoint in
+[docs/hel-72-asan-static-alignment-follow-up.md](docs/hel-72-asan-static-alignment-follow-up.md)
+shows the combined public rerun with `ORB_SLAM3_ENABLE_ASAN=1` plus
+`ORB_SLAM3_DISABLE_EIGEN_STATIC_ALIGNMENT=1` surviving past first-map creation
+and continuing well beyond the old frame-93 crash boundary, while the private
+aggressive lens-10 baseline remains blocked in this checkout because only the
+raw `00.mp4` and `10.mp4` exports are present, not the calibration/extrinsics
+sidecars needed to rebuild `datasets/user/insta360_x3_one_lens_baseline/`.
 
 ## Stereo + IMU Normalization Lane
 
