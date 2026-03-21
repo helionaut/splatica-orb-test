@@ -47,6 +47,48 @@ class PrivateMonocularFollowupTests(unittest.TestCase):
             Path("/tmp/raw/insta360_x3_extr_rigs_calib.json"),
         )
 
+    def test_resolve_source_inputs_discovers_openclaw_sidecars_when_repo_raw_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            dataset_root = tmp_path / "datasets/user/insta360_x3_one_lens_baseline"
+            downloads_root = tmp_path / "downloads"
+            inbound_root = tmp_path / "inbound"
+            latest_bundle = downloads_root / "insta360-zulu"
+            latest_bundle.mkdir(parents=True)
+            inbound_root.mkdir()
+
+            (latest_bundle / "00.mp4").write_text("00", encoding="utf-8")
+            (latest_bundle / "10.mp4").write_text("10", encoding="utf-8")
+            calibration_00 = (
+                inbound_root / "insta360_x3_calib_insta360_x3_kb4_00_calib---latest.txt"
+            )
+            calibration_10 = (
+                inbound_root / "insta360_x3_calib_insta360_x3_kb4_10_calib---latest.txt"
+            )
+            extrinsics = (
+                inbound_root / "insta360_x3_calib_insta360_x3_extr_rigs_calib---latest.json"
+            )
+            calibration_00.write_text("00", encoding="utf-8")
+            calibration_10.write_text("10", encoding="utf-8")
+            extrinsics.write_text("{}", encoding="utf-8")
+
+            source_inputs = MODULE.resolve_source_inputs(
+                dataset_root,
+                video_00=None,
+                video_10=None,
+                calibration_00=None,
+                calibration_10=None,
+                extrinsics=None,
+                video_downloads_root=downloads_root,
+                media_inbound_root=inbound_root,
+            )
+
+        self.assertEqual(source_inputs.video_00, latest_bundle / "00.mp4")
+        self.assertEqual(source_inputs.video_10, latest_bundle / "10.mp4")
+        self.assertEqual(source_inputs.calibration_00, calibration_00)
+        self.assertEqual(source_inputs.calibration_10, calibration_10)
+        self.assertEqual(source_inputs.extrinsics, extrinsics)
+
     def test_render_status_report_calls_out_missing_sidecars(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)

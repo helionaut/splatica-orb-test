@@ -10,8 +10,15 @@ import re
 import subprocess
 import sys
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "src"))
+
+from splatica_orb_test.private_host_inputs import (  # noqa: E402
+    DEFAULT_OPENCLAW_DOWNLOADS_ROOT,
+    DEFAULT_OPENCLAW_MEDIA_INBOUND_ROOT,
+    discover_openclaw_calibration_inputs,
+    discover_openclaw_video_inputs,
+)
 DEFAULT_PROGRESS_ARTIFACT = REPO_ROOT / ".symphony/progress/HEL-76.json"
 DEFAULT_DELEGATE_PROGRESS_ARTIFACT = REPO_ROOT / ".symphony/progress/HEL-76-private-run.json"
 DEFAULT_ORCHESTRATION_LOG = REPO_ROOT / "logs/out/hel-76_private_save_comparison_followup.log"
@@ -19,7 +26,6 @@ DEFAULT_STATUS_REPORT = REPO_ROOT / "reports/out/hel-76_private_save_comparison_
 DEFAULT_DELEGATE_STATUS_REPORT = REPO_ROOT / "reports/out/hel-76_private_monocular_followup.md"
 DEFAULT_OUTPUT_TAG = "orb_aggressive_asan_no_static_alignment_hel76_save_compare"
 DEFAULT_PUBLIC_REFERENCE_REPORT = REPO_ROOT / "docs/hel-75-public-save-path-follow-up.md"
-DEFAULT_OPENCLAW_DOWNLOADS_ROOT = Path("/home/helionaut/.openclaw/workspace/downloads")
 
 STATUS_PATTERN = re.compile(r"- Status: `([^`]+)`")
 MISSING_SOURCE_PATTERN = re.compile(r"- (Source [^:]+): \*\*missing\*\* \(`([^`]+)`\)")
@@ -98,22 +104,6 @@ def build_progress_payload(
         "artifacts": artifacts,
         "experiment": experiment,
     }
-
-
-def discover_openclaw_video_inputs(downloads_root: Path) -> tuple[Path | None, Path | None]:
-    if not downloads_root.exists():
-        return None, None
-
-    candidate_pairs: list[tuple[Path, Path]] = []
-    for video_00 in sorted(downloads_root.glob("insta360-*/00.mp4")):
-        video_10 = video_00.with_name("10.mp4")
-        if video_10.exists():
-            candidate_pairs.append((video_00, video_10))
-
-    if not candidate_pairs:
-        return None, None
-
-    return candidate_pairs[-1]
 
 
 def load_public_reference(report_path: Path) -> PublicSaveReference:
@@ -250,6 +240,7 @@ def render_comparison_lines(
 
 def render_status_report(
     *,
+    issue_identifier: str,
     command: str,
     delegate_exit_code: int,
     downloads_root: Path,
@@ -257,6 +248,9 @@ def render_status_report(
     private_evidence: PrivateRunEvidence,
     discovered_video_00: Path | None,
     discovered_video_10: Path | None,
+    discovered_calibration_00: Path | None,
+    discovered_calibration_10: Path | None,
+    discovered_extrinsics: Path | None,
     orchestration_log: Path,
     status_report: Path,
     delegate_status_report: Path,
@@ -272,6 +266,21 @@ def render_status_report(
             f"- Raw video 10: `{discovered_video_10}`"
             if discovered_video_10 is not None
             else "- Raw video 10: not found"
+        ),
+        (
+            f"- Calibration 00: `{discovered_calibration_00}`"
+            if discovered_calibration_00 is not None
+            else "- Calibration 00: not found"
+        ),
+        (
+            f"- Calibration 10: `{discovered_calibration_10}`"
+            if discovered_calibration_10 is not None
+            else "- Calibration 10: not found"
+        ),
+        (
+            f"- Stereo extrinsics: `{discovered_extrinsics}`"
+            if discovered_extrinsics is not None
+            else "- Stereo extrinsics: not found"
         ),
     ]
     delegate_report_line = (
@@ -295,9 +304,9 @@ def render_status_report(
         if private_evidence.missing_sources
         else "- none"
     )
-    return f"""# HEL-76 Private Save Comparison Follow-up
+    return f"""# {issue_identifier} Private Save Comparison Follow-up
 
-Issue: HEL-76
+Issue: {issue_identifier}
 
 ## Result
 
@@ -370,6 +379,10 @@ def main() -> int:
         "--video-downloads-root",
         default=str(DEFAULT_OPENCLAW_DOWNLOADS_ROOT),
     )
+    parser.add_argument(
+        "--media-inbound-root",
+        default=str(DEFAULT_OPENCLAW_MEDIA_INBOUND_ROOT),
+    )
     parser.add_argument("--video-00")
     parser.add_argument("--video-10")
     parser.add_argument("--calibration-00")
@@ -386,10 +399,31 @@ def main() -> int:
     delegate_status_report = resolve_repo_path(args.delegate_status_report)
     public_reference = load_public_reference(resolve_repo_path(args.public_reference_report))
     downloads_root = Path(args.video_downloads_root)
+    inbound_root = Path(args.media_inbound_root)
 
     discovered_video_00, discovered_video_10 = discover_openclaw_video_inputs(downloads_root)
+    (
+        discovered_calibration_00,
+        discovered_calibration_10,
+        discovered_extrinsics,
+    ) = discover_openclaw_calibration_inputs(inbound_root)
     video_00 = resolve_repo_path(args.video_00) if args.video_00 else discovered_video_00
     video_10 = resolve_repo_path(args.video_10) if args.video_10 else discovered_video_10
+    calibration_00 = (
+        resolve_repo_path(args.calibration_00)
+        if args.calibration_00
+        else discovered_calibration_00
+    )
+    calibration_10 = (
+        resolve_repo_path(args.calibration_10)
+        if args.calibration_10
+        else discovered_calibration_10
+    )
+    extrinsics = (
+        resolve_repo_path(args.extrinsics)
+        if args.extrinsics
+        else discovered_extrinsics
+    )
 
     experiment = {
         "changed_variable": (
@@ -401,7 +435,7 @@ def main() -> int:
             "counts or narrow the blocker to the exact inputs still missing before rerun"
         ),
         "success_criterion": (
-            "the HEL-76 report records both the HEL-75 public reference numbers and "
+            f"the {args.progress_issue} report records both the HEL-75 public reference numbers and "
             "the current private-lane save evidence or prerequisite blocker"
         ),
         "abort_condition": (
@@ -434,7 +468,11 @@ def main() -> int:
         "--progress-artifact",
         str(delegate_progress_artifact),
         "--orchestration-log",
-        str(orchestration_log.with_name("hel-76_private_monocular_followup.log")),
+        str(
+            orchestration_log.with_name(
+                f"{args.progress_issue.lower()}_private_monocular_followup.log"
+            )
+        ),
         "--status-report",
         str(delegate_status_report),
         "--output-tag",
@@ -448,12 +486,12 @@ def main() -> int:
         command.extend(["--video-00", str(video_00)])
     if video_10 is not None:
         command.extend(["--video-10", str(video_10)])
-    if args.calibration_00:
-        command.extend(["--calibration-00", args.calibration_00])
-    if args.calibration_10:
-        command.extend(["--calibration-10", args.calibration_10])
-    if args.extrinsics:
-        command.extend(["--extrinsics", args.extrinsics])
+    if calibration_00 is not None:
+        command.extend(["--calibration-00", str(calibration_00)])
+    if calibration_10 is not None:
+        command.extend(["--calibration-10", str(calibration_10)])
+    if extrinsics is not None:
+        command.extend(["--extrinsics", str(extrinsics)])
 
     write_progress_artifact(
         progress_artifact,
@@ -486,6 +524,18 @@ def main() -> int:
         log_handle.write(
             f"Discovered raw video 10: {video_10 if video_10 is not None else 'not found'}\n\n"
         )
+        log_handle.write(
+            "Discovered calibration 00: "
+            f"{calibration_00 if calibration_00 is not None else 'not found'}\n"
+        )
+        log_handle.write(
+            "Discovered calibration 10: "
+            f"{calibration_10 if calibration_10 is not None else 'not found'}\n"
+        )
+        log_handle.write(
+            "Discovered stereo extrinsics: "
+            f"{extrinsics if extrinsics is not None else 'not found'}\n\n"
+        )
         log_handle.flush()
         result = subprocess.run(
             command,
@@ -499,6 +549,7 @@ def main() -> int:
     private_evidence = parse_private_run_evidence(delegate_status_report)
     status_report.write_text(
         render_status_report(
+            issue_identifier=args.progress_issue,
             command=subprocess.list2cmdline(command),
             delegate_exit_code=result.returncode,
             downloads_root=downloads_root,
@@ -506,6 +557,9 @@ def main() -> int:
             private_evidence=private_evidence,
             discovered_video_00=video_00,
             discovered_video_10=video_10,
+            discovered_calibration_00=calibration_00,
+            discovered_calibration_10=calibration_10,
+            discovered_extrinsics=extrinsics,
             orchestration_log=orchestration_log,
             status_report=status_report,
             delegate_status_report=delegate_status_report,
@@ -518,9 +572,9 @@ def main() -> int:
         build_progress_payload(
             status="completed" if result.returncode == 0 else "blocked",
             current_step=(
-                "HEL-76 save comparison completed"
+                f"{args.progress_issue} save comparison completed"
                 if result.returncode == 0
-                else "HEL-76 save comparison blocked with auditable evidence"
+                else f"{args.progress_issue} save comparison blocked with auditable evidence"
             ),
             completed=2,
             total=2,

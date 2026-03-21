@@ -64,6 +64,13 @@ lane. The current HEL-76 private save comparison follow-up is tracked in the
 which codifies the HEL-75 public byte counts as the comparison reference and
 leaves a repo-owned blocked report when the current host still lacks the
 private calibration/extrinsics sidecars required to rerun the aggressive lane.
+The current HEL-77 private save comparison follow-up is tracked in the
+[HEL-77 private save comparison follow-up](hel-77-private-save-comparison-follow-up.md),
+which proves the private exports and sidecars are now reachable on the current
+host, materializes the repo-local lens-10 bundle plus pinned ORB-SLAM3 checkout,
+and narrows the remaining blocker to the clean-workspace native dependency lane
+(`cmake`, Eigen3, OpenCV, Boost serialization, Pangolin) before the aggressive
+private rerun can re-enter the HEL-75 save-byte comparison.
 lane. The current HEL-76 private save comparison follow-up is tracked in the
 [HEL-76 private save comparison follow-up](hel-76-private-save-comparison-follow-up.md),
 which codifies the HEL-75 public byte counts as the comparison reference and

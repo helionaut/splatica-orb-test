@@ -37,6 +37,26 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
         self.assertEqual(video_00, complete / "00.mp4")
         self.assertEqual(video_10, complete / "10.mp4")
 
+    def test_discover_openclaw_calibration_inputs_prefers_matching_sidecars(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            inbound_root = Path(tmpdir)
+            calibration_00 = (
+                inbound_root / "insta360_x3_calib_insta360_x3_kb4_00_calib---latest.txt"
+            )
+            calibration_10 = (
+                inbound_root / "insta360_x3_calib_insta360_x3_kb4_10_calib---latest.txt"
+            )
+            extrinsics = (
+                inbound_root / "insta360_x3_calib_insta360_x3_extr_rigs_calib---latest.json"
+            )
+            calibration_00.write_text("00", encoding="utf-8")
+            calibration_10.write_text("10", encoding="utf-8")
+            extrinsics.write_text("{}", encoding="utf-8")
+
+            discovered = MODULE.discover_openclaw_calibration_inputs(inbound_root)
+
+        self.assertEqual(discovered, (calibration_00, calibration_10, extrinsics))
+
     def test_parse_private_run_evidence_reads_missing_sources_and_delegate_report(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)
@@ -83,6 +103,7 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
 
     def test_render_status_report_records_reference_and_blocker(self) -> None:
         report = MODULE.render_status_report(
+            issue_identifier="HEL-77",
             command="python3 scripts/run_private_monocular_followup.py",
             delegate_exit_code=1,
             downloads_root=Path("/tmp/downloads"),
@@ -106,12 +127,16 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
             ),
             discovered_video_00=Path("/tmp/downloads/insta360-b87308a3/00.mp4"),
             discovered_video_10=Path("/tmp/downloads/insta360-b87308a3/10.mp4"),
+            discovered_calibration_00=Path("/tmp/inbound/insta360_x3_kb4_00_calib.txt"),
+            discovered_calibration_10=Path("/tmp/inbound/insta360_x3_kb4_10_calib.txt"),
+            discovered_extrinsics=Path("/tmp/inbound/insta360_x3_extr_rigs_calib.json"),
             orchestration_log=Path("logs/out/hel-76.log"),
             status_report=Path("reports/out/hel-76.md"),
             delegate_status_report=Path("reports/out/hel-76_private_monocular_followup.md"),
         )
 
-        self.assertIn("Issue: HEL-76", report)
+        self.assertIn("# HEL-77 Private Save Comparison Follow-up", report)
+        self.assertIn("Issue: HEL-77", report)
         self.assertIn(
             "Delegate status report: `reports/out/hel-76_private_monocular_followup.md`",
             report,
@@ -119,5 +144,7 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
         self.assertIn("Reference frame post-close bytes: `5437`", report)
         self.assertIn("Reference keyframe post-close bytes: `924`", report)
         self.assertIn("Raw video 00: `/tmp/downloads/insta360-b87308a3/00.mp4`", report)
+        self.assertIn("Calibration 00: `/tmp/inbound/insta360_x3_kb4_00_calib.txt`", report)
+        self.assertIn("Stereo extrinsics: `/tmp/inbound/insta360_x3_extr_rigs_calib.json`", report)
         self.assertIn("`Source calibration 00`", report)
         self.assertIn("private rerun is still blocked before save comparison", report)

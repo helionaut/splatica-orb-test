@@ -27,6 +27,7 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("(docs/hel-73-private-aggressive-follow-up.md)", readme)
         self.assertIn("(docs/hel-74-private-asan-leak-follow-up.md)", readme)
         self.assertIn("(docs/hel-75-public-save-path-follow-up.md)", readme)
+        self.assertIn("(docs/hel-77-private-save-comparison-follow-up.md)", readme)
         self.assertIn("make check", readme)
 
     def test_final_report_records_canonical_baseline_and_verdict(self) -> None:
@@ -74,6 +75,7 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("HEL-73 private aggressive follow-up", report)
         self.assertIn("HEL-74 private ASan leak follow-up", report)
         self.assertIn("HEL-75 public save-path probe follow-up", report)
+        self.assertIn("HEL-77 private save comparison follow-up", report)
         self.assertIn("double free or corruption", report)
         self.assertIn("nFeatures: 4000", report)
         self.assertIn("LeakSanitizer", report)
@@ -305,6 +307,22 @@ class FinalValidationDocsTests(unittest.TestCase):
         self.assertIn("924", follow_up)
         self.assertIn("insta360-b87308a3/00.mp4", follow_up)
         self.assertIn("insta360_x3_extr_rigs_calib.json", follow_up)
+
+    def test_hel77_follow_up_doc_records_clean_host_blocker(self) -> None:
+        follow_up = (
+            REPO_ROOT / "docs/hel-77-private-save-comparison-follow-up.md"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("Issue: HEL-77", follow_up)
+        self.assertIn("run_private_save_comparison_followup.py", follow_up)
+        self.assertIn(".symphony/progress/HEL-77.json", follow_up)
+        self.assertIn("insta360-b87308a3/00.mp4", follow_up)
+        self.assertIn("insta360_x3_extr_rigs_calib", follow_up)
+        self.assertIn("270", follow_up)
+        self.assertIn("4452a3c4ab75b1cde34e5505a36ec3f9edcdc4c4", follow_up)
+        self.assertIn("Missing required build tool: cmake", follow_up)
+        self.assertIn("Boost serialization", follow_up)
+        self.assertIn("Pangolin", follow_up)
     def test_final_report_relative_links_resolve(self) -> None:
         source = REPO_ROOT / "docs/final-validation-report.md"
         text = source.read_text(encoding="utf-8")
