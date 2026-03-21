@@ -584,6 +584,84 @@ void LoadImages() {}
             rewritten,
         )
 
+    def test_normalize_save_keyframe_trajectory_euroc_accepts_reordered_map_init(
+        self,
+    ) -> None:
+        block = """void System::SaveKeyFrameTrajectoryEuRoC(const string &filename)
+{
+    vector<Map*> vpMaps = mpAtlas->GetAllMaps();
+    Map* pCurrentMap = mpAtlas->GetCurrentMap();
+    cout << "HEL-78 diagnostic: SaveKeyFrameTrajectoryEuRoC atlas_state "
+         << "current_map_id="
+         << (pCurrentMap ? static_cast<long long>(pCurrentMap->GetId()) : -1)
+         << ", current_map_keyframes="
+         << (pCurrentMap ? static_cast<long long>(pCurrentMap->KeyFramesInMap()) : -1)
+         << ", current_map_points="
+         << (pCurrentMap ? static_cast<long long>(pCurrentMap->MapPointsInMap()) : -1)
+         << ", atlas_maps=" << vpMaps.size()
+         << ", tracker_relative_frame_poses=" << mpTracker->mlRelativeFramePoses.size()
+         << ", tracker_references=" << mpTracker->mlpReferences.size()
+         << ", tracker_frame_times=" << mpTracker->mlFrameTimes.size()
+         << ", tracker_lost_flags=" << mpTracker->mlbLost.size() << endl;
+    Map* pBiggerMap = nullptr;
+    int numMaxKFs = 0;
+    for(Map* pMap :vpMaps)
+    {
+        if(pMap && pMap->GetAllKeyFrames().size() > numMaxKFs)
+        {
+            numMaxKFs = pMap->GetAllKeyFrames().size();
+            pBiggerMap = pMap;
+        }
+    }
+
+    if(!pBiggerMap || numMaxKFs == 0)
+    {
+        std::cout << "No keyframes were recorded; skipping keyframe trajectory save." << std::endl;
+        return;
+    }
+
+    vector<KeyFrame*> vpKFs = pBiggerMap->GetAllKeyFrames();
+    ofstream f;
+    f.open(filename.c_str());
+    cout << "HEL-75 diagnostic: SaveKeyFrameTrajectoryEuRoC stream open=" << f.is_open()
+         << ", good=" << f.good() << ", filename=" << filename << endl;
+    f << fixed;
+    for(size_t i=0; i<vpKFs.size(); i++)
+    {
+        KeyFrame* pKF = vpKFs[i];
+        if(!pKF || pKF->isBad())
+            continue;
+        Sophus::SE3f Twc = pKF->GetPoseInverse();
+        Eigen::Quaternionf q = Twc.unit_quaternion();
+        Eigen::Vector3f t = Twc.translation();
+        f << setprecision(6) << pKF->mTimeStamp << setprecision(7) << " " << t(0) << " " << t(1) << " " << t(2)
+          << " " << q.x() << " " << q.y() << " " << q.z() << " " << q.w() << endl;
+    }
+    f.close();
+    ifstream hel75_saved_file(filename.c_str(), ios::binary | ios::ate);
+    cout << "HEL-75 diagnostic: SaveKeyFrameTrajectoryEuRoC post_close open=" << hel75_saved_file.is_open()
+         << ", bytes="
+         << (hel75_saved_file.is_open() ? static_cast<long long>(hel75_saved_file.tellg()) : -1)
+         << ", filename=" << filename << endl;
+}
+"""
+        rewritten = PATCH_HELPER.normalize_save_keyframe_trajectory_euroc(block)
+
+        self.assertIn("Map* pBiggerMap = nullptr;", rewritten)
+        self.assertIn("int numMaxKFs = 0;", rewritten)
+        self.assertEqual(
+            rewritten.count("HEL-78 diagnostic: SaveKeyFrameTrajectoryEuRoC atlas_state "),
+            1,
+        )
+        self.assertEqual(
+            rewritten.count("HEL-75 diagnostic: SaveKeyFrameTrajectoryEuRoC stream open="),
+            1,
+        )
+        self.assertEqual(
+            rewritten.count("HEL-75 diagnostic: SaveKeyFrameTrajectoryEuRoC post_close open="),
+            1,
+        )
+
     def test_normalize_reset_active_map_adds_pre_and_post_clear_diagnostics(self) -> None:
         block = """void Tracking::ResetActiveMap(bool bLocMap)
 {
