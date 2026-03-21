@@ -6,6 +6,7 @@ import argparse
 from collections.abc import Sequence
 from dataclasses import dataclass
 import json
+import os
 from pathlib import Path
 import queue
 import re
@@ -217,6 +218,12 @@ def format_delegate_heartbeat_line(delegate_payload: dict[str, object]) -> str:
         f"status={delegate_status} progress_percent={progress_text} "
         f"current_step={delegate_current_step}\n"
     )
+
+
+def build_delegate_env_overrides() -> dict[str, str]:
+    # HEL-78 can legitimately restart the same build signature after wrapper-level
+    # supervision failures; make that explicit instead of relying on hidden shell state.
+    return {"ORB_SLAM3_ALLOW_IDENTICAL_RETRY": "1"}
 
 
 def load_public_reference(report_path: Path) -> PublicSaveReference:
@@ -606,11 +613,17 @@ def run_delegate_command(
     artifacts: dict[str, str],
     base_metrics: dict[str, object],
     experiment: dict[str, object],
+    env_overrides: dict[str, str] | None,
     log_handle,
 ) -> int:
+    env = os.environ.copy()
+    if env_overrides:
+        env.update(env_overrides)
+
     process = subprocess.Popen(
         list(command),
         cwd=cwd,
+        env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -805,8 +818,10 @@ def main() -> int:
         command.extend(["--calibration-10", str(calibration_10)])
     if extrinsics is not None:
         command.extend(["--extrinsics", str(extrinsics)])
+    delegate_env_overrides = build_delegate_env_overrides()
     base_metrics = {
         "delegate_command": subprocess.list2cmdline(command),
+        "delegate_env_overrides": delegate_env_overrides,
         "reference_frame_bytes": public_reference.frame_bytes,
         "reference_keyframe_bytes": public_reference.keyframe_bytes,
     }
@@ -857,6 +872,10 @@ def main() -> int:
             "Discovered stereo extrinsics: "
             f"{extrinsics if extrinsics is not None else 'not found'}\n\n"
         )
+        log_handle.write(
+            "Delegate env overrides: "
+            f"{json.dumps(delegate_env_overrides, sort_keys=True)}\n\n"
+        )
         log_handle.flush()
         delegate_exit_code = run_delegate_command(
             command=command,
@@ -866,6 +885,7 @@ def main() -> int:
             artifacts=artifacts,
             base_metrics=base_metrics,
             experiment=experiment,
+            env_overrides=delegate_env_overrides,
             log_handle=log_handle,
         )
 

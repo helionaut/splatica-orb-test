@@ -168,6 +168,12 @@ class PrivateSaveComparisonFollowupTests(unittest.TestCase):
         self.assertEqual(payload["metrics"]["delegate_unit"], "phases")
         self.assertEqual(payload["metrics"]["delegate_metrics"], {"output_lines": 1542})
 
+    def test_build_delegate_env_overrides_allows_identical_retry(self) -> None:
+        self.assertEqual(
+            MODULE.build_delegate_env_overrides(),
+            {"ORB_SLAM3_ALLOW_IDENTICAL_RETRY": "1"},
+        )
+
     def test_render_status_report_records_reference_and_blocker(self) -> None:
         report = MODULE.render_status_report(
             issue_identifier="HEL-77",
