@@ -62,6 +62,38 @@ def normalize_save_trajectory_euroc(block: str) -> str:
     if count == 0:
         raise ValueError("Failed to normalize SaveTrajectoryEuRoC guard block")
 
+    if "HEL-75 diagnostic: SaveTrajectoryEuRoC stream open=" not in block:
+        block, count = re.subn(
+            r'    ofstream f;\n'
+            r'    f.open\(filename.c_str\(\)\);\n'
+            r'(?:    // cout << "file open" << endl;\n)?'
+            r'    f << fixed;\n',
+            '    ofstream f;\n'
+            '    f.open(filename.c_str());\n'
+            '    cout << "HEL-75 diagnostic: SaveTrajectoryEuRoC stream open=" << f.is_open()\n'
+            '         << ", good=" << f.good() << ", filename=" << filename << endl;\n'
+            '    f << fixed;\n',
+            block,
+            count=1,
+        )
+        if count == 0:
+            raise ValueError("Failed to normalize SaveTrajectoryEuRoC stream diagnostics")
+
+    if "HEL-75 diagnostic: SaveTrajectoryEuRoC post_close open=" not in block:
+        block, count = re.subn(
+            r'    f.close\(\);\n',
+            '    f.close();\n'
+            '    ifstream hel75_saved_file(filename.c_str(), ios::binary | ios::ate);\n'
+            '    cout << "HEL-75 diagnostic: SaveTrajectoryEuRoC post_close open=" << hel75_saved_file.is_open()\n'
+            '         << ", bytes="\n'
+            '         << (hel75_saved_file.is_open() ? static_cast<long long>(hel75_saved_file.tellg()) : -1)\n'
+            '         << ", filename=" << filename << endl;\n',
+            block,
+            count=1,
+        )
+        if count == 0:
+            raise ValueError("Failed to normalize SaveTrajectoryEuRoC post-close diagnostics")
+
     return block
 
 
@@ -110,6 +142,41 @@ def normalize_save_keyframe_trajectory_euroc(block: str) -> str:
     )
     if count == 0:
         raise ValueError("Failed to normalize SaveKeyFrameTrajectoryEuRoC guard block")
+
+    if "HEL-75 diagnostic: SaveKeyFrameTrajectoryEuRoC stream open=" not in block:
+        block, count = re.subn(
+            r'    ofstream f;\n'
+            r'    f.open\(filename.c_str\(\)\);\n'
+            r'    f << fixed;\n',
+            '    ofstream f;\n'
+            '    f.open(filename.c_str());\n'
+            '    cout << "HEL-75 diagnostic: SaveKeyFrameTrajectoryEuRoC stream open=" << f.is_open()\n'
+            '         << ", good=" << f.good() << ", filename=" << filename << endl;\n'
+            '    f << fixed;\n',
+            block,
+            count=1,
+        )
+        if count == 0:
+            raise ValueError(
+                "Failed to normalize SaveKeyFrameTrajectoryEuRoC stream diagnostics"
+            )
+
+    if "HEL-75 diagnostic: SaveKeyFrameTrajectoryEuRoC post_close open=" not in block:
+        block, count = re.subn(
+            r'    f.close\(\);\n',
+            '    f.close();\n'
+            '    ifstream hel75_saved_file(filename.c_str(), ios::binary | ios::ate);\n'
+            '    cout << "HEL-75 diagnostic: SaveKeyFrameTrajectoryEuRoC post_close open=" << hel75_saved_file.is_open()\n'
+            '         << ", bytes="\n'
+            '         << (hel75_saved_file.is_open() ? static_cast<long long>(hel75_saved_file.tellg()) : -1)\n'
+            '         << ", filename=" << filename << endl;\n',
+            block,
+            count=1,
+        )
+        if count == 0:
+            raise ValueError(
+                "Failed to normalize SaveKeyFrameTrajectoryEuRoC post-close diagnostics"
+            )
 
     return block
 
@@ -291,6 +358,11 @@ def normalize_mono_tum_vi_main(block: str) -> str:
         '        cout << "HEL-63 diagnostic: save toggles frame=" << skip_frame_trajectory_save\n'
         '             << ", keyframe=" << skip_keyframe_trajectory_save << endl;\n'
         '    }\n'
+        '    char hel75_save_cwd[4096];\n'
+        '    if(getcwd(hel75_save_cwd, sizeof(hel75_save_cwd)) != nullptr)\n'
+        '        cout << "HEL-75 diagnostic: trajectory save cwd=" << hel75_save_cwd << endl;\n'
+        '    else\n'
+        '        cout << "HEL-75 diagnostic: trajectory save cwd=<unavailable>" << endl;\n'
         '\n'
         '    // Tracking time statistics\n'
         '\n'
