@@ -56,11 +56,23 @@ def build_experiment(args: argparse.Namespace) -> dict[str, object]:
     }
 
 
+def write_progress_outputs(
+    artifact_path: Path,
+    payload: dict[str, object],
+    *,
+    primary_artifact_path: Path | None = None,
+) -> None:
+    write_progress_snapshot(artifact_path, payload)
+    if primary_artifact_path and primary_artifact_path != artifact_path:
+        write_progress_snapshot(primary_artifact_path, payload)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--log-path", required=True)
     parser.add_argument("--timestamps-path", required=True)
     parser.add_argument("--artifact", required=True)
+    parser.add_argument("--primary-artifact")
     parser.add_argument("--issue")
     parser.add_argument("--runner", default="scripts/monitor_monocular_progress.py")
     parser.add_argument("--report-path")
@@ -79,6 +91,9 @@ def main() -> int:
     log_path = resolve_repo_path(args.log_path)
     timestamps_path = resolve_repo_path(args.timestamps_path)
     artifact_path = resolve_repo_path(args.artifact)
+    primary_artifact_path = (
+        resolve_repo_path(args.primary_artifact) if args.primary_artifact else None
+    )
     report_path = resolve_repo_path(args.report_path) if args.report_path else None
     trajectory_dir = (
         resolve_repo_path(args.trajectory_dir) if args.trajectory_dir else None
@@ -90,6 +105,8 @@ def main() -> int:
         "log_path": relative_to_repo(log_path),
         "timestamps_path": relative_to_repo(timestamps_path),
     }
+    if primary_artifact_path is not None:
+        artifacts["primary_artifact"] = relative_to_repo(primary_artifact_path)
     if report_path is not None:
         artifacts["report_path"] = relative_to_repo(report_path)
     if trajectory_dir is not None:
@@ -148,7 +165,11 @@ def main() -> int:
             metrics=metrics,
             experiment=experiment,
         )
-        write_progress_snapshot(artifact_path, payload)
+        write_progress_outputs(
+            artifact_path,
+            payload,
+            primary_artifact_path=primary_artifact_path,
+        )
         print(
             f"[{metrics['observed_at']}] {status} "
             f"completed={summary.completed_frames}/{summary.total_frames} "
